@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { $ } from "bun"
+import { existsSync } from "fs"
 import path from "path"
 import { CandidateCard } from "../../src/product/candidate-card"
 import { DecisionAts } from "../../src/decision/ats"
@@ -21,6 +22,24 @@ async function workspace() {
         extra: { name: "Ada" },
         body: "# Ada\n",
       })
+    },
+  })
+}
+
+async function companyWorkspace() {
+  return tmpdir({
+    git: true,
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "HIRING.md"), "# Acme\n")
+      const req = path.join(dir, "senior-backend")
+      await Bun.write(path.join(req, "HIRING.md"), "# SB\n")
+      await CandidateCard.write(req, {
+        id: "cand_ada",
+        stage: "sourced",
+        extra: { name: "Ada" },
+        body: "# Ada\n",
+      })
+      return req
     },
   })
 }
@@ -207,6 +226,32 @@ describe("decision/verbs", () => {
     expect(await DecisionGit.isRepo(req)).toBe(false)
     expect(await DecisionGit.revParse(company, "HEAD")).toBe(result.receipt.id)
     expect(await DecisionGit.revParse(parent.path, "HEAD")).toBe(before)
+    expect(await DecisionGit.changedFiles(company, result.receipt.id)).toContain("senior-backend/candidates/cand-ada.md")
+  })
+
+  test("commit from a req stages the packet card not company candidates", async () => {
+    await using tmp = await companyWorkspace()
+    const result = await DecisionVerbs.commit({ action: "note", cwd: tmp.extra })
+    expect(result.path).toBe(tmp.path)
+    expect(await DecisionGit.changedFiles(tmp.path, result.receipt.id)).toContain(
+      "senior-backend/candidates/cand-ada.md",
+    )
+    expect(existsSync(path.join(tmp.path, "candidates"))).toBe(false)
+  })
+
+  test("commit --target writes the card onto the focused req packet", async () => {
+    await using tmp = await companyWorkspace()
+    await ReqWorkspace.writeFocus(tmp.path, "senior-backend")
+    const result = await DecisionVerbs.commit({
+      action: "reject",
+      target: { kind: "candidate", id: "cand_new" },
+      cwd: tmp.path,
+    })
+    expect(await CandidateCard.read(tmp.extra, "cand_new")).toMatchObject({ stage: "reject" })
+    expect(existsSync(path.join(tmp.path, "candidates"))).toBe(false)
+    expect(await DecisionGit.changedFiles(tmp.path, result.receipt.id)).toContain(
+      "senior-backend/candidates/cand-new.md",
+    )
   })
 
   test("engineering checkout without HIRING.md stays a git project", async () => {
