@@ -66,9 +66,6 @@
     "packages/core": {
       "name": "@moks/core",
       "version": "1.18.16",
-      "bin": {
-        "opencode": "./bin/opencode",
-      },
       "dependencies": {
         "@ai-sdk/alibaba": "1.0.17",
         "@ai-sdk/amazon-bedrock": "4.0.112",
