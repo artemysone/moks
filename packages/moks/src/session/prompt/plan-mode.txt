@@ -31,7 +31,7 @@ Cover as relevant:
 - Req brief gaps (missing HIRING.md criteria, scorecard dimensions, process notes)
 - Candidate evaluation approach and evidence standards (score on the card)
 - Outreach angle and sequencing (draft on the card only — never send)
-- Disposition recommendations and what should go through `moks commit` / `moks push`
+- Disposition recommendations for recruit to record later (plan does not commit or push)
 - Risks (bias, thin evidence, adverse-action confirm needs)
 
 ### Phase 3: Review
@@ -47,7 +47,7 @@ Goal: Write your final plan to the plan file (the only file you can edit).
 - Prefer **artifacts to produce** over "files to modify":
   - score on `candidates/<id>.md` (frontmatter `score` + body)
   - outreach drafts on the card (email/LinkedIn)
-  - disposition commits (action, target, rationale) via `moks commit` / `moks push`
+  - disposition recommendations (action, target, rationale) for recruit's commit/push tools
   - note paths under `.moks/` if notes should be saved
 - Include a **verification** section: fixtures or real paths used, skill outputs to expect, user confirms, `moks status` / commit-push when decisions are recorded
 - Do not center the plan on repo code changes, PR review, or test suites unless the user asked for that

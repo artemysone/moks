@@ -11,7 +11,7 @@ Worktree: `${path}`
 Resolve packet materials in order:
 
 1. Paths or focus from `$ARGUMENTS` / attachments
-2. Cwd is the req: `HIRING.md`, `candidates/<id>.md`
+2. Focused packet: that req's `HIRING.md`, `candidates/<id>.md` (env Focused req / Candidates). Never review or create company-root `candidates/` when reqs are subdirectories.
 3. Session-visible local hiring file changes (Modified Files / session diffs of HIRING.md and candidate cards)
 4. Pending commits via `moks status` when disposition readiness matters
 
@@ -35,7 +35,7 @@ Read the full files you will cite. Use skills to deepen analysis when needed:
 - Record intent: `moks commit`
 - Push: `moks push` (adverse reject/offer/hire need confirm)
 
-`moks push` is the ATS write (mock). Prefer bash for these CLIs when checking readiness. Do not use raw `git commit`.
+`moks push` is the ATS write (mock). Prefer the native `commit` / `status` / `push` tools when checking readiness. Do not use raw `git commit`.
 
 ## Output
 

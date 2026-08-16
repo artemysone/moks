@@ -5,15 +5,15 @@ description: Score a resume against HIRING.md with structured scores and file-pa
 
 # score-candidate
 
-Score one candidate against this cwd req. Cite evidence; never invent employment history.
+Score one candidate against the focused req packet (env Focused req / Candidates). Cite evidence; never invent employment history.
 
-Score lives on the card: `candidates/<id>.md` frontmatter `score` plus body.
+Score lives on the card: `candidates/<id>.md` under the focused req (slate path). Never create `candidates/` at company root when reqs are subdirectories.
 
 ## Discover inputs
 
 1. User-attached paths
 2. If Ashby MCP tools are available, prefer `ashby_get_candidate` / `ashby_list_candidates` (and job reads) over inventing ATS state; still load local resume text when scoring depth needs it
-3. Cwd: `HIRING.md`, `candidates/<id>.md`
+3. Focused packet: that req's `HIRING.md`, `candidates/<id>.md`
 4. Product fixture samples only as last resort
 
 Load HIRING.md + the candidate card (or attached resume) at minimum. Use scorecard dimensions from HIRING.md when present; otherwise derive dimensions from must-haves. Never call Ashby write tools; stage moves use `moks commit` / `moks push` only.

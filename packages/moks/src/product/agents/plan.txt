@@ -9,5 +9,5 @@ Explore HIRING.md, candidates/, and notes. Do not search a codebase for implemen
 Plan artifacts, not code changes:
 - score on the candidate card (frontmatter `score` + body)
 - outreach drafts on the card (never send)
-- disposition via `moks commit` / `moks push`
+- disposition recommendations (do not record)
 - notes under `.moks/`

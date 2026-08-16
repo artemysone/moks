@@ -1,6 +1,6 @@
 import path from "path"
 import { CandidateCard, CANDIDATES_DIR } from "@/product/candidate-card"
-import { HIRING_FILE } from "@/product/req-workspace"
+import { ReqWorkspace } from "@/product/req-workspace"
 import { Filesystem } from "@/util/filesystem"
 import { applyWrites, type PlannedWrite } from "./ats"
 import { ATS_REF, DecisionGit } from "./git"
@@ -66,13 +66,19 @@ export type MoksCommit = {
 const LOG_FORMAT =
   "%H%x00%cI%x00%s%x00%(trailers:key=Moks-Action,valueonly)%x00%(trailers:key=Moks-Target,valueonly)%x00%(trailers:key=Moks-Adverse,valueonly)%x1e"
 
-const HIRING_PATHS = [HIRING_FILE, CANDIDATES_DIR]
+async function gitCwd(cwd?: string) {
+  const opened = cwd ?? process.cwd()
+  return (await ReqWorkspace.companyRoot(opened)) ?? opened
+}
 
 export async function commit(input: CommitInput): Promise<CommitResult> {
-  const cwd = input.cwd ?? process.cwd()
+  const opened = input.cwd ?? process.cwd()
+  const cwd = await gitCwd(opened)
+  const packet = await ReqWorkspace.focusedReq(opened)
   await DecisionGit.ensureRepo(cwd)
-  if (input.target?.id) await applyActionToCard(cwd, input.target.id, input.action)
-  if (!(await stageHiring(cwd))) throw new Error("nothing to commit")
+  if (input.target?.id) await applyActionToCard(cwd, packet, input.target.id, input.action)
+  const paths = await hiringPaths(cwd, packet)
+  if (!(await stageHiring(cwd, paths))) throw new Error("nothing to commit")
   const action = input.action
   const adverse = isAdverse(action)
   const targetId = input.target?.id
@@ -86,7 +92,7 @@ export async function commit(input: CommitInput): Promise<CommitResult> {
   ]
     .filter((line) => line.length > 0)
     .join("\n")
-  const sha = await DecisionGit.commit(cwd, subject, trailers, HIRING_PATHS.filter((item) => Filesystem.stat(path.join(cwd, item))))
+  const sha = await DecisionGit.commit(cwd, subject, trailers, paths)
   const ts = (await DecisionGit.show(cwd, ["-s", "--format=%cI", sha]))?.trim() || new Date().toISOString()
   const receipt: Receipt = {
     id: sha,
@@ -105,19 +111,20 @@ export async function commit(input: CommitInput): Promise<CommitResult> {
 }
 
 export async function status(input: StatusInput = {}): Promise<StatusResult> {
-  const cwd = input.cwd ?? process.cwd()
+  const opened = input.cwd ?? process.cwd()
+  const cwd = await gitCwd(opened)
   const limit = input.limit ?? 20
   const all = await listMoksCommits(cwd, ["HEAD"])
   const openCommits = await listOpenCommits(cwd)
   const open = openCommits.map((row) => toCommitReceipt(row))
-  if (await hiringDirty(cwd)) open.unshift(workingTreeReceipt())
+  if (await hiringDirty(cwd, await hiringPaths(cwd, await ReqWorkspace.focusedReq(opened)))) open.unshift(workingTreeReceipt())
   const filtered = all.filter((row) => matchesFilter(row, input.id, input.commit_id))
   const receipts = filtered.slice(0, limit).map((row) => toCommitReceipt(row))
   return { receipts, open: open.filter((row) => matchesReceiptFilter(row, input.id, input.commit_id)), path: cwd }
 }
 
 export async function push(input: PushInput): Promise<PushResult> {
-  const cwd = input.cwd ?? process.cwd()
+  const cwd = await gitCwd(input.cwd)
   const dry_run = input.dry_run ?? true
   const sha = await DecisionGit.revParse(cwd, input.commit_id)
   if (!sha) {
@@ -294,30 +301,52 @@ function parseSubject(subject: string) {
   }
 }
 
-async function hiringDirty(cwd: string) {
-  const text = await DecisionGit.status(cwd, ["--porcelain", "--", ...HIRING_PATHS])
+async function hiringPaths(repo: string, packet?: string) {
+  const paths: string[] = []
+  if (Filesystem.stat(path.join(repo, ReqWorkspace.HIRING_FILE))) paths.push(ReqWorkspace.HIRING_FILE)
+  if (packet) {
+    const rel = path.relative(repo, packet)
+    if (!rel || rel === ".") {
+      if (Filesystem.stat(path.join(repo, CANDIDATES_DIR))) paths.push(CANDIDATES_DIR)
+      return paths
+    }
+    const reqHiring = path.join(rel, ReqWorkspace.HIRING_FILE)
+    const reqCandidates = path.join(rel, CANDIDATES_DIR)
+    if (Filesystem.stat(path.join(repo, reqHiring))) paths.push(reqHiring)
+    if (Filesystem.stat(path.join(repo, reqCandidates))) paths.push(reqCandidates)
+    return paths
+  }
+  if (await ReqWorkspace.companyRoot(repo)) return paths
+  if (Filesystem.stat(path.join(repo, CANDIDATES_DIR))) paths.push(CANDIDATES_DIR)
+  return paths
+}
+
+async function hiringDirty(cwd: string, paths: string[]) {
+  if (paths.length === 0) return false
+  const text = await DecisionGit.status(cwd, ["--porcelain", "--", ...paths])
   return text.trim().length > 0
 }
 
-async function stageHiring(cwd: string) {
-  const paths = HIRING_PATHS.filter((item) => Filesystem.stat(path.join(cwd, item)))
+async function stageHiring(cwd: string, paths: string[]) {
   if (paths.length === 0) return false
   await DecisionGit.add(cwd, paths)
   const staged = await DecisionGit.diffNames(cwd, ["--cached", "--", ...paths])
   return staged.length > 0
 }
 
-async function applyActionToCard(cwd: string, id: string, action: string) {
-  const existing = await CandidateCard.read(cwd, id)
+async function applyActionToCard(repo: string, packet: string | undefined, id: string, action: string) {
+  if (!packet && (await ReqWorkspace.companyRoot(repo))) throw new Error("no focused req")
+  const dir = packet ?? repo
+  const existing = await CandidateCard.read(dir, id)
   if (!existing) {
     const created = CandidateCard.parse(CandidateCard.stub(id, { stage: stageForAction(action) ?? "sourced" }))
     if (!created) throw new Error(`failed to create candidate card: ${id}`)
-    await CandidateCard.write(cwd, created)
+    await CandidateCard.write(dir, created)
     return
   }
   const stage = stageForAction(action, existing.stage)
   if (stage === existing.stage) return
-  await CandidateCard.write(cwd, {
+  await CandidateCard.write(dir, {
     id: existing.id,
     stage,
     score: existing.score,
@@ -343,7 +372,7 @@ function stageForAction(action: string, existing?: string) {
 }
 
 async function planWrites(cwd: string, sha: string, reason?: string): Promise<PlannedWrite[]> {
-  const files = await DecisionGit.changedFiles(cwd, sha, [CANDIDATES_DIR])
+  const files = await DecisionGit.changedFiles(cwd, sha)
   const parent = await DecisionGit.revParse(cwd, `${sha}^`)
   const writes: PlannedWrite[] = []
   for (const file of files) {

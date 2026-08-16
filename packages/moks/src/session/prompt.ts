@@ -892,6 +892,15 @@ const layer = Layer.effect(
               }
 
               if (mime === "application/x-directory") {
+                const company = yield* Effect.promise(() => ReqWorkspace.companyRoot(filepath))
+                const slug = path.basename(path.resolve(filepath))
+                if (
+                  company &&
+                  path.resolve(company, slug) === path.resolve(filepath) &&
+                  (yield* Effect.promise(() => ReqWorkspace.isReqDir(filepath)))
+                ) {
+                  yield* Effect.promise(() => ReqWorkspace.writeFocus(company, slug))
+                }
                 const args = { filePath: filepath }
                 const exit = yield* execRead(args).pipe(Effect.exit)
                 if (Exit.isFailure(exit)) {
@@ -1355,7 +1364,10 @@ const layer = Layer.effect(
       if (input.command === Command.Default.INIT) {
         const ctx = yield* InstanceState.context
         const title = (input.arguments.split("\n")[0] ?? "").trim()
-        yield* Effect.promise(() => ReqWorkspace.scaffold(ctx.directory, title || undefined))
+        yield* Effect.promise(async () => {
+          const result = await ReqWorkspace.scaffold(ctx.directory, title || undefined)
+          if (result.relative !== ".") await ReqWorkspace.writeFocus(ctx.directory, result.relative)
+        })
       }
       const agentName = cmd.agent ?? input.agent
 

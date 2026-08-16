@@ -187,6 +187,9 @@ const layer = Layer.effect(
               defaults,
               Permission.fromConfig({
                 question: "allow",
+                commit: "allow",
+                status: "allow",
+                push: "allow",
                 ...ashbyPermissionDefaults(),
                 // Path-scoped edits: free under .moks/ + ship hiring fixtures; ask elsewhere.
                 // `edit` also gates write and apply_patch. Wildcard `*` matches nested path segments.
@@ -200,7 +203,9 @@ const layer = Layer.effect(
                   [path.join(".moks", "*")]: "allow",
                   [path.join(".moks", "ats.json")]: "deny",
                   "HIRING.md": "allow",
+                  "*/HIRING.md": "allow",
                   [path.join("candidates", "*")]: "allow",
+                  [path.join("*", "candidates", "*")]: "allow",
                   ".gitignore": "allow",
                   [path.join(HiringFixturesDir, "*")]: "allow",
                   // Suffix match so ../-style relatives from arbitrary tmp worktrees still allow.
@@ -230,6 +235,8 @@ const layer = Layer.effect(
               Permission.fromConfig({
                 question: "allow",
                 plan_exit: "allow",
+                commit: "deny",
+                push: "deny",
                 task: {
                   general: "deny",
                 },

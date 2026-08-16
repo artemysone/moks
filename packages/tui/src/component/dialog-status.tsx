@@ -1,18 +1,47 @@
 import { TextAttributes } from "@opentui/core"
 import { fileURLToPath } from "bun"
+import type { AssistantMessage } from "@moks/sdk/v2"
 import { useTheme } from "../context/theme"
 import { useDialog } from "../ui/dialog"
+import { useRoute } from "../context/route"
 import { useSync } from "../context/sync"
+import { Locale } from "../util/locale"
 import { For, Match, Switch, Show, createMemo } from "solid-js"
+
+const money = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+})
 
 export type DialogStatusProps = {}
 
 export function DialogStatus() {
   const sync = useSync()
+  const route = useRoute()
   const { theme } = useTheme()
   const dialog = useDialog()
 
   const enabledFormatters = createMemo(() => sync.data.formatter.filter((f) => f.enabled))
+
+  const usage = createMemo(() => {
+    if (route.data.type !== "session") return
+    const session = sync.session.get(route.data.sessionID)
+    if (!session) return
+    const last = (sync.data.message[route.data.sessionID] ?? []).findLast(
+      (item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0,
+    )
+    if (!last) return
+    const tokens =
+      last.tokens.input + last.tokens.output + last.tokens.reasoning + last.tokens.cache.read + last.tokens.cache.write
+    if (tokens <= 0) return
+    const model = sync.data.provider.find((item) => item.id === last.providerID)?.models[last.modelID]
+    const pct = model?.limit.context ? `${Math.round((tokens / model.limit.context) * 100)}%` : undefined
+    const cost = session.cost ?? 0
+    return {
+      context: pct ? `${Locale.number(tokens)} (${pct})` : Locale.number(tokens),
+      cost: cost > 0 ? money.format(cost) : undefined,
+    }
+  })
 
   const plugins = createMemo(() => {
     const list = sync.data.config.plugin ?? []
@@ -44,12 +73,20 @@ export function DialogStatus() {
     <box paddingLeft={2} paddingRight={2} gap={1} paddingBottom={1}>
       <box flexDirection="row" justifyContent="space-between">
         <text fg={theme.text} attributes={TextAttributes.BOLD}>
-          Status
+          System
         </text>
         <text fg={theme.textMuted} onMouseUp={() => dialog.clear()}>
           esc
         </text>
       </box>
+      <Show when={usage()}>
+        {(item) => (
+          <text fg={theme.textMuted}>
+            Usage {item().context}
+            {item().cost ? ` · ${item().cost}` : ""}
+          </text>
+        )}
+      </Show>
       <Show when={Object.keys(sync.data.mcp).length > 0} fallback={<text fg={theme.text}>No MCP Servers</text>}>
         <box>
           <text fg={theme.text}>{Object.keys(sync.data.mcp).length} MCP Servers</text>

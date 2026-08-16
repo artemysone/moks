@@ -7,12 +7,12 @@ description: Draft recruiter outreach (email or LinkedIn) from HIRING.md and the
 
 Draft outreach only. Do not send email, LinkedIn, or ATS messages.
 
-Write the draft onto the candidate card (`candidates/<id>.md` body, Outreach section).
+Write the draft onto the focused req's candidate card (`candidates/<id>.md` body, Outreach section). Never create `candidates/` at company root when reqs are subdirectories.
 
 ## Discover inputs
 
 1. User-attached paths / pasted notes
-2. Cwd: `HIRING.md`, `candidates/<id>.md`
+2. Focused packet: that req's `HIRING.md`, `candidates/<id>.md`
 3. Prior score on the card or in the conversation if present
 
 ## Clarify channel

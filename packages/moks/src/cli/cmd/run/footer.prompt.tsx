@@ -29,6 +29,7 @@ import { FOOTER_MENU_ROWS, createFooterMenuState, type RunFooterMenuItem } from 
 import type { RunFooterTheme } from "./theme"
 import type { FooterState, RunAgent, RunCommand, RunPrompt, RunPromptPart, RunResource, RunTuiConfig } from "./types"
 import { CandidateCard } from "@/product/candidate-card"
+import { ReqWorkspace } from "@/product/req-workspace"
 
 const AUTOCOMPLETE_ROWS = FOOTER_MENU_ROWS
 const AUTOCOMPLETE_BOTTOM_ROWS = 1
@@ -44,6 +45,7 @@ type Auto = RunFooterMenuItem & {
   value: string
   part: Mention
   directory?: boolean
+  focus?: string
 }
 
 type SlashOption = RunFooterMenuItem & {
@@ -291,7 +293,7 @@ export function createPromptState(input: PromptInput): PromptState {
       return ""
     }
 
-    return new StyledText([fg(input.theme().muted)('Ask anything... "Score this resume against the req"')])
+    return new StyledText([fg(input.theme().muted)("Score this resume against the req")])
   })
 
   let history = createPromptHistory(input.history)
@@ -337,9 +339,11 @@ export function createPromptState(input: PromptInput): PromptState {
   const [reqs] = createResource(
     () => input.directory,
     async (directory) => {
-      const listed = await CandidateCard.list(directory)
-      return listed.map((card): Auto => {
-        const file = CandidateCard.filePath(directory, card.id)
+      const focused = await ReqWorkspace.focusedReq(directory)
+      const packet = focused ?? directory
+      const listed = await CandidateCard.list(packet)
+      const cards = listed.map((card): Auto => {
+        const file = CandidateCard.filePath(packet, card.id)
         return {
           kind: "mention",
           display: "@" + card.id,
@@ -362,6 +366,34 @@ export function createPromptState(input: PromptInput): PromptState {
           },
         }
       })
+      const company = await ReqWorkspace.companyRoot(directory)
+      if (!company || (await ReqWorkspace.isPacket(company))) return cards
+      const dirs = (await ReqWorkspace.listReqs(company)).map((slug): Auto => {
+        const file = path.join(company, slug)
+        return {
+          kind: "mention",
+          display: "@" + slug,
+          value: slug,
+          description: "req",
+          focus: slug,
+          part: {
+            type: "file",
+            mime: "application/x-directory",
+            filename: slug,
+            url: pathToFileURL(file).href,
+            source: {
+              type: "file",
+              path: slug,
+              text: {
+                start: 0,
+                end: 0,
+                value: "",
+              },
+            },
+          },
+        }
+      })
+      return [...dirs, ...cards]
     },
     { initialValue: [] as Auto[] },
   )
@@ -492,6 +524,7 @@ export function createPromptState(input: PromptInput): PromptState {
     const next = removeLineRange(query())
     if (mode() === "mention") {
       return [
+        ...fuzzysort.go(next, reqs(), { keys: ["value", "display", "description"] }).map((item) => item.obj),
         ...fuzzysort.go(next, agents(), { keys: ["value", "display", "description"] }).map((item) => item.obj),
         ...files(),
         ...fuzzysort.go(next, resources(), { keys: ["value", "display", "description"] }).map((item) => item.obj),
@@ -920,6 +953,14 @@ export function createPromptState(input: PromptInput): PromptState {
       scheduleRows()
       area.focus()
       return
+    }
+
+    const slug = next.focus
+    if (slug) {
+      void ReqWorkspace.companyRoot(input.directory).then((company) => {
+        if (!company) return
+        return ReqWorkspace.writeFocus(company, slug)
+      })
     }
 
     const cursor = area.cursorOffset
