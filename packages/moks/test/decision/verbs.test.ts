@@ -239,6 +239,71 @@ describe("decision/verbs", () => {
     expect(existsSync(path.join(tmp.path, "candidates"))).toBe(false)
   })
 
+  test("company-only --target throws without a focused req", async () => {
+    await using tmp = await tmpdir({
+      git: true,
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "HIRING.md"), "# Acme\n")
+      },
+    })
+    await expect(
+      DecisionVerbs.commit({
+        action: "reject",
+        target: { kind: "candidate", id: "cand_new" },
+        cwd: tmp.path,
+      }),
+    ).rejects.toThrow("no focused req")
+    expect(await Bun.file(path.join(tmp.path, "candidates")).exists()).toBe(false)
+  })
+
+  test("multi-req push plans change_stage from the packet card", async () => {
+    await using tmp = await companyWorkspace()
+    await ReqWorkspace.writeFocus(tmp.path, "senior-backend")
+    const committed = await DecisionVerbs.commit({
+      action: "advance",
+      target: { kind: "candidate", id: "cand_ada" },
+      cwd: tmp.path,
+    })
+    const result = await DecisionVerbs.push({
+      commit_id: committed.receipt.id,
+      cwd: tmp.path,
+      dry_run: false,
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error(result.message)
+    const writes = result.receipt.meta?.writes as { tool: string; stage?: string }[]
+    expect(writes.some((write) => write.tool === "change_stage" && write.stage === "screen")).toBe(true)
+    expect(await DecisionGit.changedFiles(tmp.path, committed.receipt.id)).toContain(
+      "senior-backend/candidates/cand-ada.md",
+    )
+    expect(await Bun.file(path.join(tmp.path, "candidates")).exists()).toBe(false)
+  })
+
+  test("status open includes working-tree for a dirty packet card", async () => {
+    await using tmp = await companyWorkspace()
+    await ReqWorkspace.writeFocus(tmp.path, "senior-backend")
+    await DecisionVerbs.commit({ action: "note", cwd: tmp.path })
+    const existing = await CandidateCard.read(tmp.extra, "cand_ada")
+    expect(existing).toBeDefined()
+    await CandidateCard.write(tmp.extra, { ...existing!, body: "# Ada\n\ndirty\n" })
+    const st = await DecisionVerbs.status({ cwd: tmp.path })
+    expect(st.open.some((row) => row.id === "working-tree")).toBe(true)
+  })
+
+  test("commit --target from a req keeps the card in the packet", async () => {
+    await using tmp = await companyWorkspace()
+    const result = await DecisionVerbs.commit({
+      action: "reject",
+      target: { kind: "candidate", id: "cand_ada" },
+      cwd: tmp.extra,
+    })
+    expect(await CandidateCard.read(tmp.extra, "cand_ada")).toMatchObject({ stage: "reject" })
+    expect(await Bun.file(path.join(tmp.path, "candidates")).exists()).toBe(false)
+    expect(await DecisionGit.changedFiles(tmp.path, result.receipt.id)).toContain(
+      "senior-backend/candidates/cand-ada.md",
+    )
+  })
+
   test("commit --target writes the card onto the focused req packet", async () => {
     await using tmp = await companyWorkspace()
     await ReqWorkspace.writeFocus(tmp.path, "senior-backend")

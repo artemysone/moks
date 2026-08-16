@@ -84,7 +84,22 @@ const layer = Layer.effectDiscard(
             stop,
           })
         : []
-      const slug = company ? ((yield* fs.readFileStringSafe(join(company, FOCUS_FILE)))?.trim() ?? "") : ""
+      let packet: string | undefined
+      if (company && scanProject) {
+        let current = start
+        while (true) {
+          if ((yield* fs.existsSafe(join(current, HIRING_FILE))) && (yield* fs.isDir(join(current, CANDIDATES_DIR)))) {
+            packet = current
+            break
+          }
+          if (current === company) break
+          const parent = dirname(current)
+          if (parent === current) break
+          current = parent
+        }
+      }
+      const slug =
+        !packet && company ? ((yield* fs.readFileStringSafe(join(company, FOCUS_FILE)))?.trim() ?? "") : ""
       const focused =
         company &&
         slug &&

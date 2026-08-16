@@ -1337,7 +1337,7 @@ export function Prompt(props: PromptProps) {
       return `Run a command... "${example}"`
     }
     if (!list().length) return undefined
-    return `Ask anything... "${list()[store.placeholder % list().length]}"`
+    return list()[store.placeholder % list().length]
   })
 
   const spinnerDef = createMemo(() => {
@@ -1682,14 +1682,6 @@ export function Prompt(props: PromptProps) {
               </Show>
               <Switch>
                 <Match when={store.mode === "normal"}>
-                  <Show when={usage()}>
-                    {(item) => (
-                      <text fg={theme.textMuted}>
-                        {item().context}
-                        {item().cost ? ` · ${item().cost}` : ""}
-                      </text>
-                    )}
-                  </Show>
                   <text fg={theme.text}>
                     {agentShortcut()} <span style={{ fg: theme.textMuted }}>agents</span>
                   </text>

@@ -49,4 +49,21 @@ describe("loadPacket", () => {
     expect(packet?.packet?.title).toBe("New Role")
     expect(packet?.packet?.candidates).toEqual([])
   })
+
+  test("cwd inside candidates/ still loads the packet", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "moks-packet-"))
+    await writeFile(path.join(dir, "HIRING.md"), "# Northline\n")
+    await mkdir(path.join(dir, "staff-platform", "candidates"), { recursive: true })
+    await writeFile(path.join(dir, "staff-platform", "HIRING.md"), "# Staff Platform\n")
+    await writeFile(
+      path.join(dir, "staff-platform", "candidates", "alex-kim.md"),
+      "---\nid: alex-kim\nstage: sourced\n---\n\n# Alex\n",
+    )
+
+    const packet = await loadPacket(path.join(dir, "staff-platform", "candidates"))
+    expect(packet?.companyTitle).toBe("Northline")
+    expect(packet?.packet?.slug).toBe("staff-platform")
+    expect(packet?.packet?.title).toBe("Staff Platform")
+    expect(packet?.packet?.candidates).toEqual([{ id: "alex-kim", stage: "sourced" }])
+  })
 })

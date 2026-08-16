@@ -293,7 +293,7 @@ export function createPromptState(input: PromptInput): PromptState {
       return ""
     }
 
-    return new StyledText([fg(input.theme().muted)('Ask anything... "Score this resume against the req"')])
+    return new StyledText([fg(input.theme().muted)("Score this resume against the req")])
   })
 
   let history = createPromptHistory(input.history)
@@ -339,9 +339,11 @@ export function createPromptState(input: PromptInput): PromptState {
   const [reqs] = createResource(
     () => input.directory,
     async (directory) => {
-      const listed = await CandidateCard.list(directory)
+      const focused = await ReqWorkspace.focusedReq(directory)
+      const packet = focused ?? directory
+      const listed = await CandidateCard.list(packet)
       const cards = listed.map((card): Auto => {
-        const file = CandidateCard.filePath(directory, card.id)
+        const file = CandidateCard.filePath(packet, card.id)
         return {
           kind: "mention",
           display: "@" + card.id,

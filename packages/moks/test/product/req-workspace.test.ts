@@ -71,6 +71,19 @@ test("companyRoot is undefined without HIRING.md", async () => {
   expect(await ReqWorkspace.companyRoot(tmp.path)).toBeUndefined()
 })
 
+test("companyRoot of a git-less tmp without HIRING.md is undefined", async () => {
+  await using tmp = await tmpdir()
+  expect(await ReqWorkspace.companyRoot(tmp.path)).toBeUndefined()
+})
+
+test("companyRoot does not walk more than 4 ancestors without git", async () => {
+  await using tmp = await tmpdir()
+  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Far\n")
+  const leaf = path.join(tmp.path, "a", "b", "c", "d", "e")
+  await Bun.write(path.join(leaf, "keep.txt"), "x")
+  expect(await ReqWorkspace.companyRoot(leaf)).toBeUndefined()
+})
+
 test("companyRoot returns a single-req packet", async () => {
   await using tmp = await tmpdir()
   await ReqWorkspace.scaffold(tmp.path, "Staff ML")
@@ -245,6 +258,20 @@ test("company /init without a title does not invent a slug", async () => {
 
 test("focusedReq of a fixture is the fixture dir", async () => {
   expect(await ReqWorkspace.focusedReq(HiringFixtures.dir)).toBe(HiringFixtures.dir)
+})
+
+test("focusedReq walks from candidates to the req packet", async () => {
+  await using tmp = await tmpdir()
+  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Co\n")
+  const req = path.join(tmp.path, "senior-backend")
+  await Bun.write(path.join(req, "HIRING.md"), "# SB\n")
+  await Bun.write(path.join(req, "candidates", ".gitkeep"), "")
+  expect(await ReqWorkspace.focusedReq(path.join(req, "candidates"))).toBe(req)
+  expect(await ReqWorkspace.focusedReq(path.join(req, "notes"))).toBe(req)
+})
+
+test("focusedReq of fixture candidates is the fixture dir", async () => {
+  expect(await ReqWorkspace.focusedReq(path.join(HiringFixtures.dir, "candidates"))).toBe(HiringFixtures.dir)
 })
 
 test("writeFocus persists a slug and focusedReq reads it back", async () => {

@@ -104,8 +104,15 @@ export async function writeFocus(company: string, slug: string) {
 export async function focusedReq(opened: string) {
   const company = await companyRoot(opened)
   if (!company) return
-  if (await isPacket(opened)) return opened
-  if (await isPacket(company)) return company
+  let current = path.resolve(opened)
+  const limit = path.resolve(company)
+  while (true) {
+    if (await isPacket(current)) return current
+    if (current === limit) break
+    const parent = path.dirname(current)
+    if (parent === current) break
+    current = parent
+  }
   const slug = await readFocus(company)
   if (slug && (await isPacket(path.join(company, slug)))) return path.join(company, slug)
 }
@@ -150,7 +157,7 @@ export async function slateBlock(dir: string) {
 
 export async function resolve(directory: string, stop?: string) {
   const start = path.resolve(directory)
-  const limit = stop && stop !== "/" ? path.resolve(stop) : undefined
+  const limit = stop === undefined ? undefined : path.resolve(stop)
   let current = start
   while (true) {
     if (await isReqDir(current)) return current
@@ -162,7 +169,9 @@ export async function resolve(directory: string, stop?: string) {
 }
 
 export async function companyRoot(opened: string) {
-  const nearest = await resolve(opened)
+  const top = await gitToplevel(opened)
+  const stop = top ?? path.resolve(opened, "..", "..", "..", "..")
+  const nearest = await resolve(opened, stop)
   if (!nearest) return
   const parent = path.dirname(nearest)
   if (
@@ -241,20 +250,32 @@ export async function scaffold(cwd: string, title?: string) {
   return { created, skipped, title, relative: ".", git }
 }
 
+async function gitToplevel(dir: string) {
+  let cwd = path.resolve(dir)
+  while (!(await Filesystem.isDir(cwd))) {
+    const parent = path.dirname(cwd)
+    if (parent === cwd) return
+    cwd = parent
+  }
+  const proc = Bun.spawn(["git", "rev-parse", "--show-toplevel"], {
+    cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+  })
+  const root = (await new Response(proc.stdout).text()).trim()
+  await proc.exited
+  if (proc.exitCode !== 0 || !root) return
+  return Filesystem.resolve(root)
+}
+
 async function gitInitIfNeeded(cwd: string, add: string[], create = true) {
   const paths: string[] = []
   for (const rel of add) {
     if (await Filesystem.exists(path.join(cwd, rel))) paths.push(rel)
   }
 
-  const top = Bun.spawn(["git", "rev-parse", "--show-toplevel"], {
-    cwd,
-    stdout: "pipe",
-    stderr: "pipe",
-  })
-  const root = (await new Response(top.stdout).text()).trim()
-  await top.exited
-  if (top.exitCode === 0 && path.resolve(root) === path.resolve(cwd)) {
+  const root = await gitToplevel(cwd)
+  if (root && root === path.resolve(cwd)) {
     if (paths.length > 0) {
       const staged = Bun.spawn(["git", "add", ...paths], { cwd, stdout: "pipe", stderr: "pipe" })
       await staged.exited

@@ -366,25 +366,67 @@ export function Autocomplete(props: {
   const [reqs] = createResource(
     () => location(),
     async (loc) => {
-      const query = {
-        directory: loc?.directory,
-        workspace: loc?.workspaceID ?? project.workspace.current(),
-      }
-      const cards = await sdk.client.v2.fs.list({ path: "candidates", location: query })
+      const workspace = loc?.workspaceID ?? project.workspace.current()
+      const cwd = loc?.directory || sync.path.directory || paths.cwd
       const listed: { slug: string; relative: string; absolute: string }[] = []
-      if (!cards.error && cards.data) {
-        for (const item of cards.data.data) {
-          if (item.type === "directory") continue
-          const name = path.basename(item.path.replace(/[/\\]+$/, ""))
-          if (!name.endsWith(".md") || name === ".gitkeep") continue
-          const slug = name.replace(/\.md$/, "")
-          if (!slug) continue
-          listed.push({
-            slug,
-            relative: item.path.replace(/[/\\]+$/, ""),
-            absolute: path.join(cards.data.location.directory, item.path),
-          })
+      if (!cwd) return listed
+      const here = await sdk.client.v2.fs.list({ path: ".", location: { directory: cwd, workspace } })
+      if (here.error || !here.data) return listed
+      const names = here.data.data.map((item) => ({
+        name: path.basename(item.path.replace(/[/\\]+$/, "")),
+        type: item.type,
+      }))
+      const hiring = names.some((item) => item.name === "HIRING.md" && item.type === "file")
+      const packet = names.some((item) => item.name === "candidates" && item.type === "directory")
+      let listPath = "candidates"
+      let listDir = cwd
+      if (hiring && !packet) {
+        const slug = await Bun.file(path.join(cwd, ".moks", "focus"))
+          .text()
+          .then((text) => text.trim())
+          .catch(() => "")
+        if (!slug || slug.includes("..") || path.isAbsolute(slug) || slug.includes("/") || slug.includes("\\")) {
+          return listed
         }
+        listPath = `${slug}/candidates`
+      } else if (!hiring) {
+        let current = cwd
+        for (const _ of [0, 1, 2, 3]) {
+          const parent = path.dirname(current)
+          if (parent === current) return listed
+          const up = await sdk.client.v2.fs.list({ path: ".", location: { directory: parent, workspace } })
+          if (up.error || !up.data) return listed
+          const parentNames = up.data.data.map((item) => ({
+            name: path.basename(item.path.replace(/[/\\]+$/, "")),
+            type: item.type,
+          }))
+          if (
+            parentNames.some((item) => item.name === "HIRING.md" && item.type === "file") &&
+            parentNames.some((item) => item.name === "candidates" && item.type === "directory")
+          ) {
+            listDir = parent
+            break
+          }
+          current = parent
+        }
+        if (listDir === cwd) return listed
+      }
+      const cards = await sdk.client.v2.fs.list({
+        path: listPath,
+        location: { directory: listDir, workspace },
+      })
+      if (cards.error || !cards.data) return listed
+      for (const item of cards.data.data) {
+        if (item.type === "directory") continue
+        const name = path.basename(item.path.replace(/[/\\]+$/, ""))
+        if (!name.endsWith(".md") || name === ".gitkeep") continue
+        const slug = name.replace(/\.md$/, "")
+        if (!slug) continue
+        listed.push({
+          slug,
+          relative: item.path.replace(/[/\\]+$/, ""),
+          absolute: path.join(cards.data.location.directory, item.path),
+        })
       }
       return listed
     },

@@ -294,6 +294,54 @@ describe("InstructionContext", () => {
     ),
   )
 
+  it.live("loads cwd packet HIRING.md over a conflicting focus file", () =>
+    Effect.acquireRelease(
+      Effect.promise(() => tmpdir()),
+      (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
+    ).pipe(
+      Effect.flatMap((tmp) =>
+        Effect.gen(function* () {
+          const company = path.join(tmp.path, "acme")
+          const cwd = path.join(company, "senior-backend")
+          const focused = path.join(company, "staff-platform")
+          yield* Effect.promise(async () => {
+            await fs.mkdir(path.join(cwd, "candidates"), { recursive: true })
+            await fs.mkdir(path.join(focused, "candidates"), { recursive: true })
+            await fs.mkdir(path.join(company, ".moks"), { recursive: true })
+            await fs.writeFile(path.join(company, "HIRING.md"), "company")
+            await fs.writeFile(path.join(cwd, "HIRING.md"), "cwd")
+            await fs.writeFile(path.join(focused, "HIRING.md"), "focus")
+            await fs.writeFile(path.join(company, ".moks", "focus"), "staff-platform\n")
+          })
+
+          const context = yield* SystemContextRegistry.Service.pipe(
+            Effect.flatMap((service) => service.load()),
+            Effect.provide(
+              instructionLayer({
+                config: path.join(tmp.path, "global"),
+                locationServiceLayer: Layer.succeed(
+                  Location.Service,
+                  Location.Service.of(
+                    location(
+                      { directory: AbsolutePath.make(cwd) },
+                      { projectDirectory: AbsolutePath.make(company) },
+                    ),
+                  ),
+                ),
+              }),
+            ),
+          )
+
+          const baseline = (yield* SystemContext.initialize(context)).baseline
+          expect(baseline).toContain(`Instructions from: ${path.join(company, "HIRING.md")}\ncompany`)
+          expect(baseline).toContain(`Instructions from: ${path.join(cwd, "HIRING.md")}\ncwd`)
+          expect(baseline).not.toContain("focus")
+          expect(baseline).not.toContain(path.join(focused, "HIRING.md"))
+        }),
+      ),
+    ),
+  )
+
   it.live("does not load a parent software HIRING.md when the opened folder is a company", () =>
     Effect.acquireRelease(
       Effect.promise(() => tmpdir()),

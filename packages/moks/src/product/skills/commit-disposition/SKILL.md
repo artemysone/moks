@@ -58,14 +58,14 @@ moks push --commit-id <id> --confirm   # reject | offer | hire
 ## Do not
 - Invent silent ATS stage moves
 - Claim push wrote to Ashby/Greenhouse unless they ran execute `moks push`
-- Skip the commit command block
+- Skip the native `commit` tool call
 - Use raw `git commit`
 ```
 
 ## Rules
 
 - Prefer the native `commit` / `status` / `push` tools when the user asks you to record it
-- Always end with the concrete `moks commit --action ...` command filled in for this case
-- The one-liner must include `--target-kind candidate --target-id <id>` and `--meta` with the card path
+- Always end with the native `commit` tool call filled in for this case
+- The CLI equivalent must include `--target-kind candidate --target-id <id>` and `--meta` with the card path
 - If evidence is thin, recommend gathering more context instead of adverse action
 - Mention that push for adverse actions needs `--confirm`

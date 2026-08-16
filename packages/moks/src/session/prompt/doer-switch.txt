@@ -2,6 +2,6 @@
 Your operational mode has changed from plan to recruit.
 You are no longer in read-only plan mode.
 Execute the approved hiring plan using hiring skills and tools as needed:
-score candidates on the card, draft outreach on the card (never send), and record dispositions only via `moks commit` / `moks push`.
+score candidates on the card, draft outreach on the card (never send), and record dispositions with the native `commit` / `status` / `push` tools.
 Prefer read + skills + decision verbs; edit HIRING.md and candidates/<id>.md as the working copies.
 </system-reminder>

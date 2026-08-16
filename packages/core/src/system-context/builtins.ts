@@ -1,5 +1,6 @@
 export * as SystemContextBuiltIns from "./builtins"
 
+import { dirname, join } from "path"
 import { makeLocationNode } from "../effect/app-node"
 import { DateTime, Effect, Layer, Schema } from "effect"
 import { Location } from "../location"
@@ -13,10 +14,11 @@ const builtIns = Layer.effectDiscard(
   Effect.gen(function* () {
     const location = yield* Location.Service
     const registry = yield* SystemContextRegistry.Service
+    const company = yield* companyWorkspace(location.directory, location.project.directory)
     const environment = [
       "<env>",
       `  Working directory: ${location.directory}`,
-      `  Company workspace: ${location.project.directory}`,
+      `  Company workspace: ${company}`,
       `  Git audit: ${location.vcs?.type === "git" ? "yes" : "no"}`,
       `  Platform: ${process.platform}`,
       "</env>",
@@ -42,6 +44,30 @@ const builtIns = Layer.effectDiscard(
     yield* registry.register({ key: SystemContext.Key.make("core/builtins"), load: Effect.succeed(context) })
   }),
 )
+
+const companyWorkspace = Effect.fnUntraced(function* (start: string, stop: string) {
+  const fs = yield* FSUtil.Service
+  let current = start
+  while (true) {
+    if (yield* fs.existsSafe(join(current, "HIRING.md"))) {
+      const parent = dirname(current)
+      if (
+        parent !== current &&
+        FSUtil.contains(stop, parent) &&
+        (yield* fs.existsSafe(join(parent, "HIRING.md"))) &&
+        (yield* fs.isDir(join(current, "candidates"))) &&
+        !(yield* fs.isDir(join(parent, "candidates")))
+      ) {
+        return parent
+      }
+      return current
+    }
+    if (current === stop) return start
+    const parent = dirname(current)
+    if (parent === current || !FSUtil.contains(stop, parent)) return start
+    current = parent
+  }
+})
 
 export const node = makeLocationNode({
   name: "system-context-builtins",

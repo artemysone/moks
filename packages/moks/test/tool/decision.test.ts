@@ -94,6 +94,14 @@ describe("tool.decision", () => {
       Effect.gen(function* () {
         const test = yield* TestInstance
         yield* Effect.promise(() => Bun.write(path.join(test.directory, "HIRING.md"), "# Role\n"))
+        yield* Effect.promise(() =>
+          CandidateCard.write(test.directory, {
+            id: "cand_ada",
+            stage: "sourced",
+            extra: { name: "Ada" },
+            body: "# Ada\n",
+          }),
+        )
 
         const commitInfo = yield* CommitTool
         const commit = yield* commitInfo.init()

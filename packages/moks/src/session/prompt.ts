@@ -1364,7 +1364,10 @@ const layer = Layer.effect(
       if (input.command === Command.Default.INIT) {
         const ctx = yield* InstanceState.context
         const title = (input.arguments.split("\n")[0] ?? "").trim()
-        yield* Effect.promise(() => ReqWorkspace.scaffold(ctx.directory, title || undefined))
+        yield* Effect.promise(async () => {
+          const result = await ReqWorkspace.scaffold(ctx.directory, title || undefined)
+          if (result.relative !== ".") await ReqWorkspace.writeFocus(ctx.directory, result.relative)
+        })
       }
       const agentName = cmd.agent ?? input.agent
 

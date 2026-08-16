@@ -25,17 +25,18 @@ export type PacketData = {
 }
 
 export async function loadPacket(dir: string) {
-  if (await isPacket(dir)) {
-    const parent = path.dirname(dir)
-    if (parent !== dir && (await hasHiring(parent)) && !(await isDir(path.join(parent, "candidates")))) {
-      return packetOf(parent, dir)
+  const start = await nearestHiring(dir)
+  if (!start) return
+  if (await isPacket(start)) {
+    const parent = path.dirname(start)
+    if (parent !== start && (await hasHiring(parent)) && !(await isDir(path.join(parent, "candidates")))) {
+      return packetOf(parent, start)
     }
-    return packetOf(dir, dir)
+    return packetOf(start, start)
   }
-  if (!(await hasHiring(dir))) return
-  const slug = await readFocus(dir)
-  if (slug && (await isPacket(path.join(dir, slug)))) return packetOf(dir, path.join(dir, slug))
-  return packetOf(dir)
+  const slug = await readFocus(start)
+  if (slug && (await isPacket(path.join(start, slug)))) return packetOf(start, path.join(start, slug))
+  return packetOf(start)
 }
 
 async function packetOf(company: string, focused?: string) {
@@ -120,6 +121,14 @@ async function readTitle(dir: string) {
   const title = text ? firstHeading(text) : undefined
   if (title) return title
   return path.basename(dir)
+}
+
+async function nearestHiring(dir: string, depth = 0) {
+  if (await hasHiring(dir)) return dir
+  if (depth >= 4) return
+  const parent = path.dirname(dir)
+  if (parent === dir) return
+  return nearestHiring(parent, depth + 1)
 }
 
 async function readFocus(company: string) {

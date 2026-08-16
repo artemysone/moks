@@ -7,7 +7,7 @@ description: Load and synthesize a hiring req brief from HIRING.md. List missing
 
 Build a structured req brief from local materials. Do not invent company secrets or headcount.
 
-This cwd is the req. HIRING.md is the constitution.
+The focused req is the packet (env Focused req). Load company `HIRING.md` plus that req's `HIRING.md`. Do not treat company root as a req when reqs live in subdirectories.
 
 ## Discover inputs
 
@@ -15,7 +15,7 @@ Resolve in order (stop when found):
 
 1. User-attached paths (`-f` / @ files)
 2. If Ashby MCP tools are available (`ashby_list_jobs`, `ashby_get_job`, …), prefer reading open jobs/req metadata via those tools
-3. Cwd: `HIRING.md`, optional `candidates/<id>.md`
+3. Focused packet: that req's `HIRING.md`, optional `candidates/<id>.md`
 4. Samples only if nothing else: ship path under product fixtures/hiring
 
 Read every file or MCP payload you will cite. Never call Ashby write tools (`ashby_change_stage`, `ashby_create_note`); dispositions go through `moks commit` / `moks push`.

@@ -205,7 +205,7 @@ const layer: Layer.Layer<
       const target = path.resolve(filepath)
       let current = path.dirname(target)
 
-      while (current.startsWith(root) && current !== root) {
+      while (FSUtil.contains(root, current) && current !== root) {
         const found = yield* find(current)
         if (!found || found === target || sys.has(found) || already.has(found)) {
           current = path.dirname(current)

@@ -166,7 +166,7 @@ export function Tips(props: { api: TuiPluginApi; connected?: boolean; company?: 
 
 const TIPS: Tip[] = [
   // Hero hiring loop
-  "This cwd is the req — {highlight}/init{/highlight} writes {highlight}HIRING.md{/highlight}",
+  "This folder is the company — {highlight}/init{/highlight} writes company {highlight}HIRING.md{/highlight} or a req directory",
   "Use {highlight}/review{/highlight} for packet review before {highlight}moks commit{/highlight} / {highlight}push{/highlight}",
   "Ask for the {highlight}req-context{/highlight} skill to load {highlight}HIRING.md{/highlight}",
   "Score a resume onto a {highlight}candidates/{/highlight} card with {highlight}score-candidate{/highlight}",
