@@ -1,15 +1,13 @@
-# js
+# moks
 
-To install dependencies:
+Product CLI / TUI / server for the moks hiring harness.
 
-```bash
-bun install
-```
-
-To run:
+From this package:
 
 ```bash
-bun run index.ts
+bun dev
+# or
+bun run --conditions=browser src/index.ts
 ```
 
-This project was created using `bun init` in bun v1.2.12. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+Default agent is `recruit`. Headless fixture and loop docs live in the [repo README](../../README.md) and [`src/product/headless.md`](src/product/headless.md).

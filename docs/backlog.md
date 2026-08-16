@@ -397,8 +397,9 @@ Still wanted. Not in the current wave order. Bring back only after a conversatio
 - Typed score/outreach tools (skills + card files are the analog of edit)
 - Review pane (H27) before packet sidebar (H26)
 - Delete the formatter pipeline (off by default; not LSP)
-- Rename `createOpencodeClient` / generated SDK types
-- Theme id `opencode` (picker already shows “moks”)
+- Rename `createOpencodeClient` / generated SDK types / `x-opencode-*` headers
+- Theme id `opencode` (picker already shows “moks”; default sound pack is `moks.default`)
+- Bulk-delete ~1,200 inherited OpenCode branches and ~1,000 tags (dry-run: `bun script/git-cleanup.ts`; see `docs/git-cleanup.md`)
 - Cloud workspace / cloud req picker
 - Hidden `.moks/reqs/` index (filesystem is the book)
 - Using product moks to implement this list

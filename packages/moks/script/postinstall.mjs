@@ -24,9 +24,8 @@ const archMap = {
 
 const platform = platformMap[os.platform()] ?? os.platform()
 const arch = archMap[os.arch()] ?? os.arch()
-const base = `opencode-${platform}-${arch}`
+const base = `moks-${platform}-${arch}`
 const sourceBinary = platform === "windows" ? "moks.exe" : "moks"
-const sourceBinaryFallback = platform === "windows" ? "opencode.exe" : "opencode"
 const targetBinary = path.join(__dirname, "bin", "moks.exe")
 
 function supportsAvx2() {
@@ -118,10 +117,8 @@ function packageNames() {
 }
 
 function packageBinary(dir) {
-  for (const name of [sourceBinary, sourceBinaryFallback]) {
-    const binaryPath = path.join(dir, "bin", name)
-    if (fs.existsSync(binaryPath)) return binaryPath
-  }
+  const binaryPath = path.join(dir, "bin", sourceBinary)
+  if (fs.existsSync(binaryPath)) return binaryPath
   throw new Error(`Binary not found in ${path.join(dir, "bin")}`)
 }
 
@@ -134,7 +131,7 @@ function installPackage(name) {
   const version = packageJson.optionalDependencies?.[name]
   if (!version) return
 
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-install-"))
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "moks-install-"))
   try {
     const result = childProcess.spawnSync(
       "npm",
