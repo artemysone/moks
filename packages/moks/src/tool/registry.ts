@@ -295,7 +295,7 @@ const layer = Layer.effect(
         }
 
         // recruit: prefer edit/write for notes; never promote apply_patch (BL-014).
-        // build and other agents keep the gpt-* apply_patch preference.
+        // non-recruit agents keep the gpt-* apply_patch preference.
         const usePatch =
           input.agent.name !== "recruit" &&
           input.modelID.includes("gpt-") &&

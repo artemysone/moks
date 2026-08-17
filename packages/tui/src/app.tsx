@@ -120,8 +120,8 @@ const appBindingCommands = [
   "provider.connect",
   "console.org.switch",
   "decision.list",
-  "opencode.system",
-  "opencode.debug",
+  "moks.system",
+  "moks.debug",
   "theme.switch",
   "theme.switch_mode",
   "theme.mode.lock",
@@ -763,7 +763,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
           ]
         : []),
       {
-        name: "opencode.system",
+        name: "moks.system",
         title: "View system",
         slashName: "system",
         run: () => {
@@ -812,7 +812,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         },
       },
       {
-        name: "opencode.debug",
+        name: "moks.debug",
         title: "View debug info",
         slashName: "debug",
         run: () => {

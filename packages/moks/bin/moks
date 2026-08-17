@@ -43,13 +43,13 @@ function run(target) {
   })
 }
 
-const envPath = process.env.OPENCODE_BIN_PATH
+const envPath = process.env.MOKS_BIN_PATH
 
 const scriptPath = fs.realpathSync(__filename)
 const scriptDir = path.dirname(scriptPath)
 
 //
-const cached = path.join(scriptDir, ".opencode")
+const cached = path.join(scriptDir, ".moks")
 
 const platformMap = {
   darwin: "darwin",
@@ -70,9 +70,8 @@ let arch = archMap[os.arch()]
 if (!arch) {
   arch = os.arch()
 }
-const base = "opencode-" + platform + "-" + arch
+const base = "moks-" + platform + "-" + arch
 const binary = platform === "windows" ? "moks.exe" : "moks"
-const binaryFallback = platform === "windows" ? "opencode.exe" : "opencode"
 
 function supportsAvx2() {
   if (arch !== "x64") return false
@@ -175,10 +174,8 @@ function findBinary(startDir) {
     const modules = path.join(current, "node_modules")
     if (fs.existsSync(modules)) {
       for (const name of names) {
-        for (const bin of [binary, binaryFallback]) {
-          const candidate = path.join(modules, name, "bin", bin)
-          if (fs.existsSync(candidate)) return candidate
-        }
+        const candidate = path.join(modules, name, "bin", binary)
+        if (fs.existsSync(candidate)) return candidate
       }
     }
     const parent = path.dirname(current)

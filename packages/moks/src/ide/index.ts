@@ -1,6 +1,5 @@
 import { Schema } from "effect"
 import { NamedError } from "@moks/core/util/error"
-import { Process } from "@/util/process"
 import { IdeEvent } from "@moks/schema/ide-event"
 
 const SUPPORTED_IDES = [
@@ -29,26 +28,19 @@ export function ide() {
   return "unknown"
 }
 
+function caller() {
+  return process.env["MOKS_CALLER"] ?? process.env["OPENCODE_CALLER"]
+}
+
 export function alreadyInstalled() {
-  return process.env["OPENCODE_CALLER"] === "vscode" || process.env["OPENCODE_CALLER"] === "vscode-insiders"
+  return caller() === "vscode" || caller() === "vscode-insiders"
 }
 
 export async function install(ide: (typeof SUPPORTED_IDES)[number]["name"]) {
-  const cmd = SUPPORTED_IDES.find((i) => i.name === ide)?.cmd
-  if (!cmd) throw new Error(`Unknown IDE: ${ide}`)
-
-  const p = await Process.run([cmd, "--install-extension", "sst-dev.opencode"], {
-    nothrow: true,
+  if (!SUPPORTED_IDES.find((i) => i.name === ide)) throw new Error(`Unknown IDE: ${ide}`)
+  throw new InstallFailedError({
+    stderr: "moks has no published editor extension yet. Do not install sst-dev.opencode.",
   })
-  const stdout = p.stdout.toString()
-  const stderr = p.stderr.toString()
-
-  if (p.code !== 0) {
-    throw new InstallFailedError({ stderr })
-  }
-  if (stdout.includes("already installed")) {
-    throw new AlreadyInstalledError({})
-  }
 }
 
 export * as Ide from "."

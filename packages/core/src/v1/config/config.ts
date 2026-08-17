@@ -36,10 +36,10 @@ export const Info = Schema.Struct({
   shell: Schema.optional(Schema.String).annotate({ description: "Default shell to use for terminal and bash tool" }),
   logLevel: Schema.optional(LogLevelRef).annotate({ description: "Log level" }),
   server: Schema.optional(ConfigServerV1.Server).annotate({
-    description: "Server configuration for opencode serve and web commands",
+    description: "Server configuration for moks serve",
   }),
   command: Schema.optional(Schema.Record(Schema.String, ConfigCommandV1.Info)).annotate({
-    description: "Command configuration, see https://opencode.ai/docs/commands",
+    description: "Command configuration",
   }),
   skills: Schema.optional(ConfigSkillsV1.Info).annotate({ description: "Additional skill folder paths" }),
   references: Schema.optional(ConfigReference.Info).annotate({
@@ -89,7 +89,7 @@ export const Info = Schema.Struct({
   }),
   mode: Schema.optional(
     Schema.StructWithRest(
-      Schema.Struct({ build: Schema.optional(ConfigAgentV1.Info), plan: Schema.optional(ConfigAgentV1.Info) }),
+      Schema.Struct({ recruit: Schema.optional(ConfigAgentV1.Info), plan: Schema.optional(ConfigAgentV1.Info) }),
       [Schema.Record(Schema.String, ConfigAgentV1.Info)],
     ),
   ).annotate({ description: "@deprecated Use `agent` field instead." }),
@@ -97,7 +97,7 @@ export const Info = Schema.Struct({
     Schema.StructWithRest(
       Schema.Struct({
         plan: Schema.optional(ConfigAgentV1.Info),
-        build: Schema.optional(ConfigAgentV1.Info),
+        recruit: Schema.optional(ConfigAgentV1.Info),
         general: Schema.optional(ConfigAgentV1.Info),
         explore: Schema.optional(ConfigAgentV1.Info),
         title: Schema.optional(ConfigAgentV1.Info),
@@ -106,7 +106,7 @@ export const Info = Schema.Struct({
       }),
       [Schema.Record(Schema.String, ConfigAgentV1.Info)],
     ),
-  ).annotate({ description: "Agent configuration, see https://opencode.ai/docs/agents" }),
+  ).annotate({ description: "Agent configuration. Product defaults are recruit and plan." }),
   provider: Schema.optional(Schema.Record(Schema.String, ConfigProviderV1.Info)).annotate({
     description: "Custom provider configurations and model overrides",
   }),

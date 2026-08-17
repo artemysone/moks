@@ -100,7 +100,7 @@ Your output must be:
 "refactor user service" → Refactoring user service
 "look at @HIRING.md" → HIRING.md review
 "@resume.md score against JD" → Resume vs JD score
-"how do I connect postgres to my API" → Postgres API connection
+"reject after screen for Jordan Lee" → Reject after screen — Jordan Lee
 </examples>`
 
 const PROMPT_SUMMARY = `Summarize what was done in this conversation. Write like a hiring session brief — what was scored, drafted, committed, or decided — or a neutral session brief when the work is not hiring-specific.

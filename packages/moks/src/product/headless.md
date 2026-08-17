@@ -1,8 +1,8 @@
 # Headless / scriptable surface
 
-Headless is a **mode of Open** (`moks`), not a separate CLI product. Same verbs as interactive; add `--json` (or `run --format json`) for machine-readable stdout and stable exit codes.
+Headless is a **mode of moks**, not a separate CLI product. Same verbs as interactive; add `--json` (or `run --format json`) for machine-readable stdout and stable exit codes.
 
-cwd is the requisition. `HIRING.md` is the constitution. `candidates/*.md` are working copies. **git commit** is the audit. **`moks push --execute`** writes the local/mock ATS (`.moks/ats.json`). Remote later. `.moks/` is cache only.
+cwd is the requisition. `HIRING.md` is the constitution. `candidates/*.md` are working copies. **`moks commit`** is the audit. **`moks push --execute`** writes the local/mock ATS (`.moks/ats.json`). Remote later. `.moks/` is cache only.
 
 ## Push (ATS write)
 

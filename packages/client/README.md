@@ -1,6 +1,6 @@
 # @moks/client
 
-Private generation target for clients derived directly from OpenCode's authoritative Effect `HttpApi`.
+Private generation target for clients derived directly from moks's authoritative Effect `HttpApi`.
 
 ## Entrypoints
 
@@ -18,7 +18,7 @@ Effect consumers construct canonical decoded inputs:
 ```ts
 import { AbsolutePath, Location, OpenCode, Prompt } from "@moks/client/effect"
 
-const client = yield * OpenCode.make({ baseUrl: "https://opencode.example" })
+const client = yield * OpenCode.make({ baseUrl: "https://moks.example" })
 yield *
   client.sessions.create({
     location: Location.Ref.make({ directory: AbsolutePath.make("/workspace") }),

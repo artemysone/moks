@@ -1,6 +1,8 @@
-# OpenCode Session Runtime
+# moks Session Runtime
 
-OpenCode sessions preserve durable conversational history while assembling the runtime context an agent needs to act correctly in its current environment.
+moks sessions (forked from the OpenCode session runtime) preserve durable conversational history while assembling the runtime context an agent needs to act correctly in its current environment.
+
+This glossary names harness concepts. The shipped product is moks: company folder, `HIRING.md`, `moks.json` / `.moks/` / `MOKS_*`. Do not treat “OpenCode Client” / “Embedded OpenCode” below as product install names.
 
 ## Language
 

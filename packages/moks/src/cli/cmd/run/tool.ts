@@ -443,7 +443,7 @@ function runBatch(p: ToolProps): ToolInline {
 function runPlanExit(p: ToolProps<typeof PlanExitTool>): ToolInline {
   return {
     icon: "→",
-    title: text(p.frame.state.title) || "Switching to build agent",
+    title: text(p.frame.state.title) || "Switching to recruit",
     mode: "block",
     body: p.frame.status === "completed" ? text(p.frame.state.output) : undefined,
   }
