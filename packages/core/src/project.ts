@@ -63,11 +63,13 @@ const layer = Layer.effect(
     })
 
     const cached = Effect.fnUntraced(function* (dir: string) {
-      return yield* fs.readFileString(path.join(dir, "opencode")).pipe(
-        Effect.map((value) => value.trim()),
-        Effect.map((value) => (value ? ID.make(value) : undefined)),
-        Effect.catch(() => Effect.succeed(undefined)),
-      )
+      const read = (name: string) =>
+        fs.readFileString(path.join(dir, name)).pipe(
+          Effect.map((value) => value.trim()),
+          Effect.map((value) => (value ? ID.make(value) : undefined)),
+          Effect.catch(() => Effect.succeed(undefined)),
+        )
+      return (yield* read("moks")) ?? (yield* read("opencode"))
     })
 
     const remote = Effect.fnUntraced(function* (repo: Git.Repository) {
@@ -122,7 +124,7 @@ const layer = Layer.effect(
     })
 
     const commit = Effect.fn("Project.commit")(function* (input: { store: AbsolutePath; id: ID }) {
-      yield* fs.writeFileString(path.join(input.store, "opencode"), input.id).pipe(Effect.ignore)
+      yield* fs.writeFileString(path.join(input.store, "moks"), input.id).pipe(Effect.ignore)
     })
 
     return Service.of({ directories, resolve, commit })

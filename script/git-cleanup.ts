@@ -3,7 +3,7 @@
 import { $ } from "bun"
 import { parseArgs } from "util"
 
-const KEEP = new Set(["dev"])
+const KEEP = new Set(["main", "dev"])
 
 const { values } = parseArgs({
   args: Bun.argv.slice(2),
@@ -18,8 +18,8 @@ if (values.help) {
   console.log(`
 Usage: bun script/git-cleanup.ts [options]
 
-Dry-run (default) lists inherited OpenCode refs that are safe to delete.
-Only origin/dev is kept. Requires an admin to pass --execute.
+Dry-run (default) lists leftover refs that are safe to delete.
+Keeps origin/main and origin/dev (GitHub default until an admin switches).
 
 Options:
       --execute   Delete listed refs on origin (irreversible)
@@ -56,7 +56,7 @@ console.log(`${values.tags ? "tag" : "branch"} targets this run: ${targets.lengt
 if (!values.execute) {
   for (const name of targets.slice(0, 40)) console.log(`  ${name}`)
   if (targets.length > 40) console.log(`  … ${targets.length - 40} more`)
-  console.log("\nDry-run only. Re-run with --execute after protecting origin/dev.")
+  console.log("\nDry-run only. Re-run with --execute after protecting origin/main.")
   process.exit(0)
 }
 

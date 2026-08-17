@@ -8,7 +8,7 @@ Local stdio MCP server that serves fixture jobs/candidates so moks can exercise 
 |------|------|
 | `ashby-mock.ts` | stdio MCP server (`bun run …/ashby-mock.ts`) |
 | `ashby-data.json` | open/closed jobs + candidates (Northline / Jordan Lee aligned) |
-| `opencode.ashby-mock.json` | sample mcp + permission snippet (not enabled in monorepo `.opencode/`) |
+| `moks.ashby-mock.json` | sample mcp + permission snippet (not enabled in monorepo `.opencode/`) |
 
 ## Tools
 
@@ -43,7 +43,7 @@ MOCK="$(pwd)/src/product/fixtures/mcp/ashby-mock.ts"
 
 Relative from package root: `src/product/fixtures/mcp/ashby-mock.ts`.
 
-Example `opencode.json` (or merge `permission` + `mcp` from `opencode.ashby-mock.json` after replacing `REPLACE_WITH_PATH`):
+Example `moks.json` (or merge `permission` + `mcp` from `moks.ashby-mock.json` after replacing `REPLACE_WITH_PATH`):
 
 ```json
 {

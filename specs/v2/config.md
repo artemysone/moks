@@ -1,5 +1,7 @@
 # V2 Config Review
 
+Shipped product config is `moks.json` / `.moks/` / `MOKS_*`. This file is harness lineage, not an OpenCode install guide.
+
 This document breaks the legacy configuration schema into small review groups. Work through one group at a time and decide whether each field should be ported as-is, removed, or redesigned for v2.
 
 ## Status Labels

@@ -38,7 +38,7 @@ bun dev
 bun run --conditions=browser src/index.ts
 ```
 
-Default branch is `dev`. Day-to-day workflow is Bun (`bun install` / `bun dev`) — not npm/pnpm as the primary path.
+Default branch is `main`. Day-to-day workflow is Bun (`bun install` / `bun dev`) — not npm/pnpm as the primary path.
 
 ## Hiring loop
 
