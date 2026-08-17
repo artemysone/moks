@@ -126,7 +126,7 @@ const layer = Layer.effect(
             }
 
             const skillUrl = new URL(`${encodeURIComponent(skill.name)}/`, source)
-            const versionFile = path.join(root, ".opencode-version")
+            const versionFile = path.join(root, ".moks-version")
             const files = skill.files.map((file) => {
               if (!isSafeRelativePath(file)) return undefined
               let resource: URL
@@ -156,7 +156,10 @@ const layer = Layer.effect(
               const current =
                 version === undefined
                   ? undefined
-                  : yield* fs.readFileStringSafe(versionFile).pipe(Effect.catch(() => Effect.succeed(undefined)))
+                  : (yield* fs.readFileStringSafe(versionFile).pipe(Effect.catch(() => Effect.succeed(undefined)))) ||
+                    (yield* fs
+                      .readFileStringSafe(path.join(root, ".opencode-version"))
+                      .pipe(Effect.catch(() => Effect.succeed(undefined))))
               if (version === undefined || current === version) {
                 yield* Effect.forEach(files, (file) => download(file.url, file.destination), {
                   concurrency: fileConcurrency,
@@ -177,7 +180,7 @@ const layer = Layer.effect(
                     (yield* fs.exists(path.join(staging, "SKILL.md")).pipe(Effect.orDie)) ||
                     (yield* fs.exists(path.join(staging, `${skill.name}.md`)).pipe(Effect.orDie))
                   if (!exists) return
-                  yield* fs.writeFileString(path.join(staging, ".opencode-version"), version)
+                  yield* fs.writeFileString(path.join(staging, ".moks-version"), version)
                   yield* Effect.uninterruptible(
                     Effect.gen(function* () {
                       const cached = yield* fs.exists(root).pipe(Effect.orDie)

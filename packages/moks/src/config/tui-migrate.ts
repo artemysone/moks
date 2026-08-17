@@ -20,7 +20,7 @@ interface MigrateInput {
 }
 
 /**
- * Migrates tui-specific keys (theme, keybinds, tui) from opencode.json / moks.json
+ * Migrates tui-specific keys (theme, keybinds, tui) from moks.json
  * files into dedicated tui.json files. Migration is performed per-directory and
  * skips only locations where a tui.json already exists.
  *

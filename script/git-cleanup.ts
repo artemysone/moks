@@ -18,8 +18,8 @@ if (values.help) {
   console.log(`
 Usage: bun script/git-cleanup.ts [options]
 
-Dry-run (default) lists inherited OpenCode refs that are safe to delete.
-Only origin/dev is kept. Requires an admin to pass --execute.
+Dry-run (default) lists leftover refs that are safe to delete.
+Only origin/dev is kept.
 
 Options:
       --execute   Delete listed refs on origin (irreversible)

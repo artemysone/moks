@@ -77,12 +77,15 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | Path.Path | HttpClient
         (skill) =>
           Effect.gen(function* () {
             const root = path.join(cache, skill.name)
-            const versionFile = path.join(root, ".opencode-version")
+            const versionFile = path.join(root, ".moks-version")
             const version = skill.version
             const current =
               version === undefined
                 ? undefined
-                : yield* fs.readFileStringSafe(versionFile).pipe(Effect.catch(() => Effect.succeed(undefined)))
+                : (yield* fs.readFileStringSafe(versionFile).pipe(Effect.catch(() => Effect.succeed(undefined)))) ||
+                  (yield* fs
+                    .readFileStringSafe(path.join(root, ".opencode-version"))
+                    .pipe(Effect.catch(() => Effect.succeed(undefined))))
 
             if (version === undefined || current === version) {
               yield* Effect.forEach(
@@ -102,7 +105,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | Path.Path | HttpClient
                 )
                 if (!downloaded.every(Boolean)) return
                 if (!(yield* fs.exists(path.join(staging, "SKILL.md")).pipe(Effect.orDie))) return
-                yield* fs.writeFileString(path.join(staging, ".opencode-version"), version)
+                yield* fs.writeFileString(path.join(staging, ".moks-version"), version)
                 yield* Effect.uninterruptible(
                   Effect.gen(function* () {
                     const cached = yield* fs.exists(root).pipe(Effect.orDie)
