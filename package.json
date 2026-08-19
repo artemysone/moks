@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "bun run --cwd packages/moks --conditions=browser src/index.ts",
     "lint": "oxlint",
-    "typecheck": "bun turbo typecheck --filter=moks... --filter=@moks/core...",
+    "typecheck": "bun turbo typecheck --filter=moks... --filter=@moks/core... --filter=@moks/ledger...",
     "upgrade-opentui": "bun run script/upgrade-opentui.ts",
     "postinstall": "bun run --cwd packages/core fix-node-pty",
     "prepare": "husky",
