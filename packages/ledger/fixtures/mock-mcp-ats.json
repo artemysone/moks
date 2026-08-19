@@ -1,0 +1,93 @@
+{
+  "ats": "ashby",
+  "jobs": [
+    {
+      "id": "job_req200",
+      "remoteId": "ASH-200",
+      "title": "Senior Backend Engineer",
+      "team": "Payments",
+      "location": "Remote (US)",
+      "status": "open"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "cand_lena",
+      "remoteId": "AC-3001",
+      "name": "Lena Fischer",
+      "email": "lena.fischer@example.com",
+      "headline": "Backend engineer, payments and billing platforms"
+    },
+    {
+      "id": "cand_omar",
+      "remoteId": "AC-3002",
+      "name": "Omar Reyes",
+      "email": "omar.reyes@example.com",
+      "headline": "Senior backend, high-throughput ledger systems"
+    },
+    {
+      "id": "cand_yuki",
+      "remoteId": "AC-3003",
+      "name": "Yuki Tanaka",
+      "email": "yuki.tanaka@example.com",
+      "headline": "Distributed systems, settlement infrastructure"
+    }
+  ],
+  "applications": [
+    {
+      "id": "app_lena_200",
+      "remoteId": "AA-4001",
+      "jobId": "job_req200",
+      "candidateId": "cand_lena",
+      "stage": "Screen"
+    },
+    {
+      "id": "app_omar_200",
+      "remoteId": "AA-4002",
+      "jobId": "job_req200",
+      "candidateId": "cand_omar",
+      "stage": "Screen"
+    },
+    {
+      "id": "app_yuki_200",
+      "remoteId": "AA-4003",
+      "jobId": "job_req200",
+      "candidateId": "cand_yuki",
+      "stage": "Sourced"
+    }
+  ],
+  "sourcing": [
+    {
+      "id": "mcp_ada",
+      "name": "Ada Lindqvist",
+      "title": "Senior Backend Engineer",
+      "headline": "Senior backend engineer — payment rails and reconciliation",
+      "source": "juicebox",
+      "score": 0.95
+    },
+    {
+      "id": "mcp_ravi",
+      "name": "Ravi Menon",
+      "title": "Backend Engineer",
+      "headline": "Backend engineer, ledger and payout systems",
+      "source": "juicebox",
+      "score": 0.89
+    },
+    {
+      "id": "mcp_nora",
+      "name": "Nora Keane",
+      "title": "Senior Backend Engineer",
+      "headline": "Senior backend, card authorization at scale",
+      "source": "juicebox",
+      "score": 0.87
+    },
+    {
+      "id": "mcp_finn",
+      "name": "Finn O'Driscoll",
+      "title": "Frontend Engineer",
+      "headline": "Frontend, design systems",
+      "source": "juicebox",
+      "score": 0.4
+    }
+  ]
+}

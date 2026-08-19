@@ -2,7 +2,7 @@
 
 Work this list one item at a time. The fork is done. The coding product is gone. What remains is making the *working set* first-class the way a repo is first-class in a coding harness — not rebuilding the harness.
 
-Strategy: `docs/gtm.html`. Ontology: `AGENTS.md`.
+Strategy: `docs/gtm.html`. Ontology: `AGENTS.md`. Ledger-first port: `docs/mox-port.md`. Slash inventory: `docs/slash-commands.md`.
 
 **Execute waves 1–5:** do every **open** item in wave order. Skip `done`, `deferred`, Cancelled, Parking lot, Wave 6, and H27. Do not pick up Deferred. If an item’s Keep would be deleted, stop and split.
 
@@ -36,7 +36,9 @@ Strategy: `docs/gtm.html`. Ontology: `AGENTS.md`.
 | file tree | company → reqs → slate |
 | diff | local hiring file deltas |
 | plan → implement | plan → recruit |
-| GitHub | ATS (mock now, Ashby later) |
+| GitHub | ATS (adapter seam now; live Ashby is P6, on hold) |
+
+`git commit` → `moks commit` and `git push` → `moks push` are the metaphor. Mechanics are the moks ledger (hash-chained changesets), not git.
 
 ---
 
@@ -224,8 +226,8 @@ This is the SWE analog of “the file tree is the repo.” Still files. Just vis
 ### H24 — Native `commit` / `status` / `push` tools
 
 - **Status:** done
-- **Outcome:** Recruit records a disposition without bash. Same verbs, same git audit, same mock ATS.
-- **Keep:** `moks commit` / `status` / `push` CLI as the implementation. Trailers. Adverse confirm. Dry-run default on push.
+- **Outcome:** Recruit records a disposition without bash. Same verbs, same ledger audit, same mock ATS.
+- **Keep:** `moks commit` / `status` / `push` CLI as the implementation. Ledger changesets. Adverse confirm. Dry-run default on push.
 - **Change:** Thin tools that call the same functions as the CLI (`decision/verbs.ts`). Recruit permission: allow these tools; keep `git commit` as ask and `git push` as deny. Update `commit-disposition` to prefer the tools.
 - **Don't:** Reimplement git. Auto-push. Let the tool take arbitrary paths. Remove bash.
 - **Depends:** H05 so the shell prompt doesn’t fight the tools.
@@ -236,7 +238,7 @@ This is the SWE analog of “the file tree is the repo.” Still files. Just vis
 
 - **Status:** done
 - **Outcome:** The model is told this folder is the company workspace and which req is focused, not “workspace root / is git repo.”
-- **Keep:** cwd, platform, date. Git remains how `moks commit` audits.
+- **Keep:** cwd, platform, date. The ledger is how `moks commit` audits.
 - **Change:** Relabel the env block in `session/system.ts` (and core builtin twin if it still says “Workspace root folder”). Mention company `HIRING.md`, focused req when present, and that req’s `candidates/`. Single-req fixture: company and req are the same folder.
 - **Don't:** Change `Project.resolve` here (H28). Don’t hide git from `moks commit`.
 - **Touch:** `packages/moks/src/session/system.ts`, `packages/core/src/system-context/builtins.ts`
@@ -265,7 +267,7 @@ Structural. Do H33 → H34 before H26 / H29. H27 is deferred. Verify H33–H29 o
 
 - **Status:** done
 - **Outcome:** The working set this turn is one req packet. Recruit does not dump every slate in the company.
-- **Keep:** Filesystem is the book. `@` attach. `.moks/` is cache only.
+- **Keep:** Filesystem is the book. `@` attach. `.moks/` is ledger + cache.
 - **Change:** Focus = `@<req-dir>` or last-focused req (persist in `.moks/`, not a book). Single-req workspace: that folder is focused. Packet = focused `HIRING.md` + `candidates/`. Company `HIRING.md` still loads (H29).
 - **Don't:** Cloud req picker. `@slug` as a virtual id with no directory. Focus all reqs at once. Store reqs under `.moks/reqs/`.
 - **Depends:** H33 so there are real req directories to focus.
@@ -287,7 +289,7 @@ Structural. Do H33 → H34 before H26 / H29. H27 is deferred. Verify H33–H29 o
 
 - **Status:** done
 - **Outcome:** Opening moks in a company (or focused req inside it) does not adopt a parent software git root as the workspace.
-- **Keep:** Git as the audit log for the company workspace. `moks commit` still creates commits. Engineering checkouts without a company `HIRING.md` still resolve as a git project.
+- **Keep:** The ledger is the audit log for the company workspace. `moks commit` stages changesets. Engineering checkouts without a company `HIRING.md` still resolve as a git project.
 - **Change (tactical, not a Project rewrite):** If the opened folder is a company workspace, treat that folder as the project directory even when a parent git repo exists. `moks commit` must not write hiring commits into this monorepo. Do not change identity hashing for non-hiring directories in the same PR if that ripples through Instance/Session — split if so.
 - **Don't:** Delete git. Make every folder a fake repo. Invent a parallel project store. One git remote per req.
 - **Depends:** H25 so copy and runtime agree. Decision git: `packages/moks/src/decision/git.ts`, `decision/verbs.ts`.
@@ -370,13 +372,13 @@ Still wanted. Not in the current wave order. Bring back only after a conversatio
 
 ### H20 — TUI `/push` can complete the write
 
-- **Status:** deferred
+- **Status:** done (via P4 on `port/mox-into-moks`)
 - **Outcome:** A recruiter who stays in the TUI can dry-run *or* `--execute`. Adverse still needs confirm.
 - **Keep:** CLI `moks push` dry-run default, `--execute`, `--confirm` for adverse. Mock ATS. No silent agent writes.
 - **Change:** Decision dialog grows an explicit “Write to ATS” vs “Dry-run” (or a confirm that passes `--execute`). Toast must not say “Pushed” if it was dry-run only.
 - **Don't:** Auto-execute. Let the agent call Ashby write tools. Skip adverse confirm.
 - **Touch:** `packages/tui/src/component/dialog-decision.tsx`, TUI `/push` handler
-- **Verify:** Dry-run unchanged. Execute updates `.moks/ats.json` and `refs/moks/ats`. Reject/offer/hire still confirm.
+- **Verify:** Dry-run unchanged. Execute updates the mock ATS via the adapter; ledger shows applied. Reject/offer/hire still confirm.
 
 ### H27 — Optional later: `/review` as a pane
 
@@ -392,7 +394,7 @@ Still wanted. Not in the current wave order. Bring back only after a conversatio
 
 ## Parking lot — not now
 
-- Remote Ashby/Greenhouse as system of record (mock ATS is the write path until then)
+- Live Ashby (P6, on hold). The adapter seam is the write path. No live ATS connection yet.
 - Calendar, send-email, or any outbound that isn’t “never send”
 - Typed score/outreach tools (skills + card files are the analog of edit)
 - Review pane (H27) before packet sidebar (H26)

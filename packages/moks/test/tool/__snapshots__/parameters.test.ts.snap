@@ -21,7 +21,23 @@ exports[`tool parameters JSON Schema (wire shape) commit 1`] = `
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
     "action": {
-      "description": "Disposition action (e.g. advance, reject, offer, hire, note)",
+      "description": "Disposition action (advance, reject, offer, hire, note) or a ledger mutation name",
+      "type": "string",
+    },
+    "body": {
+      "description": "AddNote / SendOutreach body",
+      "type": "string",
+    },
+    "entity": {
+      "description": "type:id (e.g. application:app_priya_142)",
+      "type": "string",
+    },
+    "mutation": {
+      "description": "AdvanceStage | Reject | Withdraw | AddNote | AddTag | SendOutreach | ExtendOffer",
+      "type": "string",
+    },
+    "rationale": {
+      "description": "Changeset rationale; defaults to reason",
       "type": "string",
     },
     "reason": {
@@ -29,41 +45,31 @@ exports[`tool parameters JSON Schema (wire shape) commit 1`] = `
       "type": "string",
     },
     "target_id": {
-      "description": "Opaque target id (candidate id)",
+      "description": "Candidate or application id",
       "type": "string",
     },
     "target_kind": {
       "description": "Opaque target kind (usually candidate)",
       "type": "string",
     },
+    "to": {
+      "description": "AdvanceStage target stage",
+      "type": "string",
+    },
   },
-  "required": [
-    "action",
-  ],
   "type": "object",
 }
 `;
 
-exports[`tool parameters JSON Schema (wire shape) push 1`] = `
+exports[`tool parameters JSON Schema (wire shape) diff 1`] = `
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
-    "commit_id": {
-      "description": "Git commit SHA to push",
+    "id": {
+      "description": "Changeset id. Omit to diff every staged and approved changeset.",
       "type": "string",
     },
-    "confirm": {
-      "description": "Required for adverse actions (reject, offer, hire)",
-      "type": "boolean",
-    },
-    "dry_run": {
-      "description": "Dry-run (default true). Set false to write to the mock ATS",
-      "type": "boolean",
-    },
   },
-  "required": [
-    "commit_id",
-  ],
   "type": "object",
 }
 `;
@@ -72,16 +78,12 @@ exports[`tool parameters JSON Schema (wire shape) status 1`] = `
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
-    "commit_id": {
-      "description": "Filter by commit id",
-      "type": "string",
-    },
     "id": {
-      "description": "Filter by receipt id",
+      "description": "Filter by changeset id",
       "type": "string",
     },
     "limit": {
-      "description": "Max receipts to show (default 20)",
+      "description": "Max changesets to list (default 20)",
       "type": "number",
     },
   },

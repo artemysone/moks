@@ -4,7 +4,7 @@ The agent harness for engineering talent acquisition.
 
 moks is to hiring what a coding agent is to software: same workplace shape — workspace, plan, tools, review, push — pointed at requisitions instead of repos. Local first. Remote later.
 
-The company folder is the workspace. A req is a subdirectory. `HIRING.md` is the constitution (company + per req). `candidates/<id>.md` are working copies. `moks commit` is the git audit. `moks push` is the write (local/mock for now). `.moks/` is cache only.
+The company folder is the workspace. A req is a subdirectory. `HIRING.md` is the constitution (company + per req). `candidates/<id>.md` are working copies. `moks commit` stages a ledger changeset. `moks push` applies approved changesets through the ATS adapter (mock today). `.moks/` is ledger + cache.
 
 **Based on [OpenCode](https://github.com/anomalyco/opencode).** MIT licensed. **Not** officially affiliated with OpenCode or Anomaly.
 
@@ -12,7 +12,7 @@ The company folder is the workspace. A req is a subdirectory. `HIRING.md` is the
 |--------|------|
 | Repo | Company folder is the workspace |
 | `AGENTS.md` | `HIRING.md` |
-| GitHub | ATS (later) |
+| GitHub | ATS (adapter seam; live Ashby on hold) |
 | Diff | Local card + constitution changes |
 | Commit / push | `moks commit` / `moks push` |
 | PR review | `/review` packet review |
@@ -64,14 +64,19 @@ bun run --conditions=browser src/index.ts run --agent recruit \
 Built-in skills: `req-context`, `score-candidate`, `draft-outreach`, `commit-disposition`.  
 Fixtures: [`packages/moks/src/product/fixtures/hiring/README.md`](packages/moks/src/product/fixtures/hiring/README.md).
 
-Record a disposition (git commit is the audit; `push --execute` writes the mock ATS):
+Fixture loop: `pull` → run/screen → `commit` (stage) → `review` → `push --execute` → `log` / `log --compliance`.
 
 ```bash
+bun run --conditions=browser src/index.ts pull
+
 bun run --conditions=browser src/index.ts commit --action advance \
   --target-kind candidate --target-id jordan-lee \
   --reason "strong event + postgres signal"
 
-bun run --conditions=browser src/index.ts activity --days 7
+bun run --conditions=browser src/index.ts review <changeset-id> --approve --by you
+bun run --conditions=browser src/index.ts push --execute
+bun run --conditions=browser src/index.ts log
+bun run --conditions=browser src/index.ts log --compliance
 ```
 
 ### Scriptable / headless
@@ -79,10 +84,14 @@ bun run --conditions=browser src/index.ts activity --days 7
 Same verbs; add `--json` for machine-readable stdout. Full contract: [`packages/moks/src/product/headless.md`](packages/moks/src/product/headless.md).
 
 ```bash
+moks pull --json
 moks commit --action note --target-id jordan-lee --json
 moks status --json
-moks push --commit-id <sha> --json
-moks push --commit-id <sha> --confirm --execute --json
+moks review <changeset-id> --approve --by you --json
+moks push --execute --json
+moks push --confirm --execute --json
+moks log --json
+moks log --compliance
 
 moks run --json --agent recruit -f HIRING.md -f candidates/jordan-lee.md -- "Score this candidate"
 ```
@@ -97,6 +106,7 @@ moks run --json --agent recruit -f HIRING.md -f candidates/jordan-lee.md -- "Sco
 |-----|------|
 | [docs/gtm.html](docs/gtm.html) | Product strategy / GTM |
 | [AGENTS.md](AGENTS.md) | Constitution for work in this repo |
+| [docs/mox-port.md](docs/mox-port.md) | Ledger-first port (verbs, adapter seam) |
 
 ## License
 

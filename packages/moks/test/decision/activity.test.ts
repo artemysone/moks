@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test"
 import path from "path"
 import { DecisionActivity } from "../../src/decision/activity"
 import { DecisionVerbs } from "../../src/decision/verbs"
-import { CandidateCard } from "../../src/product/candidate-card"
 import { Global } from "@moks/core/global"
 import { tmpdir } from "../fixture/fixture"
 
@@ -10,15 +9,8 @@ const entry = path.join(import.meta.dir, "../../src/index.ts")
 
 async function workspace() {
   return tmpdir({
-    git: true,
     init: async (dir) => {
       await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
-      await CandidateCard.write(dir, {
-        id: "cand_ada",
-        stage: "sourced",
-        extra: { name: "Ada" },
-        body: "# Ada\n",
-      })
     },
   })
 }
@@ -50,26 +42,9 @@ async function moks(args: string[], cwd: string) {
   return { code, stdout, json: parsed }
 }
 
-async function backdated(cwd: string, date: string, message: string) {
-  const proc = Bun.spawn(
-    ["git", "-c", "user.name=moks", "-c", "user.email=moks@local", "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", message],
-    {
-      cwd,
-      env: {
-        ...process.env,
-        GIT_AUTHOR_DATE: date,
-        GIT_COMMITTER_DATE: date,
-      },
-      stdout: "pipe",
-      stderr: "pipe",
-    },
-  )
-  await proc.exited
-}
-
 describe("decision/activity", () => {
   test("empty → quiet", async () => {
-    await using tmp = await tmpdir({ git: true })
+    await using tmp = await tmpdir()
     const summary = await DecisionActivity.summarizeActivity({ cwd: tmp.path, days: 7 })
     expect(summary.signal).toBe("quiet")
     expect(summary.commits).toBe(0)
@@ -83,7 +58,13 @@ describe("decision/activity", () => {
 
   test("commit in window → active", async () => {
     await using tmp = await workspace()
-    await DecisionVerbs.commit({ action: "advance", cwd: tmp.path })
+    await DecisionVerbs.pull({ cwd: tmp.path })
+    await DecisionVerbs.commit({
+      action: "note",
+      target: { kind: "candidate", id: "cand_priya" },
+      reason: "spoke",
+      cwd: tmp.path,
+    })
     const summary = await DecisionActivity.summarizeActivity({ cwd: tmp.path, days: 7 })
     expect(summary.signal).toBe("active")
     expect(summary.commits).toBe(1)
@@ -91,28 +72,43 @@ describe("decision/activity", () => {
     expect(summary.open_commits).toBe(1)
   })
 
-  test("old commits outside window ignored", async () => {
-    await using tmp = await tmpdir({ git: true })
-    const now = new Date("2026-08-10T12:00:00.000Z")
-    await backdated(tmp.path, "2026-07-01T12:00:00 +0000", "moks: note old:")
-    await backdated(tmp.path, "2026-08-09T12:00:00 +0000", "moks: advance recent:")
-    const summary = await DecisionActivity.summarizeActivity({ cwd: tmp.path, days: 7, now })
-    expect(summary.signal).toBe("active")
-    expect(summary.commits).toBe(1)
-    expect(summary.active_days).toBe(1)
-  })
-
-  test("counts pushes and unpushed adverse commits in window", async () => {
+  test("changesets outside the window are ignored", async () => {
     await using tmp = await workspace()
-    const committed = await DecisionVerbs.commit({
+    await DecisionVerbs.pull({ cwd: tmp.path })
+    await DecisionVerbs.commit({
       action: "note",
-      target: { kind: "candidate", id: "cand_ada" },
+      target: { kind: "candidate", id: "cand_priya" },
+      reason: "spoke",
       cwd: tmp.path,
     })
-    await DecisionVerbs.push({ commit_id: committed.receipt.id, cwd: tmp.path, dry_run: false })
+    const now = new Date("2020-01-08T12:00:00.000Z")
+    const summary = await DecisionActivity.summarizeActivity({ cwd: tmp.path, days: 7, now })
+    expect(summary.signal).toBe("quiet")
+    expect(summary.commits).toBe(0)
+  })
+
+  test("counts applied pushes and unpushed adverse changesets in window", async () => {
+    await using tmp = await workspace()
+    await DecisionVerbs.pull({ cwd: tmp.path })
+    const committed = await DecisionVerbs.commit({
+      action: "note",
+      target: { kind: "candidate", id: "cand_priya" },
+      reason: "note",
+      cwd: tmp.path,
+    })
+    if (committed.changeset.status === "staged") {
+      await DecisionVerbs.review({
+        id: committed.changeset.id,
+        action: "approve",
+        by: "you",
+        cwd: tmp.path,
+      })
+    }
+    await DecisionVerbs.push({ id: committed.changeset.id, cwd: tmp.path, dry_run: false })
     await DecisionVerbs.commit({
       action: "reject",
-      target: { kind: "candidate", id: "cand_ada" },
+      target: { kind: "candidate", id: "cand_marcus" },
+      reason: "pass",
       cwd: tmp.path,
     })
     const summary = await DecisionActivity.summarizeActivity({ cwd: tmp.path, days: 7 })
@@ -126,7 +122,13 @@ describe("decision/activity", () => {
 
   test("activity --json CLI smoke", async () => {
     await using tmp = await workspace()
-    await DecisionVerbs.commit({ action: "note", cwd: tmp.path })
+    await DecisionVerbs.pull({ cwd: tmp.path })
+    await DecisionVerbs.commit({
+      action: "note",
+      target: { kind: "candidate", id: "cand_priya" },
+      reason: "spoke",
+      cwd: tmp.path,
+    })
     const result = await moks(["activity", "--days", "7"], tmp.path)
     expect(result.code).toBe(0)
     const json = result.json as {

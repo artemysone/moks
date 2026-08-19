@@ -1,0 +1,44 @@
+{
+  "candidates": [
+    {
+      "id": "jb_kenji",
+      "name": "Kenji Nakamura",
+      "title": "Senior Backend Engineer",
+      "headline": "Senior backend engineer — payments rails and settlement",
+      "source": "juicebox",
+      "score": 0.94
+    },
+    {
+      "id": "jb_sofia",
+      "name": "Sofia Alvarez",
+      "title": "Senior Backend Engineer",
+      "headline": "Senior backend, card processing and authorization",
+      "source": "juicebox",
+      "score": 0.91
+    },
+    {
+      "id": "jb_malik",
+      "name": "Malik Thompson",
+      "title": "Backend Engineer",
+      "headline": "Backend engineer, ledger systems and payouts",
+      "source": "juicebox",
+      "score": 0.88
+    },
+    {
+      "id": "jb_irene",
+      "name": "Irene Cho",
+      "title": "Senior Backend Engineer",
+      "headline": "Senior backend, payment orchestration and retries",
+      "source": "juicebox",
+      "score": 0.86
+    },
+    {
+      "id": "jb_theo",
+      "name": "Theo Barakat",
+      "title": "Backend Engineer",
+      "headline": "Backend engineer, Stripe and Adyen payments integrations",
+      "source": "juicebox",
+      "score": 0.83
+    }
+  ]
+}

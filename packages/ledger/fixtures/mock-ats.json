@@ -1,0 +1,86 @@
+{
+  "jobs": [
+    {
+      "id": "job_req142",
+      "remoteId": "REQ-142",
+      "title": "Senior Backend Engineer",
+      "team": "Payments",
+      "location": "New York, NY",
+      "status": "open"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "cand_jane",
+      "remoteId": "C-1001",
+      "name": "Jane Ortega",
+      "email": "jane.ortega@example.com",
+      "headline": "Staff-leaning backend, payments + distributed systems"
+    },
+    {
+      "id": "cand_marcus",
+      "remoteId": "C-1002",
+      "name": "Marcus Chen",
+      "email": "marcus.chen@example.com",
+      "headline": "Senior backend, marketplace infrastructure"
+    },
+    {
+      "id": "cand_priya",
+      "remoteId": "C-1003",
+      "name": "Priya Shah",
+      "email": "priya.shah@example.com",
+      "headline": "Backend engineer, fintech / ledger systems"
+    },
+    {
+      "id": "cand_devon",
+      "remoteId": "C-1004",
+      "name": "Devon Hale",
+      "email": "devon.hale@example.com",
+      "headline": "Platform engineer, Go + Kafka"
+    },
+    {
+      "id": "cand_amira",
+      "remoteId": "C-1005",
+      "name": "Amira Hassan",
+      "email": "amira.hassan@example.com",
+      "headline": "Full-stack, light backend — below bar"
+    }
+  ],
+  "applications": [
+    {
+      "id": "app_jane_142",
+      "remoteId": "A-2001",
+      "jobId": "job_req142",
+      "candidateId": "cand_jane",
+      "stage": "Screen"
+    },
+    {
+      "id": "app_marcus_142",
+      "remoteId": "A-2002",
+      "jobId": "job_req142",
+      "candidateId": "cand_marcus",
+      "stage": "Interview"
+    },
+    {
+      "id": "app_priya_142",
+      "remoteId": "A-2003",
+      "jobId": "job_req142",
+      "candidateId": "cand_priya",
+      "stage": "Sourced"
+    },
+    {
+      "id": "app_devon_142",
+      "remoteId": "A-2004",
+      "jobId": "job_req142",
+      "candidateId": "cand_devon",
+      "stage": "Contacted"
+    },
+    {
+      "id": "app_amira_142",
+      "remoteId": "A-2005",
+      "jobId": "job_req142",
+      "candidateId": "cand_amira",
+      "stage": "Rejected"
+    }
+  ]
+}

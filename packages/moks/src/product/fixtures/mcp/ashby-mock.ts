@@ -136,18 +136,7 @@ export function applyAshbyWrite(state: AshbyState, write: AshbyWrite) {
   return state
 }
 
-async function liveState(cwd = process.cwd()): Promise<AshbyState> {
-  const overlay = Bun.file(path.join(cwd, ".moks", "ats.json"))
-  if (await overlay.exists()) {
-    const loaded = (await overlay.json()) as Partial<AshbyState>
-    if (Array.isArray(loaded.jobs) && Array.isArray(loaded.candidates)) {
-      return {
-        jobs: loaded.jobs,
-        candidates: loaded.candidates,
-        notes: Array.isArray(loaded.notes) ? loaded.notes : [],
-      }
-    }
-  }
+async function liveState(_cwd = process.cwd()): Promise<AshbyState> {
   return { jobs: data.jobs, candidates: data.candidates, notes: [] }
 }
 

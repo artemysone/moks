@@ -57,7 +57,7 @@ import { usePromptWorkspace } from "./workspace"
 import { usePromptMove } from "./move"
 import { readLocalAttachment } from "./local-attachment"
 import { DEFAULT_PLACEHOLDERS } from "./placeholders"
-import { countCards, countUnpushed, formatReqStatus, readReqTitle } from "./req-status"
+import { countCards, countChangesets, formatReqStatus, readReqTitle } from "./req-status"
 
 registerOpencodeSpinner()
 
@@ -289,15 +289,17 @@ export function Prompt(props: PromptProps) {
     const [title, cards] = await Promise.all([readReqTitle(dir), countCards(dir)])
     return { title, cards }
   })
-  const [unpushed] = createResource(reqDir, countUnpushed)
+  const [ledger] = createResource(reqDir, countChangesets)
   const reqStatus = createMemo(() => {
     const dir = reqDir()
     if (!dir) return
     const meta = reqMeta()
+    const counts = ledger()
     return formatReqStatus({
       title: meta?.title ?? path.basename(dir),
       cards: meta?.cards,
-      unpushed: unpushed(),
+      staged: counts?.staged,
+      approved: counts?.approved,
       agent: local.agent.current()?.name ?? "recruit",
     })
   })

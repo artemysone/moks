@@ -67,7 +67,7 @@ export const PlanExitTool = Tool.define(
             messageID: msg.id,
             sessionID: ctx.sessionID,
             type: "text",
-            text: `The hiring plan at ${plan} has been approved. Execute it as recruit: load req context, score with cited evidence, draft outreach when planned (never send), and record dispositions with the native commit / status / push tools. Prefer skills and decision verbs; edit only notes under .moks/ if needed.`,
+            text: `The hiring plan at ${plan} has been approved. Execute it as recruit: load req context, score with cited evidence, draft outreach when planned (never send), and record dispositions with the native commit / status / diff tools. Prefer skills and decision verbs; edit only notes under .moks/ if needed.`,
             synthetic: true,
           } satisfies SessionV1.TextPart)
 

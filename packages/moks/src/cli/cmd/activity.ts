@@ -5,7 +5,7 @@ import { UI } from "../ui"
 
 export const ActivityCommand = effectCmd({
   command: "activity",
-  describe: "summarize recent hiring activity from the git audit log",
+  describe: "summarize recent hiring activity from the ledger",
   instance: false,
   builder: (yargs) =>
     yargs
@@ -52,18 +52,18 @@ export const ActivityCommand = effectCmd({
     }
     if (summary.signal === "quiet") {
       UI.println(
-        `${UI.Style.TEXT_DIM}Last ${summary.days} days (git): no decision activity${UI.Style.TEXT_NORMAL}`,
+        `${UI.Style.TEXT_DIM}Last ${summary.days} days (ledger): no decision activity${UI.Style.TEXT_NORMAL}`,
       )
-      UI.println(`${UI.Style.TEXT_NORMAL_BOLD}Signal: quiet${UI.Style.TEXT_NORMAL} — no eng-TA commit in window`)
+      UI.println(`${UI.Style.TEXT_NORMAL_BOLD}Signal: quiet${UI.Style.TEXT_NORMAL} — no changeset in window`)
       UI.println(`${UI.Style.TEXT_DIM}Path: ${summary.path}${UI.Style.TEXT_NORMAL}`)
       return
     }
     UI.println(
-      `Last ${summary.days} days (git): ${summary.commits} commits, ${summary.pushes} push`,
+      `Last ${summary.days} days (ledger): ${summary.commits} changesets, ${summary.pushes} applied`,
     )
     UI.println(`Active days: ${summary.active_days}`)
     UI.println(
-      `${UI.Style.TEXT_SUCCESS_BOLD}Signal: active${UI.Style.TEXT_NORMAL} — eng-TA decision activity detected`,
+      `${UI.Style.TEXT_SUCCESS_BOLD}Signal: active${UI.Style.TEXT_NORMAL} — hiring decision activity on the ledger`,
     )
     UI.println(`${UI.Style.TEXT_DIM}Path: ${summary.path}${UI.Style.TEXT_NORMAL}`)
   }),
