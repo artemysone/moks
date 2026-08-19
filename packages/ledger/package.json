@@ -11,6 +11,9 @@
     "typecheck": "tsgo --noEmit",
     "test": "bun test"
   },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0"
+  },
   "devDependencies": {
     "@tsconfig/node22": "catalog:",
     "@types/bun": "catalog:",

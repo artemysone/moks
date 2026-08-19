@@ -1,0 +1,58 @@
+{
+  "jobs": [
+    {
+      "id": "job_gh_backend",
+      "remoteId": "GH-JOB-142",
+      "title": "Senior Backend Engineer",
+      "team": "Payments",
+      "location": "San Francisco, CA",
+      "status": "open"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "cand_gh_elena",
+      "remoteId": "GH-CAND-3101",
+      "name": "Elena Voss",
+      "email": "elena.voss@example.com",
+      "headline": "Senior backend, payments infrastructure"
+    },
+    {
+      "id": "cand_gh_ravi",
+      "remoteId": "GH-CAND-3102",
+      "name": "Ravi Mehta",
+      "email": "ravi.mehta@example.com",
+      "headline": "Backend engineer, card issuing + ledgers"
+    },
+    {
+      "id": "cand_gh_nina",
+      "remoteId": "GH-CAND-3103",
+      "name": "Nina Okonkwo",
+      "email": "nina.okonkwo@example.com",
+      "headline": "Staff-leaning backend, payouts and risk"
+    }
+  ],
+  "applications": [
+    {
+      "id": "app_gh_elena",
+      "remoteId": "GH-APP-4101",
+      "jobId": "job_gh_backend",
+      "candidateId": "cand_gh_elena",
+      "stage": "Screen"
+    },
+    {
+      "id": "app_gh_ravi",
+      "remoteId": "GH-APP-4102",
+      "jobId": "job_gh_backend",
+      "candidateId": "cand_gh_ravi",
+      "stage": "Sourced"
+    },
+    {
+      "id": "app_gh_nina",
+      "remoteId": "GH-APP-4103",
+      "jobId": "job_gh_backend",
+      "candidateId": "cand_gh_nina",
+      "stage": "Interview"
+    }
+  ]
+}

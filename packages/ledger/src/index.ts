@@ -121,3 +121,29 @@ export {
   workspacePaths,
   type WorkspacePaths,
 } from "./paths.ts";
+export type { ApplyChange, ApplyResult, AtsAdapter } from "./adapters/types.ts";
+export type { SourcedCandidate, SourcingAdapter, SourcingQuery } from "./adapters/sourcing.ts";
+export { createMockAdapter, seedMockAts } from "./adapters/mock.ts";
+export { createGreenhouseAdapter, migrateGreenhouse, seedGreenhouse } from "./adapters/greenhouse.ts";
+export { createJuiceboxAdapter, migrateJuicebox, seedJuicebox } from "./adapters/juicebox.ts";
+export { createMcpAtsAdapter, createMcpSourcingAdapter } from "./adapters/mcp.ts";
+export { openAtsAdapter, openSourcingAdapter } from "./adapters/resolve.ts";
+export {
+  promptRefFor,
+  readHiringFiles,
+  readWorkspacePolicy,
+  type HiringFiles,
+  type HiringResolveOptions,
+  type WorkspacePolicy,
+} from "./hiring.ts";
+export {
+  SOURCE_SEARCH_DEFAULT_LIMIT,
+  SOURCE_SEARCH_MAX_LIMIT,
+  boundSourceLimit,
+  readMcpConfig,
+  resolveAtsId,
+  resolveSourcingId,
+  type McpConfig,
+  type McpServerConfig,
+  type SourcingId,
+} from "./config.ts";
