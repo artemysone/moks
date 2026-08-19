@@ -1,6 +1,6 @@
 # V2 Core Instructions
 
-These notes describe how to work on `packages/core` during the v2 port.
+These notes describe how to work on `packages/engine/core` during the v2 port.
 
 ## Direction
 
@@ -8,10 +8,10 @@ Move behavior out of large application services and into plugins. Core services 
 
 The target shape is:
 
-- `packages/core` contains domain schemas, typed errors, state containers, events, and plugin hook contracts.
+- `packages/engine/core` contains domain schemas, typed errors, state containers, events, and plugin hook contracts.
 - Plugins implement provider-specific, config-specific, auth-specific, model-discovery, and generation behavior.
 - Services are hot-reloadable by design: updates are granular, observable, and do not require tearing down the whole process.
-- `packages/moks` becomes thinner over time: UI, server routes, CLI, storage glue, and legacy compatibility should call the core services instead of owning domain logic directly.
+- `packages/cli` becomes thinner over time: UI, server routes, CLI, storage glue, and legacy compatibility should call the core services instead of owning domain logic directly.
 
 ## Service Shape
 
@@ -59,7 +59,7 @@ Do not use hooks as a dumping ground for transport concerns, UI behavior, or com
 
 ## Plugin Boot
 
-Built-in core plugins are registered by `packages/core/src/plugin/boot.ts`.
+Built-in core plugins are registered by `packages/engine/core/src/plugin/boot.ts`.
 
 When a new core service is intended to be available to plugins:
 
@@ -72,7 +72,7 @@ Keep boot as composition only. It should not contain provider, account, agent, o
 
 ## Boundaries
 
-Core should not import from `packages/moks`. If a type or concept is needed by core, move or remodel the domain shape in core first.
+Core should not import from `packages/cli`. If a type or concept is needed by core, move or remodel the domain shape in core first.
 
 Avoid moving legacy services over wholesale. Port the domain shape and the container API, then leave specific behavior behind hooks for plugins to implement.
 
@@ -81,7 +81,7 @@ When porting an opencode service:
 - identify the state it owns
 - identify the operations callers actually need
 - identify which branches are policy or integration behavior
-- model state and operations in `packages/core`
+- model state and operations in `packages/engine/core`
 - add hooks for the policy/integration branches
 - keep old package code working until callers can migrate incrementally
 

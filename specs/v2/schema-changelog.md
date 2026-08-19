@@ -68,8 +68,8 @@ Compatibility:
 
 Affected schema:
 
-- Existing synchronized `session.next.*` event family in `packages/core/src/session/event.ts`.
-- Existing projected V2 Session-message union in `packages/core/src/session/message.ts`.
+- Existing synchronized `session.next.*` event family in `packages/engine/core/src/session/event.ts`.
+- Existing projected V2 Session-message union in `packages/engine/core/src/session/message.ts`.
 - New explicit durable-event union and internal replay cursor returned by `sessions.events({ sessionID, after? })`.
 
 Change:

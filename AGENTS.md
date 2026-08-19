@@ -73,9 +73,9 @@ We do **not** use product moks to code this repo. Day-to-day engineering is the 
 
 ## Product path
 
-Work lives in `packages/moks` (CLI / TUI / server), `packages/core`, and `packages/tui`, plus what those import (`plugin`, `protocol`, `schema`, `server`, `sdk/js`, `llm`).
+Work lives in `packages/cli`, `packages/client`, `packages/engine`, and `packages/tui`. Harness internals sit under `packages/engine/` (`core`, `ledger`, `llm`, `server`, `protocol`, `schema`, `plugin`, `sdk/js`). `packages/sdk-next` and `packages/codemode` stay at the parent for review.
 
-Folder `packages/moks` and npm names `@moks/*` are the product. Monorepo `.opencode/` is the installed coding agent that edits this repo — not product code.
+Folder `packages/cli` (npm name `moks`) and npm names `@moks/*` are the product. Monorepo `.opencode/` is the installed coding agent that edits this repo — not product code.
 
 Do not bring back pruned company surfaces (desktop, console, web, app, SST). Do not ship under OpenCode install names. MIT stays; keep existing copyright notices; add moks copyright only on new work.
 
@@ -96,7 +96,7 @@ Hard fork of OpenCode (`anomalyco/opencode` → `artemysone/moks`). OpenCode is 
 
 ## Monorepo
 
-- To regenerate the legacy JavaScript SDK, run `./packages/sdk/js/script/build.ts`.
+- To regenerate the legacy JavaScript SDK, run `./packages/engine/sdk/js/script/build.ts`.
 - After changing the public Protocol or Server `HttpApi`, run `bun run generate` from `packages/client`. Do not edit `src/generated` or `src/generated-effect` directly.
 - Keep runtime dependencies directed from Schema to Core and Protocol, then from Core and Protocol to Server. Client runtime code may depend on Schema and Protocol but never Core or Server; `sdk-next` composes Client, Core, and Server.
 
@@ -238,11 +238,11 @@ const table = sqliteTable("session", {
 
 - Avoid mocks as much as possible, you shouldn't be using globalThis.\* at all unless it's the only option.
 - Test actual implementation, do not duplicate logic into tests
-- Tests cannot run from repo root (guard: `do-not-run-tests-from-root`); run from package dirs like `packages/moks`.
+- Tests cannot run from repo root (guard: `do-not-run-tests-from-root`); run from package dirs like `packages/cli`.
 
 ## Type Checking
 
-- Always run `bun typecheck` from package directories (e.g., `packages/moks`), never `tsc` directly.
+- Always run `bun typecheck` from package directories (e.g., `packages/cli`), never `tsc` directly.
 
 ## V2 Session Core
 

@@ -119,7 +119,7 @@ async function commits(from: string, to: string) {
   }
 
   const log =
-    await $`git log ${base}..${head} --format=%H -- packages/moks packages/core packages/tui packages/sdk packages/plugin packages/llm`.text()
+    await $`git log ${base}..${head} --format=%H -- packages/cli packages/engine packages/tui`.text()
 
   const list: Commit[] = []
   for (const hash of log.split("\n").filter(Boolean)) {
@@ -131,9 +131,13 @@ async function commits(from: string, to: string) {
     const areas = new Set<string>()
 
     for (const file of diff.split("\n").filter(Boolean)) {
-      if (file.startsWith("packages/tui/") || file.startsWith("packages/moks/src/cli/cmd/")) areas.add("tui")
-      else if (file.startsWith("packages/moks/") || file.startsWith("packages/core/")) areas.add("core")
-      else if (file.startsWith("packages/sdk/") || file.startsWith("packages/plugin/") || file.startsWith("packages/llm/"))
+      if (file.startsWith("packages/tui/") || file.startsWith("packages/cli/src/cli/cmd/")) areas.add("tui")
+      else if (file.startsWith("packages/cli/") || file.startsWith("packages/engine/core/")) areas.add("core")
+      else if (
+        file.startsWith("packages/engine/sdk/") ||
+        file.startsWith("packages/engine/plugin/") ||
+        file.startsWith("packages/engine/llm/")
+      )
         areas.add("sdk")
     }
 

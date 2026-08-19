@@ -29,10 +29,10 @@ bun install
 bun dev
 ```
 
-`bun dev` starts the TUI from `packages/moks`. From that package you can also run:
+`bun dev` starts the TUI from `packages/cli`. From that package you can also run:
 
 ```bash
-cd packages/moks
+cd packages/cli
 bun dev
 # or
 bun run --conditions=browser src/index.ts
@@ -52,7 +52,7 @@ bun dev
 Headless fixture run (no ATS required):
 
 ```bash
-cd packages/moks
+cd packages/cli
 
 FIXTURES=src/product/fixtures/hiring
 
@@ -62,7 +62,7 @@ bun run --conditions=browser src/index.ts run --agent recruit \
 ```
 
 Built-in skills: `req-context`, `score-candidate`, `draft-outreach`, `commit-disposition`.  
-Fixtures: [`packages/moks/src/product/fixtures/hiring/README.md`](packages/moks/src/product/fixtures/hiring/README.md).
+Fixtures: [`packages/cli/src/product/fixtures/hiring/README.md`](packages/cli/src/product/fixtures/hiring/README.md).
 
 Fixture loop: `pull` → run/screen → `commit` (stage) → `review` → `push --execute` → `log` / `log --compliance`.
 
@@ -81,7 +81,7 @@ bun run --conditions=browser src/index.ts log --compliance
 
 ### Scriptable / headless
 
-Same verbs; add `--json` for machine-readable stdout. Full contract: [`packages/moks/src/product/headless.md`](packages/moks/src/product/headless.md).
+Same verbs; add `--json` for machine-readable stdout. Full contract: [`packages/cli/src/product/headless.md`](packages/cli/src/product/headless.md).
 
 ```bash
 moks pull --json
@@ -111,7 +111,3 @@ moks run --json --agent recruit -f HIRING.md -f candidates/jordan-lee.md -- "Sco
 ## License
 
 MIT — see [LICENSE](LICENSE). Upstream OpenCode copyright retained; moks adds copyright for fork work.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). This repo is the **moks** product fork (`artemysone/moks`), not upstream OpenCode.

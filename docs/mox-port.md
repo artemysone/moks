@@ -23,7 +23,7 @@ mark the item done here in the same PR.
 2. **No git in the product.** `decision/git.ts`, `refs/moks/ats`, and git audit trailers
    were replaced by the ledger. Whether a user keeps their company folder in a git repo is
    their business and invisible to moks.
-3. **New package `packages/ledger` (`@moks/ledger`).** Plain TypeScript + `bun:sqlite`,
+3. **New package `packages/engine/ledger` (`@moks/ledger`).** Plain TypeScript + `bun:sqlite`,
    exactly as written in Mox. Do **not** rewrite it into Effect, drizzle, or the
    `@moks/core` idioms. It is a leaf dependency with zero imports from other moks
    packages.
@@ -69,7 +69,7 @@ mark the item done here in the same PR.
 ## Port set (Mox → Moks, file by file)
 
 All source paths relative to `~/mox/packages/engine/src/`, targets relative to
-`~/moks/packages/ledger/src/`. "As-is" = copy, fix import extensions/paths only.
+`~/moks/packages/engine/ledger/src/`. "As-is" = copy, fix import extensions/paths only.
 
 ### P1 scope — engine core
 
@@ -108,8 +108,8 @@ All source paths relative to `~/mox/packages/engine/src/`, targets relative to
 | `agent/hiring.ts` | `hiring.ts` | **Adapt**: focused-req `HIRING.md` resolution with company fallback (decision 5); drop Mox template-copy behavior in favor of moks `/init` scaffold (`product/req-workspace.ts`) |
 | `config.ts` | `config.ts` | **Adapt**: read from `.moks/config.json`; strip Mox-only keys |
 | `init.ts` | — | **Do not port.** Moks' `/init` (`product/req-workspace.ts`) already scaffolds; extend it in P3 to create `SCORECARD.md` if absent |
-| `~/mox/fixtures/*` | `packages/ledger/fixtures/` | Copy fixture JSON used by ported tests |
-| `~/mox/templates/scorecard.md` | `packages/moks/src/product/` template dir | Copy as `SCORECARD.md` template |
+| `~/mox/fixtures/*` | `packages/engine/ledger/fixtures/` | Copy fixture JSON used by ported tests |
+| `~/mox/templates/scorecard.md` | `packages/cli/src/product/` template dir | Copy as `SCORECARD.md` template |
 | Tests: `adapters/*.test.ts`, `mcp/*.test.ts`, `m3.test.ts`, `config.test.ts`, `init.test.ts` | alongside | As-is where deps ported; drop assertions that target unported modules (document each drop in the PR) |
 
 ### Not ported (deliberate)
@@ -126,12 +126,12 @@ share-a-review-link story emerges.
 
 | File | Reason |
 |---|---|
-| `packages/moks/src/decision/git.ts` | Git plumbing, `refs/moks/ats` — replaced by the ledger |
-| `packages/moks/src/decision/ats.ts` | `.moks/ats.json` mock write path — replaced by the ledger adapters |
-| `packages/moks/src/decision/receipt.ts` | Receipts superseded by ledger changesets/events |
-| `packages/moks/src/decision/ledger.ts` | 3-line no-op stub — replaced by `@moks/ledger` |
-| `packages/moks/src/decision/verbs.ts` | Rewritten in P3 as a thin layer over `@moks/ledger` |
-| `packages/moks/src/decision/activity.ts` | Rewired in P3 to ledger events |
+| `packages/cli/src/decision/git.ts` | Git plumbing, `refs/moks/ats` — replaced by the ledger |
+| `packages/cli/src/decision/ats.ts` | `.moks/ats.json` mock write path — replaced by the ledger adapters |
+| `packages/cli/src/decision/receipt.ts` | Receipts superseded by ledger changesets/events |
+| `packages/cli/src/decision/ledger.ts` | 3-line no-op stub — replaced by `@moks/ledger` |
+| `packages/cli/src/decision/verbs.ts` | Rewritten in P3 as a thin layer over `@moks/ledger` |
+| `packages/cli/src/decision/activity.ts` | Rewired in P3 to ledger events |
 
 ---
 
@@ -140,20 +140,20 @@ share-a-review-link story emerges.
 ### P1 — Mount `@moks/ledger` with the engine core, tests green
 
 - **Status:** done
-- **Outcome:** `packages/ledger` exists in the moks workspace with Mox's domain/ledger
+- **Outcome:** `packages/engine/ledger` exists in the moks workspace with Mox's domain/ledger
   core and its tests passing. Nothing else in moks imports it yet.
 - **Keep:** Mox semantics exactly — hash chain format, changeset statuses, CAS
   preconditions, effect classes, fail-closed policy. Tests are the spec; do not "improve"
   behavior while porting.
-- **Change:** Create `packages/ledger/{package.json,tsconfig.json,src/}` per the P1 table.
+- **Change:** Create `packages/engine/ledger/{package.json,tsconfig.json,src/}` per the P1 table.
   `package.json`: name `@moks/ledger`, `type: module`, exports `./src/index.ts`, deps:
   none beyond `bun:sqlite` builtins (verify — the P1 set imports only node builtins and
   bun). Add `@moks/ledger` to the root `typecheck` turbo filter.
-- **Don't:** Rewrite into Effect. Import from `@moks/core` or `packages/moks`. Port
+- **Don't:** Rewrite into Effect. Import from `@moks/core` or `packages/cli`. Port
   anything from Mox's `agent/` or `server.ts`. Touch existing moks packages.
-- **Touch:** `packages/ledger/**` (new), root `package.json` typecheck script, `turbo.json`
+- **Touch:** `packages/engine/ledger/**` (new), root `package.json` typecheck script, `turbo.json`
   if a task entry is needed.
-- **Verify:** `bun test` inside `packages/ledger` — all ported tests pass (expect roughly
+- **Verify:** `bun test` inside `packages/engine/ledger` — all ported tests pass (expect roughly
   the ledger/domain/policy/vault/rebase/sync share of Mox's 406). `bun turbo typecheck`
   filters clean. `git -C ~/mox status` untouched.
 
@@ -170,9 +170,9 @@ share-a-review-link story emerges.
   `HIRING.md` → company `HIRING.md` → fail closed (`always_gate`).
 - **Don't:** Add live vendor HTTP calls (that's P6). Change the adapter interface.
   Bump or unpatch the MCP SDK pin.
-- **Touch:** `packages/ledger/src/{adapters,mcp}/**`, `packages/ledger/src/hiring.ts`,
-  `packages/ledger/src/config.ts`, `packages/ledger/fixtures/**`.
-- **Verify:** Adapter + MCP + m3 + hiring tests pass in `packages/ledger`. A unit test
+- **Touch:** `packages/engine/ledger/src/{adapters,mcp}/**`, `packages/engine/ledger/src/hiring.ts`,
+  `packages/engine/ledger/src/config.ts`, `packages/engine/ledger/fixtures/**`.
+- **Verify:** Adapter + MCP + m3 + hiring tests pass in `packages/engine/ledger`. A unit test
   proves: req-level HIRING.md wins over company-level; missing both → `always_gate`.
 
 ### P3 — Rewire the verbs: CLI, agent tools, and the git deletion
@@ -190,7 +190,7 @@ share-a-review-link story emerges.
     `ledger.ts`; rewire `activity.ts` to ledger events.
   - New CLI commands `cli/cmd/{pull,diff,review,rebase,log}.ts`; rewire existing
     `cli/cmd/{commit,push,status,activity}.ts`. Register all in
-    `packages/moks/src/index.ts` beside the existing `.command(CommitCommand)` block.
+    `packages/cli/src/index.ts` beside the existing `.command(CommitCommand)` block.
     Note: CLI `moks diff` is the **ledger** diff; the TUI file-diff viewer (backlog H19)
     is a different surface — do not merge them.
   - Update `tool/decision.ts`: native agent tools become `commit` (stage), `status`,
@@ -200,15 +200,15 @@ share-a-review-link story emerges.
     template when absent and ensure `<company>/.moks/` exists for the ledger.
 - **Don't:** Let any agent-reachable code path call `sync.push` or `ledger.review`.
   Re-introduce a JSON mock write path. Break `moks run --agent recruit` fixture flows.
-- **Touch:** `packages/moks/src/decision/**`, `packages/moks/src/tool/decision.ts`,
-  `packages/moks/src/cli/cmd/**`, `packages/moks/src/index.ts`,
-  `packages/moks/src/product/req-workspace.ts`, product tests under
-  `packages/moks/test/` covering verbs.
+- **Touch:** `packages/cli/src/decision/**`, `packages/cli/src/tool/decision.ts`,
+  `packages/cli/src/cli/cmd/**`, `packages/cli/src/index.ts`,
+  `packages/cli/src/product/req-workspace.ts`, product tests under
+  `packages/cli/test/` covering verbs.
 - **Verify:** On the hiring fixture (never this monorepo root): agent screens a
   candidate → changeset staged, ATS mirror unchanged → `moks diff` shows the mutation →
   `moks review <id> --approve --by you` → `moks push --execute` applies via the mock
   adapter → `moks log` shows the chained entry and `moks log --compliance` exports.
-  `rg -n "refs/moks/ats|ats\.json|Bun.spawn\(\[\"git\"" packages/moks/src` returns
+  `rg -n "refs/moks/ats|ats\.json|Bun.spawn\(\[\"git\"" packages/cli/src` returns
   nothing (those paths were replaced by the ledger). Existing product tests pass or
   are updated in the same PR.
 
@@ -241,7 +241,7 @@ share-a-review-link story emerges.
   - `docs/backlog.md`: mark H20 done-via-P4 when it lands; update parking-lot line
     "mock ATS is the write path" → "adapter seam is the write path; live Ashby = P6";
     add a pointer to this file.
-  - `README.md` verb section; `packages/moks/src/product/headless.md` fixture flow.
+  - `README.md` verb section; `packages/cli/src/product/headless.md` fixture flow.
 - **Don't:** Rewrite the constitution's ontology (company folder, req subdirs, markdown
   cards — all unchanged). Touch `CONTEXT.md` scope beyond decision-path mentions.
 - **Touch:** `AGENTS.md`, `docs/backlog.md`, `README.md`, `product/headless.md`, this file.
@@ -262,7 +262,7 @@ share-a-review-link story emerges.
   moks auth/env, never in the workspace.
 - **Don't:** Widen the adapter interface for Ashby-specific features in this pass. Let
   candidate PII bypass the vault.
-- **Touch:** `packages/ledger/src/adapters/ashby.ts` (+ tests with recorded/stubbed
+- **Touch:** `packages/engine/ledger/src/adapters/ashby.ts` (+ tests with recorded/stubbed
   responses), config plumbing for `MOKS_ATS=ashby`.
 - **Verify:** Against a sandbox Ashby workspace: full loop `pull → run "screen …" →
   diff → review → push --execute → log` with a real remote write, then `pull` again
@@ -272,7 +272,7 @@ share-a-review-link story emerges.
 
 ## Global acceptance (after P1–P5)
 
-1. `bun test` green in `packages/ledger` and in `packages/moks` product tests.
+1. `bun test` green in `packages/engine/ledger` and in `packages/cli` product tests.
 2. `bun turbo typecheck --filter=moks... --filter=@moks/core... --filter=@moks/ledger...` clean.
 3. Fixture e2e (P3 verify script) passes.
 4. Zero git invocations in the decision path; `decision/git.ts` does not exist.

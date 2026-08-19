@@ -157,7 +157,7 @@ Worth tightening the “always” language for hiring writes (`moks push`), not 
 
 ## Inventory
 
-Fullscreen TUI = `packages/tui` (default `moks`). Mini = `packages/moks/src/cli/cmd/run/` (`moks --mini`).
+Fullscreen TUI = `packages/tui` (default `moks`). Mini = `packages/cli/src/cli/cmd/run/` (`moks --mini`).
 
 | # | Concept | moks | Notes |
 |---|---------|------|-------|

@@ -4,17 +4,17 @@
 
 Create a small workspace package that vendors the Drizzle `effect-sqlite` adapter shape for our repo. This is not an opencode storage abstraction. It is a local package that ports the Drizzle Effect SQLite implementation so we can use it before/independently of upstream release timing.
 
-`packages/moks` will use it internally, but the package itself should be generic: Drizzle + Effect + SQLite. No opencode paths, migrations, tables, transaction hooks, post-commit behavior, or domain language should live in this package.
+`packages/cli` will use it internally, but the package itself should be generic: Drizzle + Effect + SQLite. No opencode paths, migrations, tables, transaction hooks, post-commit behavior, or domain language should live in this package.
 
 ## Package Shape
 
-Add a package similar in style to `packages/http-recorder`:
+Add a package similar in style to `packages/engine/http-recorder`:
 
-- `packages/effect-drizzle-sqlite/package.json`
-- `packages/effect-drizzle-sqlite/src/index.ts`
-- `packages/effect-drizzle-sqlite/src/effect-sqlite/*`
-- `packages/effect-drizzle-sqlite/src/sqlite-core/effect/*`
-- `packages/effect-drizzle-sqlite/test/sqlite.test.ts`
+- `packages/engine/effect-drizzle-sqlite/package.json`
+- `packages/engine/effect-drizzle-sqlite/src/index.ts`
+- `packages/engine/effect-drizzle-sqlite/src/effect-sqlite/*`
+- `packages/engine/effect-drizzle-sqlite/src/sqlite-core/effect/*`
+- `packages/engine/effect-drizzle-sqlite/test/sqlite.test.ts`
 
 Package name:
 
@@ -78,13 +78,13 @@ Notes:
 - `make` / `makeWithDefaults` should match the Drizzle Effect SQLite branch as much as possible.
 - `DefaultServices` should provide Drizzle's default logger/cache services, same as Effect Postgres.
 - The package should depend on Effect SQL SQLite clients (`@effect/sql-sqlite-bun` and/or node) the same way the Drizzle branch does.
-- Opencode-specific path/channel selection stays in `packages/moks`.
+- Opencode-specific path/channel selection stays in `packages/cli`.
 
 ## Opencode Adoption Notes
 
 These are not package requirements, but they matter for the later opencode adoption PR.
 
-The current `packages/moks/src/storage/db.ts` has two non-obvious semantics that the opencode wrapper must preserve when it consumes this adapter:
+The current `packages/cli/src/storage/db.ts` has two non-obvious semantics that the opencode wrapper must preserve when it consumes this adapter:
 
 - Nested `Database.use` inside `Database.transaction` sees the current transaction, not the root client.
 - `Database.effect` queues post-commit side effects while inside a transaction, and runs immediately outside a transaction.
@@ -108,8 +108,8 @@ Do not remove this behavior while moving opencode to Effect SQLite. `SyncEvent.r
    - failed transaction rolls back,
    - migrations run once and in order,
    - close finalizer closes the underlying SQLite database.
-4. Add `@moks/effect-drizzle-sqlite` as a dependency of `packages/moks`.
-5. Port `packages/moks/src/storage/db.ts` to be a thin compatibility wrapper over the adapter plus opencode-specific transaction/post-commit context.
+4. Add `@moks/effect-drizzle-sqlite` as a dependency of `packages/cli`.
+5. Port `packages/cli/src/storage/db.ts` to be a thin compatibility wrapper over the adapter plus opencode-specific transaction/post-commit context.
 6. Keep existing call sites working first:
    - `Database.Client()`
    - `Database.use(...)`
@@ -131,15 +131,15 @@ An Effect Drizzle SQLite package lets us vendor the adapter once. Then opencode 
 - What is the update path once Drizzle upstream ships `effect-sqlite`?
 - Should `afterCommit` stay opencode-specific until event publishing moves? Default answer: yes.
 - Should the compatibility wrapper preserve synchronous return types temporarily, or should the migration intentionally force Effect call sites?
-- Do CLI/admin raw SQL and sqlite shell stay in `packages/moks`, or does the storage package expose backend capabilities for them?
+- Do CLI/admin raw SQL and sqlite shell stay in `packages/cli`, or does the storage package expose backend capabilities for them?
 
 ## Recommended First PR
 
 Make the first PR package-only and intentionally boring:
 
-- Add `packages/effect-drizzle-sqlite`.
+- Add `packages/engine/effect-drizzle-sqlite`.
 - Use a tiny test schema, not opencode domain tables.
 - Prove Effect Drizzle SQLite queries, transactions, and migrations.
-- Do not migrate `packages/moks` yet except possibly adding the dependency if needed for typechecking.
+- Do not migrate `packages/cli` yet except possibly adding the dependency if needed for typechecking.
 
 That gives us a focused place to validate the Effect SQLite approach before disturbing opencode's current database runtime.

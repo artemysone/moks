@@ -46,7 +46,7 @@ Strategy: `docs/gtm.html`. Ontology: `AGENTS.md`. Ledger-first port: `docs/mox-p
 
 **Identity**
 - Product paths: `moks.json` / `.moks/` / `MOKS_*` / `~/.config/moks`
-- Workspace: `packages/moks`, npm `@moks/*`, CLI package `moks`, root `moks-monorepo`
+- Workspace: `packages/cli`, npm `@moks/*`, CLI package `moks`, root `moks-monorepo`
 - MIT + upstream copyright in `LICENSE`
 
 **Cast**
@@ -85,8 +85,8 @@ These strings still go to the default doer. Small diffs. Do not rewrite `recruit
 - **Keep:** Bash. Restricted git read (`status` / `diff` / `log`). `moks *` allow. `git push` deny.
 - **Change:** Replace `gh pr create` examples and “git/PR work” policy with `moks commit` / `moks status` / `moks push` recipes. Keep the “only when asked” guard, pointed at decision verbs.
 - **Don't:** Remove bash. Add a native commit tool here (that is H24).
-- **Touch:** `packages/moks/src/tool/shell/shell.txt`, `packages/moks/src/tool/shell/prompt.ts`
-- **Verify:** `rg "gh pr" packages/moks/src/tool/shell` is empty.
+- **Touch:** `packages/cli/src/tool/shell/shell.txt`, `packages/cli/src/tool/shell/prompt.ts`
+- **Verify:** `rg "gh pr" packages/cli/src/tool/shell` is empty.
 
 ### H06 — Grep / glob examples are packet-shaped
 
@@ -95,7 +95,7 @@ These strings still go to the default doer. Small diffs. Do not rewrite `recruit
 - **Keep:** Grep and glob. They are how you search a packet.
 - **Change:** Swap coding examples in the tool descriptions. One hiring example each is enough.
 - **Don't:** Add a new search tool. Restrict grep to markdown.
-- **Touch:** `packages/moks/src/tool/grep.txt`, `packages/moks/src/tool/glob.txt`
+- **Touch:** `packages/cli/src/tool/grep.txt`, `packages/cli/src/tool/glob.txt`
 - **Verify:** Open those files. No `*.js` / `src/**` as the lead example.
 
 ### H07 — Session titles from hiring work, not tickets
@@ -105,7 +105,7 @@ These strings still go to the default doer. Small diffs. Do not rewrite `recruit
 - **Keep:** The title agent and the existing hiring examples.
 - **Change:** Replace the coding examples in `title.txt`. Add 2–3 more hiring ones if needed (reject, outreach, onsite).
 - **Don't:** Change how titles are generated or stored.
-- **Touch:** `packages/moks/src/agent/prompt/title.txt`
+- **Touch:** `packages/cli/src/agent/prompt/title.txt`
 - **Verify:** Prompt a score / outreach / reject. Titles read like a req thread.
 
 ### H08 — `moks agent create` designs hiring agents
@@ -115,7 +115,7 @@ These strings still go to the default doer. Small diffs. Do not rewrite `recruit
 - **Keep:** `moks agent create` and the generate flow.
 - **Change:** Rewrite `generate.txt` examples and the CLAUDE.md / prime-number bits.
 - **Don't:** Remove agent create. Auto-generate a cast of new built-ins.
-- **Touch:** `packages/moks/src/agent/generate.txt`
+- **Touch:** `packages/cli/src/agent/generate.txt`
 - **Verify:** Read the prompt. No `code-reviewer` / `test-generator` / prime-number task.
 
 ### H11 — Dead provider prompt files
@@ -125,8 +125,8 @@ These strings still go to the default doer. Small diffs. Do not rewrite `recruit
 - **Keep:** `default.txt` (live fallback). `recruit.txt` / `plan.txt` / explore prompts.
 - **Change:** Delete provider `*.txt` that nothing calls after H10, plus `SystemPrompt.provider()` if it is only used by those files’ unit tests.
 - **Don't:** Rewrite them into 8 recruiter novels. Touch `docs/gtm.html`. Tiny per-provider steering deltas only if a real model failure shows up later.
-- **Touch:** `packages/moks/src/session/prompt/`, `packages/moks/src/session/system.ts`
-- **Verify:** `rg "best coding agent|software engineering tasks" packages/moks/src/session/prompt` is empty or only in deleted-path history.
+- **Touch:** `packages/cli/src/session/prompt/`, `packages/cli/src/session/system.ts`
+- **Verify:** `rg "best coding agent|software engineering tasks" packages/cli/src/session/prompt` is empty or only in deleted-path history.
 
 ---
 
@@ -210,7 +210,7 @@ This is the SWE analog of “the file tree is the repo.” Still files. Just vis
 - **Keep:** Cards as markdown. No new format.
 - **Change:** Extend `ReqWorkspace.isReqMaterial` (and any twin) to include `candidates/*.md` at a req path (`<req>/candidates/<id>.md` or cwd `candidates/` in a single-req workspace). Use it anywhere the code currently special-cases only `HIRING.md` for “is this a req file.”
 - **Don't:** Change scaffold layout. Load every card into the system prompt in this item. Invent `.moks/reqs/`.
-- **Touch:** `packages/moks/src/product/req-workspace.ts` and its test
+- **Touch:** `packages/cli/src/product/req-workspace.ts` and its test
 - **Verify:** Existing scaffold test still asserts no `.moks/reqs/`. New assertion: a card path is req material.
 
 ### H23 — Slate in context: list candidate cards without a Glob
@@ -220,7 +220,7 @@ This is the SWE analog of “the file tree is the repo.” Still files. Just vis
 - **Keep:** Cards on disk. `@jordan-lee` attach. Skills that write onto the card. Filesystem is the book.
 - **Change (pick the smaller analog):** Inject a short slate block into system context (id / stage / score / path) for the **focused req only** (cwd packet if single-req). Generated from `CandidateCard` list. Cap it. Full card body still requires Read / `@`. If no req is focused, list req directory names — not every card in the company.
 - **Don't:** Auto-load full resumes. Build a sidebar yet (H26). Add a new database.
-- **Touch:** `packages/moks/src/session/system.ts` or instruction assembly; `packages/moks/src/product/candidate-card.ts`
+- **Touch:** `packages/cli/src/session/system.ts` or instruction assembly; `packages/cli/src/product/candidate-card.ts`
 - **Verify:** New session in the hiring fixture mentions Jordan Lee’s stage/score before any tool call. Card bodies are not dumped.
 
 ### H24 — Native `commit` / `status` / `push` tools
@@ -231,7 +231,7 @@ This is the SWE analog of “the file tree is the repo.” Still files. Just vis
 - **Change:** Thin tools that call the same functions as the CLI (`decision/verbs.ts`). Recruit permission: allow these tools; keep `git commit` as ask and `git push` as deny. Update `commit-disposition` to prefer the tools.
 - **Don't:** Reimplement git. Auto-push. Let the tool take arbitrary paths. Remove bash.
 - **Depends:** H05 so the shell prompt doesn’t fight the tools.
-- **Touch:** new tool module under `packages/moks/src/tool/`, `packages/moks/src/tool/registry.ts`, `packages/moks/src/agent/agent.ts`, `packages/moks/src/product/skills/commit-disposition/SKILL.md`
+- **Touch:** new tool module under `packages/cli/src/tool/`, `packages/cli/src/tool/registry.ts`, `packages/cli/src/agent/agent.ts`, `packages/cli/src/product/skills/commit-disposition/SKILL.md`
 - **Verify:** Score → tool commit → `moks status` shows the commit. Push tool dry-runs unless execute+confirm.
 
 ### H25 — Env / workspace prompt says this is the company
@@ -241,7 +241,7 @@ This is the SWE analog of “the file tree is the repo.” Still files. Just vis
 - **Keep:** cwd, platform, date. The ledger is how `moks commit` audits.
 - **Change:** Relabel the env block in `session/system.ts` (and core builtin twin if it still says “Workspace root folder”). Mention company `HIRING.md`, focused req when present, and that req’s `candidates/`. Single-req fixture: company and req are the same folder.
 - **Don't:** Change `Project.resolve` here (H28). Don’t hide git from `moks commit`.
-- **Touch:** `packages/moks/src/session/system.ts`, `packages/core/src/system-context/builtins.ts`
+- **Touch:** `packages/cli/src/session/system.ts`, `packages/engine/core/src/system-context/builtins.ts`
 - **Verify:** First turn system context in a company workspace reads as hiring, not a software workspace.
 
 ---
@@ -260,7 +260,7 @@ Structural. Do H33 → H34 before H26 / H29. H27 is deferred. Verify H33–H29 o
   - Company `HIRING.md` present, no `candidates/` at root: `/init [title]` creates `<slug>/HIRING.md` + `<slug>/candidates/`.
   - Root already has `HIRING.md` + `candidates/`: single-req workspace; do not nest a second req; skip or refresh empty stubs only.
 - **Don't:** Auto-focus a picker UI. Walk up to a parent software `HIRING.md` and init there. Turn this monorepo into a company.
-- **Touch:** `/init` templates and scaffold (`packages/moks/src/product/req-workspace.ts`, command initialize templates)
+- **Touch:** `/init` templates and scaffold (`packages/cli/src/product/req-workspace.ts`, command initialize templates)
 - **Verify:** Empty tmp → company `HIRING.md`. Second `/init Senior Backend` → `senior-backend/HIRING.md` + `candidates/`. Fixture `/init` does not nest.
 
 ### H34 — Focus a req (`@<req>` or last-focused)
@@ -292,8 +292,8 @@ Structural. Do H33 → H34 before H26 / H29. H27 is deferred. Verify H33–H29 o
 - **Keep:** The ledger is the audit log for the company workspace. `moks commit` stages changesets. Engineering checkouts without a company `HIRING.md` still resolve as a git project.
 - **Change (tactical, not a Project rewrite):** If the opened folder is a company workspace, treat that folder as the project directory even when a parent git repo exists. `moks commit` must not write hiring commits into this monorepo. Do not change identity hashing for non-hiring directories in the same PR if that ripples through Instance/Session — split if so.
 - **Don't:** Delete git. Make every folder a fake repo. Invent a parallel project store. One git remote per req.
-- **Depends:** H25 so copy and runtime agree. Decision git: `packages/moks/src/decision/git.ts`, `decision/verbs.ts`.
-- **Touch:** `packages/core/src/project.ts` *or* a company-aware wrapper used by Instance + DecisionGit — prefer the wrapper if `Project.resolve` is too load-bearing.
+- **Depends:** H25 so copy and runtime agree. Decision git: `packages/cli/src/decision/git.ts`, `decision/verbs.ts`.
+- **Touch:** `packages/engine/core/src/project.ts` *or* a company-aware wrapper used by Instance + DecisionGit — prefer the wrapper if `Project.resolve` is too load-bearing.
 - **Verify:** `moks commit` inside a throwaway company workspace does **not** create a commit on this monorepo. `moks` at this repo root still behaves as an engineering checkout.
 
 ### H29 — Load company + focused req `HIRING.md`, not a software parent
@@ -304,7 +304,7 @@ Structural. Do H33 → H34 before H26 / H29. H27 is deferred. Verify H33–H29 o
 - **Change:** Instruction walk is company root → focused req, then stop. Do not walk out of the company into a parent software worktree.
 - **Don't:** Load `candidates/` as constitution. Remove global HIRING.md. Flatten all req constitutions into every turn.
 - **Depends:** H28, H34.
-- **Touch:** `packages/moks/src/session/instruction.ts`, `packages/core/src/instruction-context.ts`, `packages/moks/src/product/req-workspace.ts`
+- **Touch:** `packages/cli/src/session/instruction.ts`, `packages/engine/core/src/instruction-context.ts`, `packages/cli/src/product/req-workspace.ts`
 - **Verify:** Nested req loads company + that req’s `HIRING.md`. A tmp dir inside this monorepo does not load an unrelated parent hiring file.
 
 ---
@@ -315,10 +315,10 @@ Structural. Do H33 → H34 before H26 / H29. H27 is deferred. Verify H33–H29 o
 
 - **Status:** open
 - **Outcome:** If/when core Session V2 is the runtime, recruit still has path-scoped edit and bash policy. No LSP.
-- **Keep:** Dual stack until V2 is default. V1 overlay in `packages/moks/src/agent/agent.ts` as the spec.
-- **Change:** Port the recruit permission overlay (and plan/explore) onto `packages/core/src/plugin/agent.ts`. Do not invent a new policy language. Do not port LSP.
+- **Keep:** Dual stack until V2 is default. V1 overlay in `packages/cli/src/agent/agent.ts` as the spec.
+- **Change:** Port the recruit permission overlay (and plan/explore) onto `packages/engine/core/src/plugin/agent.ts`. Do not invent a new policy language. Do not port LSP.
 - **Don't:** Expand core builtins to apply_patch for recruit.
-- **Touch:** `packages/core/src/plugin/agent.ts`, compare `packages/moks/src/agent/agent.ts`
+- **Touch:** `packages/engine/core/src/plugin/agent.ts`, compare `packages/cli/src/agent/agent.ts`
 - **Verify:** Side-by-side permission tables match for recruit/plan/explore (minus deleted `lsp` / `plan_enter` / `build`).
 
 ### H31 — Core V2 `/init` + recruit prompt stay in sync with v1
@@ -328,7 +328,7 @@ Structural. Do H33 → H34 before H26 / H29. H27 is deferred. Verify H33–H29 o
 - **Keep:** Long-form v1 `product/agents/recruit.txt` as source of truth for TUI/CLI.
 - **Change:** Either share the file or add a test that V2 still names HIRING.md, cards, `moks commit`/`push`, and never-send. Align `/init` templates.
 - **Don't:** Duplicate a second full recruit prompt that will rot.
-- **Touch:** `packages/core/src/plugin/agent.ts`, `packages/core/src/plugin/command.ts`
+- **Touch:** `packages/engine/core/src/plugin/agent.ts`, `packages/engine/core/src/plugin/command.ts`
 - **Verify:** V2 recruit text cannot mention “coding agent.” `/init` still matches H33 (company + req dir, or single-req fixture).
 
 ---
