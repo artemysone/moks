@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>moks — OpenTUI fonts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0c0f0d;
+      --bg2: #141a16;
+      --panel: #1a221c;
+      --line: #2a362e;
+      --text: #e8efe9;
+      --muted: #8a9a8e;
+      --dim: #5c6b60;
+      --green: #3dd68c;
+      --green-dim: #1f6b47;
+      --amber: #e6b84d;
+      --amber-dim: #6b5420;
+      --blue: #6db3f2;
+      --red: #f07178;
+      --ink: #c8d4cc;
+      --font: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+      --mono: "IBM Plex Mono", "Cascadia Code", "SF Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #1a3d2a 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #1a2a3d 0%, transparent 50%),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      min-height: 100vh;
+      padding: 32px 20px 80px;
+    }
+    .page { max-width: 1180px; margin: 0 auto; }
+    header {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, var(--panel), var(--bg2));
+      border-radius: 16px;
+      padding: 28px 32px 24px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    header::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--green), var(--blue), var(--amber));
+    }
+    .kicker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      align-items: center;
+      margin-bottom: 14px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--line);
+      background: var(--bg);
+      color: var(--green);
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+    }
+    .pill::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+    h1 {
+      font-size: clamp(1.55rem, 3vw, 2rem);
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 12px;
+    }
+    h1 span { color: var(--green); }
+    .thesis {
+      font-size: 1.05rem;
+      color: var(--muted);
+      max-width: 72ch;
+    }
+    .thesis strong { color: var(--text); font-weight: 600; }
+    nav.jump {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 18px;
+    }
+    nav.jump a {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      text-decoration: none;
+      border: 1px solid var(--line);
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--bg);
+    }
+    nav.jump a:hover { color: var(--green); border-color: var(--green-dim); }
+    .grid { display: grid; gap: 16px; margin-bottom: 16px; }
+    @media (min-width: 900px) { .grid.two { grid-template-columns: 1fr 1fr; } }
+    section, .card {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, var(--panel), var(--bg2));
+      border-radius: 14px;
+      padding: 20px 22px 18px;
+    }
+    .card.wide { grid-column: 1 / -1; }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 8px 12px;
+      margin-bottom: 8px;
+    }
+    .num {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--green);
+      letter-spacing: 0.06em;
+    }
+    h2 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.02em; }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+    .tag {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--dim);
+      border: 1px solid var(--line);
+      padding: 1px 7px;
+      border-radius: 999px;
+    }
+    .tag.pick { color: var(--amber); border-color: var(--amber-dim); }
+    .tag.dim { color: var(--dim); }
+    .blurb { color: var(--muted); font-size: 0.92rem; margin-bottom: 14px; max-width: 72ch; }
+    .stage {
+      background: #0a0d0b;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 18px 16px 16px;
+      overflow-x: auto;
+      position: relative;
+    }
+    .stage + .stage { margin-top: 10px; }
+    .label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 8px;
+    }
+    pre, .art {
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.18;
+      letter-spacing: 0;
+      font-variant-ligatures: none;
+      font-feature-settings: "calt" 0, "liga" 0;
+      color: var(--ink);
+      white-space: pre;
+    }
+    .art .c1 { color: var(--green); }
+    .art .c2 { color: var(--blue); }
+    .art .g { color: var(--green); }
+    .art .b { color: var(--blue); }
+    .art .a { color: var(--amber); }
+    .art .d { color: var(--dim); }
+    .art .m { color: var(--muted); }
+    .art .w { color: var(--text); }
+    .art .r { color: var(--red); }
+    .pair { display: grid; gap: 10px; margin-top: 10px; }
+    @media (min-width: 720px) { .pair { grid-template-columns: 1fr 1fr; } }
+    .row-0 { color: #b8ffd6; }
+    .row-1 { color: #8af0b8; }
+    .row-2 { color: #5ed99a; }
+    .row-3 { color: #3dd68c; }
+    .row-4 { color: #c8d4cc; }
+    .row-5 { color: #a8b8ae; }
+    .row-6 { color: #8a9a8e; }
+    .row-7 { color: #e6b84d; }
+    .row-8 { color: #c9a043; }
+    .row-9 { color: #8a6e2c; }
+    .row-10 { color: #5c6b60; }
+    footer {
+      margin-top: 8px;
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    code { font-family: var(--mono); color: var(--ink); }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="kicker">
+        <span class="pill">opentui fonts</span>
+        <span>docs/opentui-art.html</span>
+        <span>not shipped</span>
+      </div>
+      <h1>Seven fonts, one name: <span>MOKS</span></h1>
+      <p class="thesis">
+        Rendered from <strong>@opentui/core</strong> ASCII fonts — <code>tiny</code> <code>slick</code> <code>pallet</code> <code>grid</code> <code>shade</code> <code>block</code> <code>huge</code>.
+        Two channels: <strong>c1 fill</strong> and <strong>c2 gutter</strong>.
+        Logo is the <em>M</em>. Title is the four letters. Silhouette must still say moks with no color.
+      </p>
+      <nav class="jump">
+        <a href="#hero">hero</a>
+        <a href="#tiny">tiny</a>
+        <a href="#slick">slick</a>
+        <a href="#pallet">pallet</a>
+        <a href="#grid">grid</a>
+        <a href="#shade">shade</a>
+        <a href="#block">block</a>
+        <a href="#huge">huge</a>
+        <a href="#lockups">lockups</a>
+        <a href="#scan">scan</a>
+      </nav>
+    </header>
+
+    <section class="card wide" id="hero">
+      <div class="meta">
+        <span class="num">00</span>
+        <h2>First look</h2>
+        <div class="tags"><span class="tag pick">pick with your eyes</span></div>
+      </div>
+      <p class="blurb">Slick as the designed title. Tiny as the mark that can travel. Huge if we ever need a courtyard.</p>
+      <div class="pair">
+        <div class="stage"><div class="label">slick · title</div><pre class="art "><span class="c1">╭━╮╭━╮</span><span class="c2">╱</span><span class="c1">╭━━━╮</span><span class="c2">╱</span><span class="c1">╭╮╭━╮</span><span class="c2">╱</span><span class="c1">╭━━━╮</span>
+<span class="c1">┃┃╰╯┃┃</span><span class="c2">╱</span><span class="c1">┃╭━╮┃</span><span class="c2">╱</span><span class="c1">┃┃┃╭╯</span><span class="c2">╱</span><span class="c1">┃╭━╮┃</span>
+<span class="c1">┃╭╮╭╮┃</span><span class="c2">╱</span><span class="c1">┃┃</span><span class="c2">╱</span><span class="c1">┃┃</span><span class="c2">╱</span><span class="c1">┃╰╯╯</span><span class="c2">╱</span><span class="c2">╱</span><span class="c1">┃╰━━╮</span>
+<span class="c1">┃┃┃┃┃┃</span><span class="c2">╱</span><span class="c1">┃┃</span><span class="c2">╱</span><span class="c1">┃┃</span><span class="c2">╱</span><span class="c1">┃╭╮┃</span><span class="c2">╱</span><span class="c2">╱</span><span class="c1">╰━━╮┃</span>
+<span class="c1">┃┃┃┃┃┃</span><span class="c2">╱</span><span class="c1">┃╰━╯┃</span><span class="c2">╱</span><span class="c1">┃┃┃╰╮</span><span class="c2">╱</span><span class="c1">┃╰━╯┃</span>
+<span class="c1">╰╯╰╯╰╯</span><span class="c2">╱</span><span class="c1">╰━━━╯</span><span class="c2">╱</span><span class="c1">╰╯╰━╯</span><span class="c2">╱</span><span class="c1">╰━━━╯</span></pre></div>
+        <div class="stage"><div class="label">tiny · chip</div><pre class="art ">█▀▄▀█ █▀█ █▄▀ █▀▀
+█ ▀ █ █▄█ █ █ ▄▄█</pre></div>
+      </div>
+      <div class="stage"><div class="label">huge · dusk courtyard</div><pre class="art"><span class="row-0"> ▄▄       ▄▄   ▄▄▄▄▄▄▄▄▄▄▄   ▄    ▄   ▄▄▄▄▄▄▄▄▄▄▄ </span>
+<span class="row-1">▐░░▌     ▐░░▌ ▐░░░░░░░░░░░▌ ▐░▌  ▐░▌ ▐░░░░░░░░░░░▌</span>
+<span class="row-2">▐░▌░▌   ▐░▐░▌ ▐░█▀▀▀▀▀▀▀█░▌ ▐░▌ ▐░▌  ▐░█▀▀▀▀▀▀▀▀▀ </span>
+<span class="row-3">▐░▌▐░▌ ▐░▌▐░▌ ▐░▌       ▐░▌ ▐░▌▐░▌   ▐░▌          </span>
+<span class="row-4">▐░▌ ▐░▐░▌ ▐░▌ ▐░▌       ▐░▌ ▐░▌░▌    ▐░█▄▄▄▄▄▄▄▄▄ </span>
+<span class="row-5">▐░▌  ▐░▌  ▐░▌ ▐░▌       ▐░▌ ▐░░▌     ▐░░░░░░░░░░░▌</span>
+<span class="row-6">▐░▌   ▀   ▐░▌ ▐░▌       ▐░▌ ▐░▌░▌     ▀▀▀▀▀▀▀▀▀█░▌</span>
+<span class="row-7">▐░▌       ▐░▌ ▐░▌       ▐░▌ ▐░▌▐░▌             ▐░▌</span>
+<span class="row-8">▐░▌       ▐░▌ ▐░█▄▄▄▄▄▄▄█░▌ ▐░▌ ▐░▌   ▄▄▄▄▄▄▄▄▄█░▌</span>
+<span class="row-9">▐░▌       ▐░▌ ▐░░░░░░░░░░░▌ ▐░▌  ▐░▌ ▐░░░░░░░░░░░▌</span>
+<span class="row-10"> ▀         ▀   ▀▀▀▀▀▀▀▀▀▀▀   ▀    ▀   ▀▀▀▀▀▀▀▀▀▀▀ </span></pre></div>
+    </section>
+
+    <div class="grid two">
+      
+      <article class="card" id="tiny">
+        <div class="meta">
+          <span class="num">01</span>
+          <h2>Tiny</h2>
+          <div class="tags"><span class="tag">2-row</span><span class="tag">▀▄█</span><span class="tag">micro</span><span class="tag dim">17×2</span></div>
+        </div>
+        <p class="blurb">Two rows. Half-block. The only font that can live in a status line, a toast, and a prompt prefix.</p>
+        <div class="stage"><div class="label">title · MOKS · CLI chip · prompt · favicon-scale</div><pre class="art ">█▀▄▀█ █▀█ █▄▀ █▀▀
+█ ▀ █ █▄█ █ █ ▄▄█</pre></div>
+        <div class="pair">
+          <div class="stage"><div class="label">logo · M</div><pre class="art mark">█▀▄▀█
+█ ▀ █</pre></div>
+          <div class="stage"><div class="label">no color</div><pre class="art ">█▀▄▀█ █▀█ █▄▀ █▀▀
+█ ▀ █ █▄█ █ █ ▄▄█</pre></div>
+        </div>
+        <div class="stage"><div class="label">micro · one line</div><pre class="art"><span class="c1">█▀▄▀█ █▀█ █▄▀ █▀▀</span>  moks</pre></div>
+      </article>
+      
+      <article class="card" id="slick">
+        <div class="meta">
+          <span class="num">02</span>
+          <h2>Slick</h2>
+          <div class="tags"><span class="tag">box</span><span class="tag">╱ gutter</span><span class="tag dim">24×6</span></div>
+        </div>
+        <p class="blurb">Rounded box-drawing with a slash gutter. The current between letters. Closest to a designed wordmark.</p>
+        <div class="stage"><div class="label">title · MOKS · home title · splash</div><pre class="art "><span class="c1">╭━╮╭━╮</span><span class="c2">╱</span><span class="c1">╭━━━╮</span><span class="c2">╱</span><span class="c1">╭╮╭━╮</span><span class="c2">╱</span><span class="c1">╭━━━╮</span>
+<span class="c1">┃┃╰╯┃┃</span><span class="c2">╱</span><span class="c1">┃╭━╮┃</span><span class="c2">╱</span><span class="c1">┃┃┃╭╯</span><span class="c2">╱</span><span class="c1">┃╭━╮┃</span>
+<span class="c1">┃╭╮╭╮┃</span><span class="c2">╱</span><span class="c1">┃┃</span><span class="c2">╱</span><span class="c1">┃┃</span><span class="c2">╱</span><span class="c1">┃╰╯╯</span><span class="c2">╱</span><span class="c2">╱</span><span class="c1">┃╰━━╮</span>
+<span class="c1">┃┃┃┃┃┃</span><span class="c2">╱</span><span class="c1">┃┃</span><span class="c2">╱</span><span class="c1">┃┃</span><span class="c2">╱</span><span class="c1">┃╭╮┃</span><span class="c2">╱</span><span class="c2">╱</span><span class="c1">╰━━╮┃</span>
+<span class="c1">┃┃┃┃┃┃</span><span class="c2">╱</span><span class="c1">┃╰━╯┃</span><span class="c2">╱</span><span class="c1">┃┃┃╰╮</span><span class="c2">╱</span><span class="c1">┃╰━╯┃</span>
+<span class="c1">╰╯╰╯╰╯</span><span class="c2">╱</span><span class="c1">╰━━━╯</span><span class="c2">╱</span><span class="c1">╰╯╰━╯</span><span class="c2">╱</span><span class="c1">╰━━━╯</span></pre></div>
+        <div class="pair">
+          <div class="stage"><div class="label">logo · M</div><pre class="art mark"><span class="c1">╭━╮╭━╮</span>
+<span class="c1">┃┃╰╯┃┃</span>
+<span class="c1">┃╭╮╭╮┃</span>
+<span class="c1">┃┃┃┃┃┃</span>
+<span class="c1">┃┃┃┃┃┃</span>
+<span class="c1">╰╯╰╯╰╯</span></pre></div>
+          <div class="stage"><div class="label">no color</div><pre class="art ">╭━╮╭━╮╱╭━━━╮╱╭╮╭━╮╱╭━━━╮
+┃┃╰╯┃┃╱┃╭━╮┃╱┃┃┃╭╯╱┃╭━╮┃
+┃╭╮╭╮┃╱┃┃╱┃┃╱┃╰╯╯╱╱┃╰━━╮
+┃┃┃┃┃┃╱┃┃╱┃┃╱┃╭╮┃╱╱╰━━╮┃
+┃┃┃┃┃┃╱┃╰━╯┃╱┃┃┃╰╮╱┃╰━╯┃
+╰╯╰╯╰╯╱╰━━━╯╱╰╯╰━╯╱╰━━━╯</pre></div>
+        </div>
+        <div class="stage"><div class="label">per-letter weather · src / scrn / intv / decd</div><pre class="art"><span class="g">╭━╮╭━╮</span><span class="d">╱</span><span class="b">╭━━━╮</span><span class="d">╱</span><span class="w">╭╮╭━╮</span><span class="d">╱</span><span class="a">╭━━━╮</span>
+<span class="g">┃┃╰╯┃┃</span><span class="d">╱</span><span class="b">┃╭━╮┃</span><span class="d">╱</span><span class="w">┃┃┃╭╯</span><span class="d">╱</span><span class="a">┃╭━╮┃</span>
+<span class="g">┃╭╮╭╮┃</span><span class="d">╱</span><span class="b">┃┃╱┃┃</span><span class="d">╱</span><span class="w">┃╰╯╯╱</span><span class="d">╱</span><span class="a">┃╰━━╮</span>
+<span class="g">┃┃┃┃┃┃</span><span class="d">╱</span><span class="b">┃┃╱┃┃</span><span class="d">╱</span><span class="w">┃╭╮┃╱</span><span class="d">╱</span><span class="a">╰━━╮┃</span>
+<span class="g">┃┃┃┃┃┃</span><span class="d">╱</span><span class="b">┃╰━╯┃</span><span class="d">╱</span><span class="w">┃┃┃╰╮</span><span class="d">╱</span><span class="a">┃╰━╯┃</span>
+<span class="g">╰╯╰╯╰╯</span><span class="d">╱</span><span class="b">╰━━━╯</span><span class="d">╱</span><span class="w">╰╯╰━╯</span><span class="d">╱</span><span class="a">╰━━━╯</span></pre></div>
+      </article>
+      
+      <article class="card" id="pallet">
+        <div class="meta">
+          <span class="num">03</span>
+          <h2>Pallet</h2>
+          <div class="tags"><span class="tag">double</span><span class="tag">stamp</span><span class="tag dim">24×6</span></div>
+        </div>
+        <p class="blurb">Double-line box. Passport-chop energy. Reads as a stamped form, not a FIGlet poster.</p>
+        <div class="stage"><div class="label">title · MOKS · dossier header · seal</div><pre class="art "><span class="c1">╔═╗╔═╗</span><span class="c2">─</span><span class="c1">╔═══╗</span><span class="c2">─</span><span class="c1">╔╗╔═╗</span><span class="c2">─</span><span class="c1">╔═══╗</span>
+<span class="c1">║║╚╝║║</span><span class="c2">─</span><span class="c1">║╔═╗║</span><span class="c2">─</span><span class="c1">║║║╔╝</span><span class="c2">─</span><span class="c1">║╔═╗║</span>
+<span class="c1">║╔╗╔╗║</span><span class="c2">─</span><span class="c1">║║</span><span class="c2">─</span><span class="c1">║║</span><span class="c2">─</span><span class="c1">║╚╝╝</span><span class="c2">─</span><span class="c2">─</span><span class="c1">║╚══╗</span>
+<span class="c1">║║║║║║</span><span class="c2">─</span><span class="c1">║║</span><span class="c2">─</span><span class="c1">║║</span><span class="c2">─</span><span class="c1">║╔╗║</span><span class="c2">─</span><span class="c2">─</span><span class="c1">╚══╗║</span>
+<span class="c1">║║║║║║</span><span class="c2">─</span><span class="c1">║╚═╝║</span><span class="c2">─</span><span class="c1">║║║╚╗</span><span class="c2">─</span><span class="c1">║╚═╝║</span>
+<span class="c1">╚╝╚╝╚╝</span><span class="c2">─</span><span class="c1">╚═══╝</span><span class="c2">─</span><span class="c1">╚╝╚═╝</span><span class="c2">─</span><span class="c1">╚═══╝</span></pre></div>
+        <div class="pair">
+          <div class="stage"><div class="label">logo · M</div><pre class="art mark"><span class="c1">╔═╗╔═╗</span>
+<span class="c1">║║╚╝║║</span>
+<span class="c1">║╔╗╔╗║</span>
+<span class="c1">║║║║║║</span>
+<span class="c1">║║║║║║</span>
+<span class="c1">╚╝╚╝╚╝</span></pre></div>
+          <div class="stage"><div class="label">no color</div><pre class="art ">╔═╗╔═╗─╔═══╗─╔╗╔═╗─╔═══╗
+║║╚╝║║─║╔═╗║─║║║╔╝─║╔═╗║
+║╔╗╔╗║─║║─║║─║╚╝╝──║╚══╗
+║║║║║║─║║─║║─║╔╗║──╚══╗║
+║║║║║║─║╚═╝║─║║║╚╗─║╚═╝║
+╚╝╚╝╚╝─╚═══╝─╚╝╚═╝─╚═══╝</pre></div>
+        </div>
+        <div class="stage"><div class="label">requisition stamp</div><pre class="art "><span class="c2">╔════════════════════════════╗</span>
+<span class="c2">║</span>  <span class="c1">╔═╗╔═╗</span><span class="c2">─</span><span class="c1">╔═══╗</span><span class="c2">─</span><span class="c1">╔╗╔═╗</span><span class="c2">─</span><span class="c1">╔═══╗</span>  <span class="c2">║</span>
+<span class="c2">║</span>  <span class="c1">║║╚╝║║</span><span class="c2">─</span><span class="c1">║╔═╗║</span><span class="c2">─</span><span class="c1">║║║╔╝</span><span class="c2">─</span><span class="c1">║╔═╗║</span>  <span class="c2">║</span>
+<span class="c2">║</span>  <span class="c1">║╔╗╔╗║</span><span class="c2">─</span><span class="c1">║║</span><span class="c2">─</span><span class="c1">║║</span><span class="c2">─</span><span class="c1">║╚╝╝</span><span class="c2">─</span><span class="c2">─</span><span class="c1">║╚══╗</span>  <span class="c2">║</span>
+<span class="c2">║</span>  <span class="c1">║║║║║║</span><span class="c2">─</span><span class="c1">║║</span><span class="c2">─</span><span class="c1">║║</span><span class="c2">─</span><span class="c1">║╔╗║</span><span class="c2">─</span><span class="c2">─</span><span class="c1">╚══╗║</span>  <span class="c2">║</span>
+<span class="c2">║</span>  <span class="c1">║║║║║║</span><span class="c2">─</span><span class="c1">║╚═╝║</span><span class="c2">─</span><span class="c1">║║║╚╗</span><span class="c2">─</span><span class="c1">║╚═╝║</span>  <span class="c2">║</span>
+<span class="c2">║</span>  <span class="c1">╚╝╚╝╚╝</span><span class="c2">─</span><span class="c1">╚═══╝</span><span class="c2">─</span><span class="c1">╚╝╚═╝</span><span class="c2">─</span><span class="c1">╚═══╝</span>  <span class="c2">║</span>
+<span class="c2">╚════════════════════════════╝</span></pre></div>
+      </article>
+      
+      <article class="card" id="grid">
+        <div class="meta">
+          <span class="num">04</span>
+          <h2>Grid</h2>
+          <div class="tags"><span class="tag">╋</span><span class="tag">ledger</span><span class="tag dim">19×6</span></div>
+        </div>
+        <p class="blurb">Letters sit on a ledger. The ╋ gutter is the scorecard. A req is a table; the name is the table.</p>
+        <div class="stage"><div class="label">title · MOKS · icon · scorecard lockup</div><pre class="art "><span class="c2">╋╋╋╋</span><span class="c2">╋</span><span class="c2">╋╋╋╋</span><span class="c2">╋</span><span class="c1">┏┓</span><span class="c2">╋╋</span><span class="c2">╋</span><span class="c2">╋╋╋╋</span>
+<span class="c1">┏┓┏┓</span><span class="c2">╋</span><span class="c1">┏━━┓</span><span class="c2">╋</span><span class="c1">┃┃┏┓</span><span class="c2">╋</span><span class="c1">┏━━┓</span>
+<span class="c1">┃┗┛┃</span><span class="c2">╋</span><span class="c1">┃┏┓┃</span><span class="c2">╋</span><span class="c1">┃┗┛┛</span><span class="c2">╋</span><span class="c1">┃━━┫</span>
+<span class="c1">┃┃┃┃</span><span class="c2">╋</span><span class="c1">┃┗┛┃</span><span class="c2">╋</span><span class="c1">┃┏┓┓</span><span class="c2">╋</span><span class="c1">┣━━┃</span>
+<span class="c1">┗┻┻┛</span><span class="c2">╋</span><span class="c1">┗━━┛</span><span class="c2">╋</span><span class="c1">┗┛┗┛</span><span class="c2">╋</span><span class="c1">┗━━┛</span>
+<span class="c2">╋╋╋╋</span><span class="c2">╋</span><span class="c2">╋╋╋╋</span><span class="c2">╋</span><span class="c2">╋╋╋╋</span><span class="c2">╋</span><span class="c2">╋╋╋╋</span></pre></div>
+        <div class="pair">
+          <div class="stage"><div class="label">logo · M</div><pre class="art mark"><span class="c2">╋╋╋╋</span>
+<span class="c1">┏┓┏┓</span>
+<span class="c1">┃┗┛┃</span>
+<span class="c1">┃┃┃┃</span>
+<span class="c1">┗┻┻┛</span>
+<span class="c2">╋╋╋╋</span></pre></div>
+          <div class="stage"><div class="label">no color</div><pre class="art ">╋╋╋╋╋╋╋╋╋╋┏┓╋╋╋╋╋╋╋
+┏┓┏┓╋┏━━┓╋┃┃┏┓╋┏━━┓
+┃┗┛┃╋┃┏┓┃╋┃┗┛┛╋┃━━┫
+┃┃┃┃╋┃┗┛┃╋┃┏┓┓╋┣━━┃
+┗┻┻┛╋┗━━┛╋┗┛┗┛╋┗━━┛
+╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋</pre></div>
+        </div>
+        <div class="stage"><div class="label">the name is the form</div><pre class="art "><span class="c2">┏━━━━┳━━━━┳━━━━┳━━━━┓</span>
+<span class="c2">┃</span><span class="c1">┏┓┏┓</span><span class="c2">┃</span><span class="c1">┏━━┓</span><span class="c2">┃</span><span class="c1">┃┃┏┓</span><span class="c2">┃</span><span class="c1">┏━━┓</span><span class="c2">┃</span>
+<span class="c2">┃</span><span class="c1">┃┗┛┃</span><span class="c2">┃</span><span class="c1">┃┏┓┃</span><span class="c2">┃</span><span class="c1">┃┗┛┛</span><span class="c2">┃</span><span class="c1">┃━━┫</span><span class="c2">┃</span>
+<span class="c2">┃</span><span class="c1">┃┃┃┃</span><span class="c2">┃</span><span class="c1">┃┗┛┃</span><span class="c2">┃</span><span class="c1">┃┏┓┓</span><span class="c2">┃</span><span class="c1">┣━━┃</span><span class="c2">┃</span>
+<span class="c2">┃</span><span class="c1">┗┻┻┛</span><span class="c2">┃</span><span class="c1">┗━━┛</span><span class="c2">┃</span><span class="c1">┗┛┗┛</span><span class="c2">┃</span><span class="c1">┗━━┛</span><span class="c2">┃</span>
+<span class="c2">┣━━━━╋━━━━╋━━━━╋━━━━┫</span>
+<span class="c2">┃</span> <span class="c1">src</span><span class="c2">┃</span> <span class="c1">scr</span><span class="c2">┃</span> <span class="c1">int</span><span class="c2">┃</span> <span class="c1">dec</span><span class="c2">┃</span>
+<span class="c2">┗━━━━┻━━━━┻━━━━┻━━━━┛</span></pre></div>
+      </article>
+      
+      <article class="card" id="shade">
+        <div class="meta">
+          <span class="num">05</span>
+          <h2>Shade</h2>
+          <div class="tags"><span class="tag">░</span><span class="tag">dither</span><span class="tag dim">19×8</span></div>
+        </div>
+        <p class="blurb">Fill plus dust. Working copy vs carbon. The ░ field is the paper the letters were punched from.</p>
+        <div class="stage"><div class="label">title · MOKS · evidence · carbon copy</div><pre class="art "><span class="c2">░░░░</span><span class="c2">░</span><span class="c2">░░░░</span><span class="c2">░</span><span class="c2">░░░░</span><span class="c2">░</span><span class="c2">░░░░</span>
+<span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span><span class="c2">░</span><span class="c2">░</span><span class="c1">██</span><span class="c2">░</span><span class="c2">░</span><span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span><span class="c2">░</span><span class="c2">░</span><span class="c1">███</span>
+<span class="c1">████</span><span class="c2">░</span><span class="c1">█  █</span><span class="c2">░</span><span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span><span class="c2">░</span><span class="c1">█</span>   
+<span class="c1">█  █</span><span class="c2">░</span><span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span><span class="c2">░</span><span class="c1">███</span> <span class="c2">░</span> <span class="c1">██</span><span class="c2">░</span>
+<span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span><span class="c2">░</span><span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span><span class="c2">░</span><span class="c1">█  █</span><span class="c2">░</span><span class="c2">░</span>  <span class="c1">█</span>
+<span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span><span class="c2">░</span> <span class="c1">██</span> <span class="c2">░</span><span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span><span class="c2">░</span><span class="c1">███</span> 
+ <span class="c2">░░</span> <span class="c2">░</span><span class="c2">░  ░</span><span class="c2">░</span> <span class="c2">░░</span> <span class="c2">░</span>   <span class="c2">░</span>
+<span class="c2">░░░░</span><span class="c2">░</span><span class="c2">░░░░</span><span class="c2">░</span><span class="c2">░░░░</span><span class="c2">░</span><span class="c2">░░░░</span></pre></div>
+        <div class="pair">
+          <div class="stage"><div class="label">logo · M</div><pre class="art mark"><span class="c2">░░░░</span>
+<span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span>
+<span class="c1">████</span>
+<span class="c1">█  █</span>
+<span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span>
+<span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span>
+ <span class="c2">░░</span> 
+<span class="c2">░░░░</span></pre></div>
+          <div class="stage"><div class="label">no color</div><pre class="art ">░░░░░░░░░░░░░░░░░░░
+█░░█░░██░░█░░█░░███
+████░█  █░█░░█░█   
+█  █░█░░█░███ ░ ██░
+█░░█░█░░█░█  █░░  █
+█░░█░ ██ ░█░░█░███ 
+ ░░ ░░  ░░ ░░ ░   ░
+░░░░░░░░░░░░░░░░░░░</pre></div>
+        </div>
+        
+      </article>
+      
+      <article class="card" id="block">
+        <div class="meta">
+          <span class="num">06</span>
+          <h2>Block</h2>
+          <div class="tags"><span class="tag">ANSI</span><span class="tag">shadow</span><span class="tag dim">39×6</span></div>
+        </div>
+        <p class="blurb">Classic ANSI shadow. Terminal splash from 1994 that still works. Loud on purpose.</p>
+        <div class="stage"><div class="label">title · MOKS · CLI --help hero</div><pre class="art "><span class="c1">███</span><span class="c2">╗</span><span class="c1">   ███</span><span class="c2">╗</span>  <span class="c1">██████</span><span class="c2">╗ </span> <span class="c1">██</span><span class="c2">╗</span><span class="c1">  ██</span><span class="c2">╗</span> <span class="c1">███████</span><span class="c2">╗</span>
+<span class="c1">████</span><span class="c2">╗</span><span class="c1"> ████</span><span class="c2">║</span> <span class="c1">██</span><span class="c2">╔═══</span><span class="c1">██</span><span class="c2">╗</span> <span class="c1">██</span><span class="c2">║</span><span class="c1"> ██</span><span class="c2">╔╝</span> <span class="c1">██</span><span class="c2">╔════╝</span>
+<span class="c1">██</span><span class="c2">╔</span><span class="c1">████</span><span class="c2">╔</span><span class="c1">██</span><span class="c2">║</span> <span class="c1">██</span><span class="c2">║</span><span class="c1">   ██</span><span class="c2">║</span> <span class="c1">█████</span><span class="c2">╔╝ </span> <span class="c1">███████</span><span class="c2">╗</span>
+<span class="c1">██</span><span class="c2">║╚</span><span class="c1">██</span><span class="c2">╔╝</span><span class="c1">██</span><span class="c2">║</span> <span class="c1">██</span><span class="c2">║</span><span class="c1">   ██</span><span class="c2">║</span> <span class="c1">██</span><span class="c2">╔═</span><span class="c1">██</span><span class="c2">╗ </span> <span class="c2">╚════</span><span class="c1">██</span><span class="c2">║</span>
+<span class="c1">██</span><span class="c2">║ ╚═╝</span><span class="c1"> ██</span><span class="c2">║</span> <span class="c2">╚</span><span class="c1">██████</span><span class="c2">╔╝</span> <span class="c1">██</span><span class="c2">║</span><span class="c1">  ██</span><span class="c2">╗</span> <span class="c1">███████</span><span class="c2">║</span>
+<span class="c2">╚═╝     ╚═╝</span> <span class="c2"> ╚═════╝ </span> <span class="c2">╚═╝  ╚═╝</span> <span class="c2">╚══════╝</span></pre></div>
+        <div class="pair">
+          <div class="stage"><div class="label">logo · M</div><pre class="art mark"><span class="c1">███</span><span class="c2">╗</span><span class="c1">   ███</span><span class="c2">╗</span>
+<span class="c1">████</span><span class="c2">╗</span><span class="c1"> ████</span><span class="c2">║</span>
+<span class="c1">██</span><span class="c2">╔</span><span class="c1">████</span><span class="c2">╔</span><span class="c1">██</span><span class="c2">║</span>
+<span class="c1">██</span><span class="c2">║╚</span><span class="c1">██</span><span class="c2">╔╝</span><span class="c1">██</span><span class="c2">║</span>
+<span class="c1">██</span><span class="c2">║ ╚═╝</span><span class="c1"> ██</span><span class="c2">║</span>
+<span class="c2">╚═╝     ╚═╝</span></pre></div>
+          <div class="stage"><div class="label">no color</div><pre class="art ">███╗   ███╗  ██████╗  ██╗  ██╗ ███████╗
+████╗ ████║ ██╔═══██╗ ██║ ██╔╝ ██╔════╝
+██╔████╔██║ ██║   ██║ █████╔╝  ███████╗
+██║╚██╔╝██║ ██║   ██║ ██╔═██╗  ╚════██║
+██║ ╚═╝ ██║ ╚██████╔╝ ██║  ██╗ ███████║
+╚═╝     ╚═╝  ╚═════╝  ╚═╝  ╚═╝ ╚══════╝</pre></div>
+        </div>
+        
+      </article>
+    </div>
+
+    <section class="card wide" id="huge">
+      <div class="meta">
+        <span class="num">07</span>
+        <h2>Huge</h2>
+        <div class="tags"><span class="tag">11-row</span><span class="tag">hero</span><span class="tag dim">50×11</span></div>
+      </div>
+      <p class="blurb">Eleven rows. Half-block plus shade. A courtyard you can walk through. Too big for home; right for a first-run.</p>
+      <div class="stage"><div class="label">title · two-channel</div><pre class="art "> <span class="c1">▄▄       ▄▄</span>   <span class="c1">▄▄▄▄▄▄▄▄▄▄▄</span>   <span class="c1">▄    ▄</span>   <span class="c1">▄▄▄▄▄▄▄▄▄▄▄</span> 
+<span class="c1">▐</span><span class="c2">░░</span><span class="c1">▌     ▐</span><span class="c2">░░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░░░░░░░░░░░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░</span><span class="c1">▌  ▐</span><span class="c2">░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░░░░░░░░░░░</span><span class="c1">▌</span>
+<span class="c1">▐</span><span class="c2">░</span><span class="c1">▌</span><span class="c2">░</span><span class="c1">▌   ▐</span><span class="c2">░</span><span class="c1">▐</span><span class="c2">░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░</span><span class="c1">█▀▀▀▀▀▀▀█</span><span class="c2">░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░</span><span class="c1">▌ ▐</span><span class="c2">░</span><span class="c1">▌</span>  <span class="c1">▐</span><span class="c2">░</span><span class="c1">█▀▀▀▀▀▀▀▀▀</span> 
+<span class="c1">▐</span><span class="c2">░</span><span class="c1">▌▐</span><span class="c2">░</span><span class="c1">▌ ▐</span><span class="c2">░</span><span class="c1">▌▐</span><span class="c2">░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░</span><span class="c1">▌       ▐</span><span class="c2">░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░</span><span class="c1">▌▐</span><span class="c2">░</span><span class="c1">▌</span>   <span class="c1">▐</span><span class="c2">░</span><span class="c1">▌</span>          
+<span class="c1">▐</span><span class="c2">░</span><span class="c1">▌ ▐</span><span class="c2">░</span><span class="c1">▐</span><span class="c2">░</span><span class="c1">▌ ▐</span><span class="c2">░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░</span><span class="c1">▌       ▐</span><span class="c2">░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░</span><span class="c1">▌</span><span class="c2">░</span><span class="c1">▌</span>    <span class="c1">▐</span><span class="c2">░</span><span class="c1">█▄▄▄▄▄▄▄▄▄</span> 
+<span class="c1">▐</span><span class="c2">░</span><span class="c1">▌  ▐</span><span class="c2">░</span><span class="c1">▌  ▐</span><span class="c2">░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░</span><span class="c1">▌       ▐</span><span class="c2">░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░░</span><span class="c1">▌</span>     <span class="c1">▐</span><span class="c2">░░░░░░░░░░░</span><span class="c1">▌</span>
+<span class="c1">▐</span><span class="c2">░</span><span class="c1">▌   ▀   ▐</span><span class="c2">░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░</span><span class="c1">▌       ▐</span><span class="c2">░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░</span><span class="c1">▌</span><span class="c2">░</span><span class="c1">▌</span>     <span class="c1">▀▀▀▀▀▀▀▀▀█</span><span class="c2">░</span><span class="c1">▌</span>
+<span class="c1">▐</span><span class="c2">░</span><span class="c1">▌       ▐</span><span class="c2">░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░</span><span class="c1">▌       ▐</span><span class="c2">░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░</span><span class="c1">▌▐</span><span class="c2">░</span><span class="c1">▌</span>             <span class="c1">▐</span><span class="c2">░</span><span class="c1">▌</span>
+<span class="c1">▐</span><span class="c2">░</span><span class="c1">▌       ▐</span><span class="c2">░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░</span><span class="c1">█▄▄▄▄▄▄▄█</span><span class="c2">░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░</span><span class="c1">▌ ▐</span><span class="c2">░</span><span class="c1">▌</span>   <span class="c1">▄▄▄▄▄▄▄▄▄█</span><span class="c2">░</span><span class="c1">▌</span>
+<span class="c1">▐</span><span class="c2">░</span><span class="c1">▌       ▐</span><span class="c2">░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░░░░░░░░░░░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░</span><span class="c1">▌  ▐</span><span class="c2">░</span><span class="c1">▌</span> <span class="c1">▐</span><span class="c2">░░░░░░░░░░░</span><span class="c1">▌</span>
+ <span class="c1">▀         ▀</span>   <span class="c1">▀▀▀▀▀▀▀▀▀▀▀</span>   <span class="c1">▀    ▀</span>   <span class="c1">▀▀▀▀▀▀▀▀▀▀▀</span> </pre></div>
+      <div class="pair">
+        <div class="stage"><div class="label">logo · M</div><pre class="art "> <span class="c1">▄▄       ▄▄</span> 
+<span class="c1">▐</span><span class="c2">░░</span><span class="c1">▌     ▐</span><span class="c2">░░</span><span class="c1">▌</span>
+<span class="c1">▐</span><span class="c2">░</span><span class="c1">▌</span><span class="c2">░</span><span class="c1">▌   ▐</span><span class="c2">░</span><span class="c1">▐</span><span class="c2">░</span><span class="c1">▌</span>
+<span class="c1">▐</span><span class="c2">░</span><span class="c1">▌▐</span><span class="c2">░</span><span class="c1">▌ ▐</span><span class="c2">░</span><span class="c1">▌▐</span><span class="c2">░</span><span class="c1">▌</span>
+<span class="c1">▐</span><span class="c2">░</span><span class="c1">▌ ▐</span><span class="c2">░</span><span class="c1">▐</span><span class="c2">░</span><span class="c1">▌ ▐</span><span class="c2">░</span><span class="c1">▌</span>
+<span class="c1">▐</span><span class="c2">░</span><span class="c1">▌  ▐</span><span class="c2">░</span><span class="c1">▌  ▐</span><span class="c2">░</span><span class="c1">▌</span>
+<span class="c1">▐</span><span class="c2">░</span><span class="c1">▌   ▀   ▐</span><span class="c2">░</span><span class="c1">▌</span>
+<span class="c1">▐</span><span class="c2">░</span><span class="c1">▌       ▐</span><span class="c2">░</span><span class="c1">▌</span>
+<span class="c1">▐</span><span class="c2">░</span><span class="c1">▌       ▐</span><span class="c2">░</span><span class="c1">▌</span>
+<span class="c1">▐</span><span class="c2">░</span><span class="c1">▌       ▐</span><span class="c2">░</span><span class="c1">▌</span>
+ <span class="c1">▀         ▀</span> </pre></div>
+        <div class="stage"><div class="label">dusk</div><pre class="art"><span class="row-0"> ▄▄       ▄▄   ▄▄▄▄▄▄▄▄▄▄▄   ▄    ▄   ▄▄▄▄▄▄▄▄▄▄▄ </span>
+<span class="row-1">▐░░▌     ▐░░▌ ▐░░░░░░░░░░░▌ ▐░▌  ▐░▌ ▐░░░░░░░░░░░▌</span>
+<span class="row-2">▐░▌░▌   ▐░▐░▌ ▐░█▀▀▀▀▀▀▀█░▌ ▐░▌ ▐░▌  ▐░█▀▀▀▀▀▀▀▀▀ </span>
+<span class="row-3">▐░▌▐░▌ ▐░▌▐░▌ ▐░▌       ▐░▌ ▐░▌▐░▌   ▐░▌          </span>
+<span class="row-4">▐░▌ ▐░▐░▌ ▐░▌ ▐░▌       ▐░▌ ▐░▌░▌    ▐░█▄▄▄▄▄▄▄▄▄ </span>
+<span class="row-5">▐░▌  ▐░▌  ▐░▌ ▐░▌       ▐░▌ ▐░░▌     ▐░░░░░░░░░░░▌</span>
+<span class="row-6">▐░▌   ▀   ▐░▌ ▐░▌       ▐░▌ ▐░▌░▌     ▀▀▀▀▀▀▀▀▀█░▌</span>
+<span class="row-7">▐░▌       ▐░▌ ▐░▌       ▐░▌ ▐░▌▐░▌             ▐░▌</span>
+<span class="row-8">▐░▌       ▐░▌ ▐░█▄▄▄▄▄▄▄█░▌ ▐░▌ ▐░▌   ▄▄▄▄▄▄▄▄▄█░▌</span>
+<span class="row-9">▐░▌       ▐░▌ ▐░░░░░░░░░░░▌ ▐░▌  ▐░▌ ▐░░░░░░░░░░░▌</span>
+<span class="row-10"> ▀         ▀   ▀▀▀▀▀▀▀▀▀▀▀   ▀    ▀   ▀▀▀▀▀▀▀▀▀▀▀ </span></pre></div>
+      </div>
+    </section>
+
+    <section class="card wide" id="lockups">
+      <div class="meta">
+        <span class="num">lockups</span>
+        <h2>Creative pairings</h2>
+        <div class="tags"><span class="tag pick">compositions</span></div>
+      </div>
+      <p class="blurb">Fonts talking to each other. Mark plus word. Form plus name. None of these are shipped — they are arguments.</p>
+      <div class="grid two">
+        <div class="stage"><div class="label">A · slick M + tiny word</div><pre class="art "><span class="c1">╭━╮╭━╮</span>
+<span class="c1">┃┃╰╯┃┃</span>
+<span class="c1">┃╭╮╭╮┃</span>  <span class="c1">█▀▄▀█ █▀█ █▄▀ █▀▀</span>
+<span class="c1">┃┃┃┃┃┃</span>  <span class="c1">█ ▀ █ █▄█ █ █ ▄▄█</span>
+<span class="c1">┃┃┃┃┃┃</span>
+<span class="c1">╰╯╰╯╰╯</span></pre></div>
+        <div class="stage"><div class="label">B · pallet chop</div><pre class="art "><span class="c2">╔════════════════════════════╗</span>
+<span class="c2">║</span>  <span class="c1">╔═╗╔═╗</span><span class="c2">─</span><span class="c1">╔═══╗</span><span class="c2">─</span><span class="c1">╔╗╔═╗</span><span class="c2">─</span><span class="c1">╔═══╗</span>  <span class="c2">║</span>
+<span class="c2">║</span>  <span class="c1">║║╚╝║║</span><span class="c2">─</span><span class="c1">║╔═╗║</span><span class="c2">─</span><span class="c1">║║║╔╝</span><span class="c2">─</span><span class="c1">║╔═╗║</span>  <span class="c2">║</span>
+<span class="c2">║</span>  <span class="c1">║╔╗╔╗║</span><span class="c2">─</span><span class="c1">║║</span><span class="c2">─</span><span class="c1">║║</span><span class="c2">─</span><span class="c1">║╚╝╝</span><span class="c2">─</span><span class="c2">─</span><span class="c1">║╚══╗</span>  <span class="c2">║</span>
+<span class="c2">║</span>  <span class="c1">║║║║║║</span><span class="c2">─</span><span class="c1">║║</span><span class="c2">─</span><span class="c1">║║</span><span class="c2">─</span><span class="c1">║╔╗║</span><span class="c2">─</span><span class="c2">─</span><span class="c1">╚══╗║</span>  <span class="c2">║</span>
+<span class="c2">║</span>  <span class="c1">║║║║║║</span><span class="c2">─</span><span class="c1">║╚═╝║</span><span class="c2">─</span><span class="c1">║║║╚╗</span><span class="c2">─</span><span class="c1">║╚═╝║</span>  <span class="c2">║</span>
+<span class="c2">║</span>  <span class="c1">╚╝╚╝╚╝</span><span class="c2">─</span><span class="c1">╚═══╝</span><span class="c2">─</span><span class="c1">╚╝╚═╝</span><span class="c2">─</span><span class="c1">╚═══╝</span>  <span class="c2">║</span>
+<span class="c2">╚════════════════════════════╝</span></pre></div>
+        <div class="stage"><div class="label">C · grid as scorecard</div><pre class="art "><span class="c2">┏━━━━┳━━━━┳━━━━┳━━━━┓</span>
+<span class="c2">┃</span><span class="c1">┏┓┏┓</span><span class="c2">┃</span><span class="c1">┏━━┓</span><span class="c2">┃</span><span class="c1">┃┃┏┓</span><span class="c2">┃</span><span class="c1">┏━━┓</span><span class="c2">┃</span>
+<span class="c2">┃</span><span class="c1">┃┗┛┃</span><span class="c2">┃</span><span class="c1">┃┏┓┃</span><span class="c2">┃</span><span class="c1">┃┗┛┛</span><span class="c2">┃</span><span class="c1">┃━━┫</span><span class="c2">┃</span>
+<span class="c2">┃</span><span class="c1">┃┃┃┃</span><span class="c2">┃</span><span class="c1">┃┗┛┃</span><span class="c2">┃</span><span class="c1">┃┏┓┓</span><span class="c2">┃</span><span class="c1">┣━━┃</span><span class="c2">┃</span>
+<span class="c2">┃</span><span class="c1">┗┻┻┛</span><span class="c2">┃</span><span class="c1">┗━━┛</span><span class="c2">┃</span><span class="c1">┗┛┗┛</span><span class="c2">┃</span><span class="c1">┗━━┛</span><span class="c2">┃</span>
+<span class="c2">┣━━━━╋━━━━╋━━━━╋━━━━┫</span>
+<span class="c2">┃</span> <span class="c1">src</span><span class="c2">┃</span> <span class="c1">scr</span><span class="c2">┃</span> <span class="c1">int</span><span class="c2">┃</span> <span class="c1">dec</span><span class="c2">┃</span>
+<span class="c2">┗━━━━┻━━━━┻━━━━┻━━━━┛</span></pre></div>
+        <div class="stage"><div class="label">D · shade carbon</div><pre class="art"><span class="c2">░░░░</span><span class="c2">░</span><span class="c2">░░░░</span><span class="c2">░</span><span class="c2">░░░░</span><span class="c2">░</span><span class="c2">░░░░</span>
+<span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span><span class="c2">░</span><span class="c2">░</span><span class="c1">██</span><span class="c2">░</span><span class="c2">░</span><span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span><span class="c2">░</span><span class="c2">░</span><span class="c1">███</span>
+<span class="c1">████</span><span class="c2">░</span><span class="c1">█  █</span><span class="c2">░</span><span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span><span class="c2">░</span><span class="c1">█</span>   
+<span class="c1">█  █</span><span class="c2">░</span><span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span><span class="c2">░</span><span class="c1">███</span> <span class="c2">░</span> <span class="c1">██</span><span class="c2">░</span>
+<span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span><span class="c2">░</span><span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span><span class="c2">░</span><span class="c1">█  █</span><span class="c2">░</span><span class="c2">░</span>  <span class="c1">█</span>
+<span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span><span class="c2">░</span> <span class="c1">██</span> <span class="c2">░</span><span class="c1">█</span><span class="c2">░░</span><span class="c1">█</span><span class="c2">░</span><span class="c1">███</span> 
+ <span class="c2">░░</span> <span class="c2">░</span><span class="c2">░  ░</span><span class="c2">░</span> <span class="c2">░░</span> <span class="c2">░</span>   <span class="c2">░</span>
+<span class="c2">░░░░</span><span class="c2">░</span><span class="c2">░░░░</span><span class="c2">░</span><span class="c2">░░░░</span><span class="c2">░</span><span class="c2">░░░░</span>
+<span class="d"> ░░░░░░░░░░░░░░░░░░░
+ █░░█░░██░░█░░█░░███
+ ████░█  █░█░░█░█   
+ █  █░█░░█░███ ░ ██░
+ █░░█░█░░█░█  █░░  █
+ █░░█░ ██ ░█░░█░███ 
+  ░░ ░░  ░░ ░░ ░   ░
+ ░░░░░░░░░░░░░░░░░░░</span></pre></div>
+        <div class="stage"><div class="label">E · slick weather</div><pre class="art"><span class="g">╭━╮╭━╮</span><span class="d">╱</span><span class="b">╭━━━╮</span><span class="d">╱</span><span class="w">╭╮╭━╮</span><span class="d">╱</span><span class="a">╭━━━╮</span>
+<span class="g">┃┃╰╯┃┃</span><span class="d">╱</span><span class="b">┃╭━╮┃</span><span class="d">╱</span><span class="w">┃┃┃╭╯</span><span class="d">╱</span><span class="a">┃╭━╮┃</span>
+<span class="g">┃╭╮╭╮┃</span><span class="d">╱</span><span class="b">┃┃╱┃┃</span><span class="d">╱</span><span class="w">┃╰╯╯╱</span><span class="d">╱</span><span class="a">┃╰━━╮</span>
+<span class="g">┃┃┃┃┃┃</span><span class="d">╱</span><span class="b">┃┃╱┃┃</span><span class="d">╱</span><span class="w">┃╭╮┃╱</span><span class="d">╱</span><span class="a">╰━━╮┃</span>
+<span class="g">┃┃┃┃┃┃</span><span class="d">╱</span><span class="b">┃╰━╯┃</span><span class="d">╱</span><span class="w">┃┃┃╰╮</span><span class="d">╱</span><span class="a">┃╰━╯┃</span>
+<span class="g">╰╯╰╯╰╯</span><span class="d">╱</span><span class="b">╰━━━╯</span><span class="d">╱</span><span class="w">╰╯╰━╯</span><span class="d">╱</span><span class="a">╰━━━╯</span></pre></div>
+        <div class="stage"><div class="label">F · quiet type under a courtyard M</div><pre class="art"><span class="c1">╭━╮╭━╮</span>
+<span class="c1">┃┃╰╯┃┃</span>
+<span class="c1">┃╭╮╭╮┃</span>
+<span class="c1">┃┃┃┃┃┃</span>
+<span class="c1">┃┃┃┃┃┃</span>
+<span class="c1">╰╯╰╯╰╯</span>
+
+<span class="m">moks</span>  <span class="g">▰</span> <span class="b">▰</span> <span class="a">▰</span> <span class="d">▱</span></pre></div>
+        <div class="stage"><div class="label">G · three marks · icon tray</div><pre class="art">█▀▄▀█
+█ ▀ █
+
+<span class="c2">╋╋╋╋</span>
+<span class="c1">┏┓┏┓</span>
+<span class="c1">┃┗┛┃</span>
+<span class="c1">┃┃┃┃</span>
+<span class="c1">┗┻┻┛</span>
+<span class="c2">╋╋╋╋</span>
+
+<span class="c1">╔═╗╔═╗</span>
+<span class="c1">║║╚╝║║</span>
+<span class="c1">║╔╗╔╗║</span>
+<span class="c1">║║║║║║</span>
+<span class="c1">║║║║║║</span>
+<span class="c1">╚╝╚╝╚╝</span></pre></div>
+        <div class="stage"><div class="label">H · block splash · CLI first paint</div><pre class="art "><span class="c1">███</span><span class="c2">╗</span><span class="c1">   ███</span><span class="c2">╗</span>  <span class="c1">██████</span><span class="c2">╗ </span> <span class="c1">██</span><span class="c2">╗</span><span class="c1">  ██</span><span class="c2">╗</span> <span class="c1">███████</span><span class="c2">╗</span>
+<span class="c1">████</span><span class="c2">╗</span><span class="c1"> ████</span><span class="c2">║</span> <span class="c1">██</span><span class="c2">╔═══</span><span class="c1">██</span><span class="c2">╗</span> <span class="c1">██</span><span class="c2">║</span><span class="c1"> ██</span><span class="c2">╔╝</span> <span class="c1">██</span><span class="c2">╔════╝</span>
+<span class="c1">██</span><span class="c2">╔</span><span class="c1">████</span><span class="c2">╔</span><span class="c1">██</span><span class="c2">║</span> <span class="c1">██</span><span class="c2">║</span><span class="c1">   ██</span><span class="c2">║</span> <span class="c1">█████</span><span class="c2">╔╝ </span> <span class="c1">███████</span><span class="c2">╗</span>
+<span class="c1">██</span><span class="c2">║╚</span><span class="c1">██</span><span class="c2">╔╝</span><span class="c1">██</span><span class="c2">║</span> <span class="c1">██</span><span class="c2">║</span><span class="c1">   ██</span><span class="c2">║</span> <span class="c1">██</span><span class="c2">╔═</span><span class="c1">██</span><span class="c2">╗ </span> <span class="c2">╚════</span><span class="c1">██</span><span class="c2">║</span>
+<span class="c1">██</span><span class="c2">║ ╚═╝</span><span class="c1"> ██</span><span class="c2">║</span> <span class="c2">╚</span><span class="c1">██████</span><span class="c2">╔╝</span> <span class="c1">██</span><span class="c2">║</span><span class="c1">  ██</span><span class="c2">╗</span> <span class="c1">███████</span><span class="c2">║</span>
+<span class="c2">╚═╝     ╚═╝</span> <span class="c2"> ╚═════╝ </span> <span class="c2">╚═╝  ╚═╝</span> <span class="c2">╚══════╝</span></pre></div>
+      </div>
+    </section>
+
+    <section class="card wide" id="scan">
+      <div class="meta">
+        <span class="num">scan</span>
+        <h2>All titles, one glance</h2>
+      </div>
+      <p class="blurb">Same ink. Pick the silhouette, not the story.</p>
+      <div class="grid two">
+        <div class="stage"><div class="label">tiny</div><pre class="art ">█▀▄▀█ █▀█ █▄▀ █▀▀
+█ ▀ █ █▄█ █ █ ▄▄█</pre></div>
+        <div class="stage"><div class="label">slick</div><pre class="art ">╭━╮╭━╮╱╭━━━╮╱╭╮╭━╮╱╭━━━╮
+┃┃╰╯┃┃╱┃╭━╮┃╱┃┃┃╭╯╱┃╭━╮┃
+┃╭╮╭╮┃╱┃┃╱┃┃╱┃╰╯╯╱╱┃╰━━╮
+┃┃┃┃┃┃╱┃┃╱┃┃╱┃╭╮┃╱╱╰━━╮┃
+┃┃┃┃┃┃╱┃╰━╯┃╱┃┃┃╰╮╱┃╰━╯┃
+╰╯╰╯╰╯╱╰━━━╯╱╰╯╰━╯╱╰━━━╯</pre></div>
+        <div class="stage"><div class="label">pallet</div><pre class="art ">╔═╗╔═╗─╔═══╗─╔╗╔═╗─╔═══╗
+║║╚╝║║─║╔═╗║─║║║╔╝─║╔═╗║
+║╔╗╔╗║─║║─║║─║╚╝╝──║╚══╗
+║║║║║║─║║─║║─║╔╗║──╚══╗║
+║║║║║║─║╚═╝║─║║║╚╗─║╚═╝║
+╚╝╚╝╚╝─╚═══╝─╚╝╚═╝─╚═══╝</pre></div>
+        <div class="stage"><div class="label">grid</div><pre class="art ">╋╋╋╋╋╋╋╋╋╋┏┓╋╋╋╋╋╋╋
+┏┓┏┓╋┏━━┓╋┃┃┏┓╋┏━━┓
+┃┗┛┃╋┃┏┓┃╋┃┗┛┛╋┃━━┫
+┃┃┃┃╋┃┗┛┃╋┃┏┓┓╋┣━━┃
+┗┻┻┛╋┗━━┛╋┗┛┗┛╋┗━━┛
+╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋</pre></div>
+        <div class="stage"><div class="label">shade</div><pre class="art ">░░░░░░░░░░░░░░░░░░░
+█░░█░░██░░█░░█░░███
+████░█  █░█░░█░█   
+█  █░█░░█░███ ░ ██░
+█░░█░█░░█░█  █░░  █
+█░░█░ ██ ░█░░█░███ 
+ ░░ ░░  ░░ ░░ ░   ░
+░░░░░░░░░░░░░░░░░░░</pre></div>
+        <div class="stage"><div class="label">block</div><pre class="art ">███╗   ███╗  ██████╗  ██╗  ██╗ ███████╗
+████╗ ████║ ██╔═══██╗ ██║ ██╔╝ ██╔════╝
+██╔████╔██║ ██║   ██║ █████╔╝  ███████╗
+██║╚██╔╝██║ ██║   ██║ ██╔═██╗  ╚════██║
+██║ ╚═╝ ██║ ╚██████╔╝ ██║  ██╗ ███████║
+╚═╝     ╚═╝  ╚═════╝  ╚═╝  ╚═╝ ╚══════╝</pre></div>
+        <div class="card wide" style="padding:0;border:0;background:none">
+          <div class="stage"><div class="label">huge</div><pre class="art "> ▄▄       ▄▄   ▄▄▄▄▄▄▄▄▄▄▄   ▄    ▄   ▄▄▄▄▄▄▄▄▄▄▄ 
+▐░░▌     ▐░░▌ ▐░░░░░░░░░░░▌ ▐░▌  ▐░▌ ▐░░░░░░░░░░░▌
+▐░▌░▌   ▐░▐░▌ ▐░█▀▀▀▀▀▀▀█░▌ ▐░▌ ▐░▌  ▐░█▀▀▀▀▀▀▀▀▀ 
+▐░▌▐░▌ ▐░▌▐░▌ ▐░▌       ▐░▌ ▐░▌▐░▌   ▐░▌          
+▐░▌ ▐░▐░▌ ▐░▌ ▐░▌       ▐░▌ ▐░▌░▌    ▐░█▄▄▄▄▄▄▄▄▄ 
+▐░▌  ▐░▌  ▐░▌ ▐░▌       ▐░▌ ▐░░▌     ▐░░░░░░░░░░░▌
+▐░▌   ▀   ▐░▌ ▐░▌       ▐░▌ ▐░▌░▌     ▀▀▀▀▀▀▀▀▀█░▌
+▐░▌       ▐░▌ ▐░▌       ▐░▌ ▐░▌▐░▌             ▐░▌
+▐░▌       ▐░▌ ▐░█▄▄▄▄▄▄▄█░▌ ▐░▌ ▐░▌   ▄▄▄▄▄▄▄▄▄█░▌
+▐░▌       ▐░▌ ▐░░░░░░░░░░░▌ ▐░▌  ▐░▌ ▐░░░░░░░░░░░▌
+ ▀         ▀   ▀▀▀▀▀▀▀▀▀▀▀   ▀    ▀   ▀▀▀▀▀▀▀▀▀▀▀ </pre></div>
+        </div>
+      </div>
+    </section>
+
+    <footer>glyphs from <span style="color:var(--muted)">@opentui/core</span> · open <span style="color:var(--muted)">docs/opentui-art.html</span></footer>
+  </div>
+</body>
+</html>
