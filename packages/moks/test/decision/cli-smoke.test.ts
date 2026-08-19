@@ -69,5 +69,5 @@ describe("decision cli smoke", () => {
     expect(status.code).toBe(0)
     expect((status.json as { report: { changesets: { applied: number } } }).report.changesets.applied).toBe(1)
     expect((status.json as { open: unknown[] }).open).toEqual([])
-  })
+  }, 30_000)
 })

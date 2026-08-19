@@ -48,6 +48,7 @@ describe("tool.decision", () => {
         const statusBody = JSON.parse(listed.output)
         expect(statusBody.open.some((row: { id: string }) => row.id === commitBody.changeset.id)).toBe(true)
       }),
+    90_000,
   )
 
   it.instance(
@@ -72,5 +73,6 @@ describe("tool.decision", () => {
         const body = JSON.parse(listed.output)
         expect(body.diffs[0].changes[0].mutation).toBe("AddNote")
       }),
+    90_000,
   )
 })

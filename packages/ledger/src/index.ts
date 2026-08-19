@@ -16,7 +16,9 @@ export {
   JOB_STATUSES,
   MUTATION_EFFECT_CLASS,
   MUTATIONS,
+  isLegalAdvance,
   isMutation,
+  nextStage,
 } from "./domain.ts";
 export {
   canonicalJson,
