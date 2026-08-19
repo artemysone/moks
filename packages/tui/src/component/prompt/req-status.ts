@@ -1,6 +1,6 @@
 import { readdir } from "node:fs/promises"
 import path from "node:path"
-import { runDecision, statusOpen } from "../../util/decision-cli"
+import { ledgerCounts, runDecision, type LedgerCounts } from "../../util/decision-cli"
 
 export async function packetDir(dir: string) {
   let current = dir
@@ -40,18 +40,24 @@ export async function countCards(dir: string) {
     .catch(() => 0)
 }
 
-export async function countUnpushed(dir: string) {
+export async function countChangesets(dir: string): Promise<LedgerCounts | undefined> {
   const result = await runDecision(["status", "--json"], { cwd: dir }).catch(() => undefined)
   if (!result || result.code !== 0) return
-  if (!result.json || typeof result.json !== "object") return
-  return statusOpen(result.json).length
+  return ledgerCounts(result.json)
 }
 
-export function formatReqStatus(input: { title: string; cards?: number; unpushed?: number; agent: string }) {
+export function formatReqStatus(input: {
+  title: string
+  cards?: number
+  staged?: number
+  approved?: number
+  agent: string
+}) {
   return [
     input.title,
     input.cards === undefined ? undefined : `${input.cards} ${input.cards === 1 ? "card" : "cards"}`,
-    input.unpushed === undefined ? undefined : `${input.unpushed} unpushed`,
+    input.staged === undefined ? undefined : `${input.staged} staged`,
+    input.approved === undefined ? undefined : `${input.approved} approved`,
     input.agent,
   ]
     .filter((part) => part)

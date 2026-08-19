@@ -6,16 +6,21 @@ import { DialogConfirm } from "./dialog-confirm"
 import { DialogPrompt } from "./dialog-prompt"
 import { DialogSelect } from "./dialog-select"
 import {
+  commitToastMessage,
   confirmMessage,
   formatDecisionResult,
   formatReceiptLine,
   isDryRun,
   needsConfirm,
+  pushCommandArgs,
+  pushToastMessage,
   receiptId,
+  reviewCommandArgs,
+  reviewToastMessage,
   runDecision,
-  statusOpen,
+  statusByStatus,
+  type ChangesetRow,
   type DecisionCliResult,
-  type ReceiptRow,
 } from "../util/decision-cli"
 
 type Toast = {
@@ -35,15 +40,19 @@ export async function runCommitFlow(input: { dialog: DialogContext; toast: Toast
     return
   }
 
-  const reasonRaw = await DialogPrompt.show(input.dialog, "Reason (optional)", {
-    placeholder: "optional reason — leave empty to skip",
+  const reasonRaw = await DialogPrompt.show(input.dialog, "Reason", {
+    placeholder: "why this decision (required)",
   })
   if (reasonRaw === null) return
+  const reason = reasonRaw.trim()
+  if (!reason) {
+    input.toast.show({ message: "Reason is required", variant: "error" })
+    input.dialog.clear()
+    return
+  }
 
   const inferred = input.cwd ? await singleCandidate(input.cwd) : undefined
-  const args = ["commit", "--json", "--action", trimmedAction]
-  const reason = reasonRaw.trim()
-  if (reason) args.push("--reason", reason)
+  const args = ["commit", "--json", "--action", trimmedAction, "--reason", reason]
   if (inferred) {
     args.push("--target-kind", "candidate", "--target-id", inferred.id)
     args.push("--meta", JSON.stringify({ card: inferred.card }))
@@ -53,15 +62,7 @@ export async function runCommitFlow(input: { dialog: DialogContext; toast: Toast
   const id = receiptId(result.json)
   const ok = result.code === 0
   input.toast.show({
-    message: ok
-      ? id
-        ? inferred
-          ? `Committed ${id} (${inferred.id})`
-          : `Committed ${id}`
-        : inferred
-          ? `Committed ${inferred.id}`
-          : "Commit complete"
-      : "Commit failed",
+    message: commitToastMessage({ ok, id, target: inferred?.id }),
     variant: ok ? "success" : "error",
   })
   await showResult(input.dialog, "Commit result", result)
@@ -75,16 +76,31 @@ export async function runPushFlow(input: { dialog: DialogContext; toast: Toast; 
     return
   }
 
-  const open = statusOpen(listed.json)
-  const commitID = await pickOpenCommit(input.dialog, open)
+  const approved = statusByStatus(listed.json, "approved")
+  const commitID = await pickChangeset(input.dialog, "Push changeset", approved)
   if (commitID === null) return
   if (!commitID) {
-    input.toast.show({ message: "No open commit to push", variant: "info" })
+    input.toast.show({ message: "No approved changeset to push", variant: "info" })
     input.dialog.clear()
     return
   }
 
-  let result = await call(["push", "--json", "--commit-id", commitID], input)
+  const mode = await DialogSelect.show(input.dialog, "Push mode", [
+    {
+      title: "Dry-run",
+      value: "dry-run" as const,
+      description: "Preview only, no ATS write",
+    },
+    {
+      title: "Write to ATS",
+      value: "execute" as const,
+      description: "Apply this changeset to the ATS",
+    },
+  ])
+  if (mode === null) return
+  const execute = mode === "execute"
+
+  let result = await call(pushCommandArgs({ id: commitID, execute }), input)
   if (needsConfirm(result.json)) {
     const ok = await DialogConfirm.show(input.dialog, "Confirm push", confirmMessage(result.json))
     if (!ok) {
@@ -92,14 +108,60 @@ export async function runPushFlow(input: { dialog: DialogContext; toast: Toast; 
       input.dialog.clear()
       return
     }
-    result = await call(["push", "--json", "--commit-id", commitID, "--confirm"], input)
+    result = await call(pushCommandArgs({ id: commitID, execute, confirm: true }), input)
   }
 
+  const ok = result.code === 0
   input.toast.show({
-    message: result.code === 0 ? (isDryRun(result.json) ? "Pushed — dry-run (no ATS write)" : "Pushed") : "Push failed",
-    variant: result.code === 0 ? "success" : "error",
+    message: pushToastMessage({ ok, dryRun: isDryRun(result.json) }),
+    variant: ok ? "success" : "error",
   })
   await showResult(input.dialog, "Push result", result)
+}
+
+export async function runReviewFlow(input: { dialog: DialogContext; toast: Toast; cwd?: string }) {
+  const listed = await call(["status", "--json"], input)
+  if (listed.code !== 0) {
+    input.toast.show({ message: "Failed to list staged changesets", variant: "error" })
+    await showResult(input.dialog, "Review changeset", listed)
+    return
+  }
+
+  const staged = statusByStatus(listed.json, "staged")
+  const commitID = await pickChangeset(input.dialog, "Review changeset", staged)
+  if (commitID === null) return
+  if (!commitID) {
+    input.toast.show({ message: "No staged changeset to review", variant: "info" })
+    input.dialog.clear()
+    return
+  }
+
+  const action = await DialogSelect.show(input.dialog, "Review action", [
+    { title: "Approve", value: "approve" as const, description: "Mark staged changeset approved" },
+    { title: "Reject", value: "reject" as const, description: "Reject this changeset" },
+  ])
+  if (action === null) return
+
+  const whoRaw = await DialogPrompt.show(input.dialog, "Reviewer", {
+    placeholder: "who is reviewing",
+    value: process.env.USER ?? process.env.LOGNAME ?? "human",
+  })
+  if (whoRaw === null) return
+  const who = whoRaw.trim()
+  if (!who) {
+    input.toast.show({ message: "Reviewer is required", variant: "error" })
+    input.dialog.clear()
+    return
+  }
+
+  const result = await call(reviewCommandArgs({ id: commitID, action, by: who }), input)
+  const id = receiptId(result.json) ?? commitID
+  const ok = result.code === 0
+  input.toast.show({
+    message: reviewToastMessage({ ok, action, id }),
+    variant: ok ? "success" : "error",
+  })
+  await showResult(input.dialog, "Review result", result)
 }
 
 export async function runDecisionsFlow(input: { dialog: DialogContext; toast: Toast; cwd?: string }) {
@@ -129,12 +191,12 @@ async function showResult(dialog: DialogContext, title: string, result: Decision
   await DialogAlert.show(dialog, title, message.length > 4000 ? `${message.slice(0, 4000)}\n…` : message)
 }
 
-async function pickOpenCommit(dialog: DialogContext, open: ReceiptRow[]) {
+async function pickChangeset(dialog: DialogContext, title: string, open: ChangesetRow[]) {
   if (open.length === 0) return ""
   if (open.length === 1 && open[0].id) return open[0].id
   return DialogSelect.show(
     dialog,
-    "Push decision",
+    title,
     open.flatMap((row) => {
       if (!row.id) return []
       return [

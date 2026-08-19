@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { describe, expect, test } from "bun:test"
 import { countCards, formatReqStatus, readReqTitle } from "../../src/component/prompt/req-status"
+import { ledgerCounts } from "../../src/util/decision-cli"
 
 describe("req-status", () => {
   test("reads the first HIRING.md H1", async () => {
@@ -25,15 +26,30 @@ describe("req-status", () => {
     expect(await countCards(dir)).toBe(2)
   })
 
-  test("formats the session footer line", () => {
+  test("formats staged and approved counts from the ledger", () => {
     expect(
-      formatReqStatus({ title: "Senior Backend Engineer", cards: 3, unpushed: 1, agent: "recruit" }),
-    ).toBe("Senior Backend Engineer · 3 cards · 1 unpushed · recruit")
+      formatReqStatus({ title: "Senior Backend Engineer", cards: 3, staged: 2, approved: 1, agent: "recruit" }),
+    ).toBe("Senior Backend Engineer · 3 cards · 2 staged · 1 approved · recruit")
     expect(formatReqStatus({ title: "Senior Backend Engineer", cards: 3, agent: "recruit" })).toBe(
       "Senior Backend Engineer · 3 cards · recruit",
     )
-    expect(formatReqStatus({ title: "Senior Backend Engineer", cards: 1, unpushed: 0, agent: "recruit" })).toBe(
-      "Senior Backend Engineer · 1 card · 0 unpushed · recruit",
+    expect(formatReqStatus({ title: "Senior Backend Engineer", cards: 1, staged: 0, approved: 0, agent: "recruit" })).toBe(
+      "Senior Backend Engineer · 1 card · 0 staged · 0 approved · recruit",
     )
+  })
+
+  test("reads staged/approved from status --json report.changesets, not receipts", () => {
+    expect(
+      ledgerCounts({
+        report: {
+          changesets: { staged: 2, approved: 1, stale: 0, applied: 3, rejected: 0 },
+        },
+        open: [
+          { id: "cs_1", status: "staged", rationale: "screen" },
+          { id: "cs_2", status: "approved", rationale: "advance" },
+        ],
+        path: "/tmp/fixture",
+      }),
+    ).toEqual({ staged: 2, approved: 1 })
   })
 })
