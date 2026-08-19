@@ -2,7 +2,7 @@
 
 Work this list one item at a time. The fork is done. The coding product is gone. What remains is making the *working set* first-class the way a repo is first-class in a coding harness — not rebuilding the harness.
 
-Strategy: `docs/gtm.html`. Ontology: `AGENTS.md`. Ledger-first port: `docs/mox-port.md`.
+Strategy: `docs/gtm.html`. Ontology: `AGENTS.md`. Ledger-first port: `docs/mox-port.md`. Slash inventory: `docs/slash-commands.md`.
 
 **Execute waves 1–5:** do every **open** item in wave order. Skip `done`, `deferred`, Cancelled, Parking lot, Wave 6, and H27. Do not pick up Deferred. If an item’s Keep would be deleted, stop and split.
 
