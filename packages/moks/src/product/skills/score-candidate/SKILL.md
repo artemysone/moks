@@ -16,7 +16,7 @@ Score lives on the card: `candidates/<id>.md` under the focused req (slate path)
 3. Focused packet: that req's `HIRING.md`, `candidates/<id>.md`
 4. Product fixture samples only as last resort
 
-Load HIRING.md + the candidate card (or attached resume) at minimum. Use scorecard dimensions from HIRING.md when present; otherwise derive dimensions from must-haves. Never call Ashby write tools; stage moves use `moks commit` / `moks push` only.
+Load HIRING.md + the candidate card (or attached resume) at minimum. Use scorecard dimensions from HIRING.md when present; otherwise derive dimensions from must-haves. Never call Ashby write tools; stage moves use `moks commit`. A human reviews and pushes.
 
 ## Output format
 

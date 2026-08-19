@@ -95,6 +95,8 @@ const recruitBashPermission = {
   "*": "ask",
   // Decision verbs (product authority path — shell is the CLI host today)
   "moks *": "allow",
+  "moks push *": "deny",
+  "moks review *": "deny",
   // Light read-only / identity
   "pwd *": "allow",
   "ls *": "allow",
@@ -189,7 +191,9 @@ const layer = Layer.effect(
                 question: "allow",
                 commit: "allow",
                 status: "allow",
-                push: "allow",
+                diff: "allow",
+                push: "deny",
+                review: "deny",
                 ...ashbyPermissionDefaults(),
                 // Path-scoped edits: free under .moks/ + ship hiring fixtures; ask elsewhere.
                 // `edit` also gates write and apply_patch. Wildcard `*` matches nested path segments.
@@ -201,7 +205,9 @@ const layer = Layer.effect(
                 edit: {
                   "*": "ask",
                   [path.join(".moks", "*")]: "allow",
-                  [path.join(".moks", "ats.json")]: "deny",
+                  [path.join(".moks", "ledger.sqlite")]: "deny",
+                  [path.join(".moks", "mock-ats.sqlite")]: "deny",
+                  [path.join(".moks", "vault.key")]: "deny",
                   "HIRING.md": "allow",
                   "*/HIRING.md": "allow",
                   [path.join("candidates", "*")]: "allow",

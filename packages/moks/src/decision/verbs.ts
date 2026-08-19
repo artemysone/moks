@@ -1,410 +1,430 @@
 import path from "path"
-import { CandidateCard, CANDIDATES_DIR } from "@/product/candidate-card"
+import { CandidateCard } from "@/product/candidate-card"
 import { ReqWorkspace } from "@/product/req-workspace"
-import { Filesystem } from "@/util/filesystem"
-import { applyWrites, type PlannedWrite } from "./ats"
-import { ATS_REF, DecisionGit } from "./git"
-import { isAdverse, scrubMeta, type Receipt, type Target } from "./receipt"
+import { companyCwd, ledgerDbExists, withLedger, type LedgerHandle } from "./session"
+
+export type CommitChange = {
+  entity_type: string
+  entity_ref: string
+  mutation: string
+  effect_class?: string
+  payload?: unknown
+}
 
 export type CommitInput = {
-  action: string
-  target?: Target
+  rationale?: string
+  action?: string
+  target?: { kind?: string; id?: string }
   reason?: string
-  meta?: unknown
-  dry_run?: boolean
+  mutation?: string
+  entity?: string
+  to?: string
+  body?: string
+  tag?: string
+  terms?: string
+  changes?: CommitChange[]
+  author_id?: string
+  author_kind?: "human" | "agent"
   source?: string
   cwd?: string
-}
-
-export type CommitResult = {
-  receipt: Receipt
-  path: string
-}
-
-export type StatusInput = {
-  id?: string
-  commit_id?: string
-  limit?: number
-  cwd?: string
-}
-
-export type StatusResult = {
-  receipts: Receipt[]
-  open: Receipt[]
-  path: string
+  meta?: unknown
 }
 
 export type PushInput = {
-  commit_id: string
+  id?: string
   dry_run?: boolean
   confirm?: boolean
   source?: string
   cwd?: string
-  meta?: unknown
 }
 
-export type PushResult =
-  | { ok: true; receipt: Receipt; path: string }
-  | {
-      ok: false
-      code: "needs_confirm" | "not_found" | "not_open" | "already_pushed"
-      receipt?: Receipt
-      path: string
-      message: string
-    }
-
-export type MoksCommit = {
-  sha: string
-  ts: string
-  action: string
-  target?: string
-  reason?: string
-  adverse: boolean
-  subject: string
+export type ReviewInput = {
+  id: string
+  action: "approve" | "reject"
+  by: string
+  cwd?: string
 }
 
-const LOG_FORMAT =
-  "%H%x00%cI%x00%s%x00%(trailers:key=Moks-Action,valueonly)%x00%(trailers:key=Moks-Target,valueonly)%x00%(trailers:key=Moks-Adverse,valueonly)%x1e"
-
-async function gitCwd(cwd?: string) {
-  const opened = cwd ?? process.cwd()
-  return (await ReqWorkspace.companyRoot(opened)) ?? opened
+const ADVERSE_MUTATIONS = new Set(["Reject", "ExtendOffer"])
+const ACTION_MUTATION: Record<string, string> = {
+  note: "AddNote",
+  addnote: "AddNote",
+  reject: "Reject",
+  withdraw: "Withdraw",
+  offer: "ExtendOffer",
+  extendoffer: "ExtendOffer",
+  hire: "AdvanceStage",
+  advance: "AdvanceStage",
+  advancestage: "AdvanceStage",
+  tag: "AddTag",
+  addtag: "AddTag",
+  outreach: "SendOutreach",
+  sendoutreach: "SendOutreach",
 }
 
-export async function commit(input: CommitInput): Promise<CommitResult> {
-  const opened = input.cwd ?? process.cwd()
-  const cwd = await gitCwd(opened)
-  const packet = await ReqWorkspace.focusedReq(opened)
-  await DecisionGit.ensureRepo(cwd)
-  if (input.target?.id) await applyActionToCard(cwd, packet, input.target.id, input.action)
-  const paths = await hiringPaths(cwd, packet)
-  if (!(await stageHiring(cwd, paths))) throw new Error("nothing to commit")
-  const action = input.action
-  const adverse = isAdverse(action)
-  const targetId = input.target?.id
-  const reason = input.reason ?? ""
-  const head = targetId ? `moks: ${action} ${targetId}` : `moks: ${action}`
-  const subject = reason ? `${head}: ${reason}` : `${head}:`
-  const trailers = [
-    `Moks-Action: ${action}`,
-    targetId ? `Moks-Target: ${targetId}` : "",
-    adverse ? "Moks-Adverse: yes" : "",
-  ]
-    .filter((line) => line.length > 0)
-    .join("\n")
-  const sha = await DecisionGit.commit(cwd, subject, trailers, paths)
-  const ts = (await DecisionGit.show(cwd, ["-s", "--format=%cI", sha]))?.trim() || new Date().toISOString()
-  const receipt: Receipt = {
-    id: sha,
-    ts,
-    verb: "commit",
-    action,
-    target: input.target,
-    dry_run: false,
-    state: "committed",
-    adverse,
-    reason: input.reason,
-    meta: scrubMeta(input.meta),
-    source: input.source,
-  }
-  return { receipt, path: cwd }
+export function isAdverseMutation(mutation: string, payload?: unknown) {
+  if (ADVERSE_MUTATIONS.has(mutation)) return true
+  if (mutation !== "AdvanceStage" || !payload || typeof payload !== "object" || Array.isArray(payload)) return false
+  return (payload as { to?: unknown }).to === "Hired"
 }
 
-export async function status(input: StatusInput = {}): Promise<StatusResult> {
-  const opened = input.cwd ?? process.cwd()
-  const cwd = await gitCwd(opened)
-  const limit = input.limit ?? 20
-  const all = await listMoksCommits(cwd, ["HEAD"])
-  const openCommits = await listOpenCommits(cwd)
-  const open = openCommits.map((row) => toCommitReceipt(row))
-  if (await hiringDirty(cwd, await hiringPaths(cwd, await ReqWorkspace.focusedReq(opened)))) open.unshift(workingTreeReceipt())
-  const filtered = all.filter((row) => matchesFilter(row, input.id, input.commit_id))
-  const receipts = filtered.slice(0, limit).map((row) => toCommitReceipt(row))
-  return { receipts, open: open.filter((row) => matchesReceiptFilter(row, input.id, input.commit_id)), path: cwd }
+export function isAdverseAction(action: string) {
+  const normalized = action.trim().toLowerCase()
+  return normalized === "reject" || normalized === "offer" || normalized === "hire" || normalized === "extendoffer"
 }
 
-export async function push(input: PushInput): Promise<PushResult> {
-  const cwd = await gitCwd(input.cwd)
-  const dry_run = input.dry_run ?? true
-  const sha = await DecisionGit.revParse(cwd, input.commit_id)
-  if (!sha) {
-    return { ok: false, code: "not_found", path: cwd, message: `commit not found: ${input.commit_id}` }
-  }
-  if (await isPushed(cwd, sha)) {
-    return { ok: false, code: "already_pushed", path: cwd, message: `commit already pushed: ${input.commit_id}` }
-  }
-  const open = await listOpenCommits(cwd)
-  const oldest = open[open.length - 1]
-  if (oldest && oldest.sha !== sha) {
-    return {
-      ok: false,
-      code: "not_open",
-      path: cwd,
-      message: `push the oldest open commit first: ${oldest.sha}`,
-    }
-  }
-  const listed = await listMoksCommits(cwd, ["-1", sha])
-  const parsed = listed[0]
-  const writes = await planWrites(cwd, sha, parsed?.reason ?? undefined)
-  const action = parsed?.action ?? actionFromWrites(writes) ?? "push"
-  const adverse = parsed?.adverse || isAdverse(action) || writes.some((write) => write.tool === "change_stage" && isAdverse(write.stage))
-  const target = parsed?.target ? { kind: "candidate", id: parsed.target } : undefined
-  const reason = parsed?.reason
-  const ts = parsed?.ts || (await DecisionGit.show(cwd, ["-s", "--format=%cI", sha]))?.trim() || new Date().toISOString()
-  const meta = mergeMeta(input.meta, writes)
-  if (adverse && !input.confirm) {
-    return {
-      ok: false,
-      code: "needs_confirm",
-      receipt: {
-        id: sha,
-        ts,
-        verb: "push",
-        action,
-        target,
-        commit_id: sha,
-        dry_run,
-        state: "needs_confirm",
-        adverse: true,
-        reason,
-        meta,
-        source: input.source,
-      },
-      path: cwd,
-      message: `adverse action "${action}" requires --confirm`,
-    }
-  }
-  if (!dry_run) {
-    await applyWrites({ cwd, writes, dry_run: false })
-    if (!(await DecisionGit.updateRef(cwd, ATS_REF, sha))) throw new Error(`failed to update ${ATS_REF}`)
-  }
-  return {
-    ok: true,
-    receipt: {
-      id: sha,
-      ts,
-      verb: "push",
-      action,
-      target,
-      commit_id: sha,
-      dry_run,
-      state: "pushed",
-      adverse,
-      reason,
-      meta,
-      source: input.source,
-    },
-    path: cwd,
-  }
+export function mutationForAction(action: string) {
+  const trimmed = action.trim()
+  const mapped = ACTION_MUTATION[trimmed.toLowerCase()]
+  if (mapped) return mapped
+  return trimmed
 }
 
-export async function listMoksCommits(cwd: string, extra: string[] = []): Promise<MoksCommit[]> {
-  if (!(await DecisionGit.isRepo(cwd))) return []
-  const raw = await DecisionGit.log(cwd, [`--format=${LOG_FORMAT}`, "--grep=^moks:", ...extra])
-  return raw.split("\x1e").flatMap((record) => {
-    const trimmed = record.trim()
-    if (!trimmed) return []
-    const parts = trimmed.split("\x00")
-    if (parts.length < 3) return []
-    const sha = parts[0]
-    const ts = parts[1]
-    const subject = parts[2]
-    const trailerAction = parts[3]?.trim()
-    const trailerTarget = parts[4]?.trim()
-    const trailerAdverse = parts[5]?.trim().toLowerCase()
-    const parsed = parseSubject(subject)
-    const action = trailerAction || parsed?.action || "note"
-    const target = trailerTarget || parsed?.target
-    const reason = parsed?.reason
-    return [
-      {
-        sha,
-        ts,
-        action,
-        target,
-        reason,
-        adverse: trailerAdverse === "yes" || isAdverse(action),
-        subject,
-      },
-    ]
+export function previewMutations(input: { action?: string; mutation?: string; entity?: string; changes?: CommitChange[] }) {
+  if (input.changes && input.changes.length > 0) return input.changes.map((change) => change.mutation)
+  if (input.mutation) return [input.mutation]
+  if (input.action) return [mutationForAction(input.action)]
+  return []
+}
+
+export function defaultAuthor() {
+  return process.env.USER ?? process.env.LOGNAME ?? "human"
+}
+
+export async function pull(input: { cwd?: string } = {}) {
+  return withLedger(input.cwd, async (handle) => {
+    const result = handle.api.pullMirror(handle.db, handle.adapter)
+    return { ...result, path: handle.company }
   })
 }
 
-export async function listOpenCommits(cwd: string) {
-  if (!(await DecisionGit.isRepo(cwd))) return []
-  const ats = await DecisionGit.revParse(cwd, ATS_REF)
-  const range = ats ? `${ATS_REF}..HEAD` : "HEAD"
-  return listMoksCommits(cwd, [range])
-}
-
-export async function isPushed(cwd: string, sha: string) {
-  const ats = await DecisionGit.revParse(cwd, ATS_REF)
-  if (!ats) return false
-  return DecisionGit.isAncestor(cwd, sha, ATS_REF)
-}
-
-function toCommitReceipt(row: MoksCommit): Receipt {
-  return {
-    id: row.sha,
-    ts: row.ts,
-    verb: "commit",
-    action: row.action,
-    target: row.target ? { kind: "candidate", id: row.target } : undefined,
-    dry_run: false,
-    state: "committed",
-    adverse: row.adverse,
-    reason: row.reason,
-  }
-}
-
-function workingTreeReceipt(): Receipt {
-  return {
-    id: "working-tree",
-    ts: new Date().toISOString(),
-    verb: "commit",
-    action: "uncommitted",
-    dry_run: false,
-    state: "committed",
-    adverse: false,
-  }
-}
-
-function matchesFilter(row: MoksCommit, id?: string, commit_id?: string) {
-  if (id && row.sha !== id && !row.sha.startsWith(id)) return false
-  if (commit_id && row.sha !== commit_id && !row.sha.startsWith(commit_id)) return false
-  return true
-}
-
-function matchesReceiptFilter(row: Receipt, id?: string, commit_id?: string) {
-  if (id && row.id !== id && !row.id.startsWith(id) && row.commit_id !== id) return false
-  if (commit_id && row.id !== commit_id && !row.id.startsWith(commit_id) && row.commit_id !== commit_id) return false
-  return true
-}
-
-function parseSubject(subject: string) {
-  const withReason = subject.match(/^moks:\s+(\S+)(?:\s+([^:]+?))?\s*:\s*(.*)$/)
-  if (withReason) {
-    const target = withReason[2]?.trim()
-    const reason = withReason[3]?.trim()
+export async function status(input: { cwd?: string; id?: string; limit?: number } = {}) {
+  return withLedger(input.cwd, async (handle) => {
+    const report = handle.api.readStatus(handle.db)
+    const listed = handle.api.listChangesets(handle.db)
+    const filtered = listed.filter((row) => !input.id || row.id === input.id || row.id.startsWith(input.id))
+    const limit = input.limit ?? 20
+    const open = filtered.filter((row) => row.status === "staged" || row.status === "approved")
     return {
-      action: withReason[1],
-      target: target || undefined,
-      reason: reason || undefined,
+      report,
+      open,
+      changesets: filtered.slice(0, limit),
+      path: handle.company,
     }
+  })
+}
+
+export async function commit(input: CommitInput) {
+  return withLedger(input.cwd, async (handle) => {
+    const { api } = handle
+    const changes = resolveChanges(handle, input)
+    if (changes.length === 0) throw new Error("nothing to commit")
+    const rationale = (input.rationale ?? input.reason ?? "").trim()
+    if (!rationale) throw new Error("rationale is required")
+    const authorKind = input.author_kind ?? (input.source === "tool" ? "agent" : "human")
+    const changeset = api.commitChangeset(
+      handle.db,
+      handle.vault,
+      {
+        rationale,
+        author_id: input.author_id ?? (authorKind === "agent" ? "agent" : defaultAuthor()),
+        author_kind: authorKind,
+        agent_meta: {
+          source: input.source,
+          req: handle.req ? path.relative(handle.company, handle.req) : null,
+          action: input.action,
+          ...(input.meta && typeof input.meta === "object" && !Array.isArray(input.meta) ? input.meta : {}),
+        },
+        changes,
+      },
+      { policy: handle.policy.policy },
+    )
+    await projectCard(handle, input, changeset.changes)
+    const adverse = changeset.changes.some((change) => isAdverseMutation(change.mutation, change.payload))
+    return { changeset, path: handle.company, adverse }
+  })
+}
+
+export async function diff(input: { cwd?: string; id?: string } = {}) {
+  return withLedger(input.cwd, async (handle) => {
+    const { api } = handle
+    if (input.id) {
+      return { diffs: [api.diffChangeset(handle.db, handle.vault, input.id)], path: handle.company }
+    }
+    const listed = api.listChangesets(handle.db)
+    const diffs = listed
+      .filter((row) => row.status === "staged" || row.status === "approved")
+      .map((row) => api.diffChangeset(handle.db, handle.vault, row.id))
+    return { diffs, path: handle.company }
+  })
+}
+
+export async function review(input: ReviewInput) {
+  return withLedger(input.cwd, async (handle) => {
+    const changeset = handle.api.reviewChangeset(handle.db, handle.vault, input.id, {
+      action: input.action,
+      reviewer_id: input.by,
+    })
+    return { changeset, path: handle.company }
+  })
+}
+
+export async function rebase(input: { cwd?: string; id: string }) {
+  return withLedger(input.cwd, async (handle) => {
+    const result = handle.api.rebaseChangeset(handle.db, handle.vault, input.id, {
+      policy: handle.policy.policy,
+    })
+    return { ...result, path: handle.company }
+  })
+}
+
+export async function push(input: PushInput) {
+  return withLedger(input.cwd, async (handle) => {
+    const { api } = handle
+    const dry_run = input.dry_run ?? true
+    const id = input.id
+    if (id) {
+      let changeset: ReturnType<typeof api.getChangeset>
+      try {
+        changeset = api.getChangeset(handle.db, handle.vault, id)
+      } catch (error) {
+        return failPush(handle.company, "not_found", ledgerMessage(error, `changeset not found: ${id}`))
+      }
+      if (changeset.status === "applied") {
+        return failPush(handle.company, "already_pushed", `changeset already applied: ${id}`)
+      }
+      if (changeset.status === "staged") {
+        return failPush(handle.company, "review_required", `review changeset ${id} before push`)
+      }
+      if (changeset.status !== "approved") {
+        return failPush(handle.company, "cannot_push", `cannot push: ${changeset.status}`)
+      }
+      const adverse = changeset.changes.some((change) => isAdverseMutation(change.mutation, change.payload))
+      if (adverse && !input.confirm) {
+        return failPush(handle.company, "needs_confirm", `adverse action requires --confirm`, true)
+      }
+      if (dry_run) {
+        return { ok: true as const, dry_run: true, pushed: [{ id, status: "approved" as const }], path: handle.company, adverse }
+      }
+      const result = api.pushApproved(handle.db, handle.adapter, handle.vault, id)
+      api.refreshAfterPush(handle.db, handle.adapter, result)
+      return { ok: true as const, dry_run: false, pushed: result.pushed, path: handle.company, adverse }
+    }
+
+    const approved = api.listChangesets(handle.db, "approved")
+    if (approved.length === 0) {
+      return failPush(handle.company, "nothing_to_push", "nothing to push")
+    }
+    const details = approved.map((row) => api.getChangeset(handle.db, handle.vault, row.id))
+    const adverse = details.some((row) => row.changes.some((change) => isAdverseMutation(change.mutation, change.payload)))
+    if (adverse && !input.confirm) {
+      return failPush(handle.company, "needs_confirm", "adverse action requires --confirm", true)
+    }
+    if (dry_run) {
+      return {
+        ok: true as const,
+        dry_run: true,
+        pushed: approved.map((row) => ({ id: row.id, status: "approved" as const })),
+        path: handle.company,
+        adverse,
+      }
+    }
+    const result = api.pushApproved(handle.db, handle.adapter, handle.vault)
+    api.refreshAfterPush(handle.db, handle.adapter, result)
+    return { ok: true as const, dry_run: false, pushed: result.pushed, path: handle.company, adverse }
+  })
+}
+
+export async function log(input: { cwd?: string; compliance?: boolean } = {}) {
+  return withLedger(input.cwd, async (handle) => {
+    const { api } = handle
+    if (input.compliance) {
+      return { compliance: api.readComplianceLog(handle.db, handle.policy.hash), path: handle.company }
+    }
+    return { entries: api.readLog(handle.db), chain: api.verifyChain(handle.db), path: handle.company }
+  })
+}
+
+export async function activityRows(input: { cwd?: string; days?: number; now?: Date } = {}) {
+  const days = input.days ?? 7
+  const company = await companyCwd(input.cwd)
+  if (!(await ledgerDbExists(input.cwd))) {
+    return { days, path: company, rows: [] as Awaited<ReturnType<typeof loadActivityRows>> }
   }
-  const simple = subject.match(/^moks:\s+(\S+)(?:\s+(\S+))?$/)
-  if (!simple) return
+  const rows = await withLedger(input.cwd, (handle) => Promise.resolve(loadActivityRows(handle)))
+  return { days, path: company, rows }
+}
+
+function loadActivityRows(handle: LedgerHandle) {
+  return handle.api.listChangesets(handle.db).map((row) => {
+    const detail = handle.api.getChangeset(handle.db, handle.vault, row.id)
+    return {
+      id: row.id,
+      ts: row.created_at,
+      status: row.status,
+      rationale: row.rationale,
+      adverse: detail.changes.some((change) => isAdverseMutation(change.mutation, change.payload)),
+    }
+  })
+}
+
+function resolveChanges(handle: LedgerHandle, input: CommitInput) {
+  const { api } = handle
+  const changes: Array<{
+    entity_type: string
+    entity_ref: string
+    mutation: string
+    effect_class: string
+    payload: unknown
+  }> = []
+
+  for (const change of input.changes ?? []) {
+    changes.push(normalizeChange(api, change))
+  }
+
+  const mutation = input.mutation ?? (input.action ? mutationForAction(input.action) : undefined)
+  if (mutation) {
+    if (!api.isMutation(mutation)) throw new Error(`unknown mutation: ${mutation}`)
+    const target = resolveEntity(handle, input, mutation)
+    changes.push(
+      normalizeChange(api, {
+        entity_type: target.entity_type,
+        entity_ref: target.entity_ref,
+        mutation,
+        payload: payloadFor(handle, mutation, input, target.entity_ref),
+      }),
+    )
+  }
+
+  return changes
+}
+
+function normalizeChange(api: LedgerHandle["api"], change: CommitChange) {
+  if (!api.isMutation(change.mutation)) throw new Error(`unknown mutation: ${change.mutation}`)
   return {
-    action: simple[1],
-    target: simple[2],
-    reason: undefined as string | undefined,
+    entity_type: change.entity_type,
+    entity_ref: change.entity_ref,
+    mutation: change.mutation,
+    effect_class: change.effect_class ?? api.MUTATION_EFFECT_CLASS[change.mutation],
+    payload: change.payload ?? {},
   }
 }
 
-async function hiringPaths(repo: string, packet?: string) {
-  const paths: string[] = []
-  if (Filesystem.stat(path.join(repo, ReqWorkspace.HIRING_FILE))) paths.push(ReqWorkspace.HIRING_FILE)
-  if (packet) {
-    const rel = path.relative(repo, packet)
-    if (!rel || rel === ".") {
-      if (Filesystem.stat(path.join(repo, CANDIDATES_DIR))) paths.push(CANDIDATES_DIR)
-      return paths
+function parseEntity(value: string) {
+  const split = value.indexOf(":")
+  if (split <= 0) throw new Error("entity requires type:id (e.g. application:app_priya_142)")
+  const entity_type = value.slice(0, split)
+  const entity_ref = value.slice(split + 1)
+  if (entity_type !== "job" && entity_type !== "candidate" && entity_type !== "application") {
+    throw new Error(`unknown entity type: ${entity_type}`)
+  }
+  if (!entity_ref) throw new Error("entity requires type:id (e.g. application:app_priya_142)")
+  return { entity_type, entity_ref }
+}
+
+function resolveEntity(handle: LedgerHandle, input: CommitInput, mutation: string) {
+  if (input.entity) return parseEntity(input.entity)
+  const id = input.target?.id
+  if (!id) throw new Error("commit needs --entity or --target-id")
+  if (id.includes(":")) return parseEntity(id)
+
+  const applications = handle.api.listApplications(handle.db)
+  const asApp = applications.find((row) => row.id === id)
+  if (asApp) return { entity_type: "application" as const, entity_ref: asApp.id }
+  const forCandidate = applications.find((row) => row.candidateId === id)
+  if (forCandidate) {
+    if (mutation === "AddNote" || mutation === "AddTag" || mutation === "SendOutreach") {
+      return { entity_type: "candidate" as const, entity_ref: id }
     }
-    const reqHiring = path.join(rel, ReqWorkspace.HIRING_FILE)
-    const reqCandidates = path.join(rel, CANDIDATES_DIR)
-    if (Filesystem.stat(path.join(repo, reqHiring))) paths.push(reqHiring)
-    if (Filesystem.stat(path.join(repo, reqCandidates))) paths.push(reqCandidates)
-    return paths
+    return { entity_type: "application" as const, entity_ref: forCandidate.id }
   }
-  if (await ReqWorkspace.companyRoot(repo)) return paths
-  if (Filesystem.stat(path.join(repo, CANDIDATES_DIR))) paths.push(CANDIDATES_DIR)
-  return paths
+  throw new Error(`unknown entity: ${id} — run moks pull and check the id`)
 }
 
-async function hiringDirty(cwd: string, paths: string[]) {
-  if (paths.length === 0) return false
-  const text = await DecisionGit.status(cwd, ["--porcelain", "--", ...paths])
-  return text.trim().length > 0
+function payloadFor(handle: LedgerHandle, mutation: string, input: CommitInput, entityRef: string) {
+  if (mutation === "AdvanceStage") {
+    const hire = input.action?.trim().toLowerCase() === "hire"
+    const to = input.to ?? (hire ? "Hired" : nextStageFor(handle, entityRef))
+    if (!to) throw new Error("AdvanceStage requires --to")
+    return { to }
+  }
+  if (mutation === "AddNote") {
+    const body = input.body ?? input.reason ?? input.rationale
+    if (!body) throw new Error("AddNote requires --body or --reason")
+    return { body }
+  }
+  if (mutation === "AddTag") {
+    if (!input.tag) throw new Error("AddTag requires --tag")
+    return { tag: input.tag }
+  }
+  if (mutation === "SendOutreach") {
+    const body = input.body ?? input.reason ?? input.rationale
+    if (!body) throw new Error("SendOutreach requires --body or --reason")
+    return { body }
+  }
+  if (mutation === "ExtendOffer") {
+    const terms = input.terms ?? input.reason ?? input.rationale
+    if (!terms) throw new Error("ExtendOffer requires --terms or --reason")
+    return { terms }
+  }
+  return {}
 }
 
-async function stageHiring(cwd: string, paths: string[]) {
-  if (paths.length === 0) return false
-  await DecisionGit.add(cwd, paths)
-  const staged = await DecisionGit.diffNames(cwd, ["--cached", "--", ...paths])
-  return staged.length > 0
+function nextStageFor(handle: LedgerHandle, entityRef: string) {
+  const application = handle.api.listApplications(handle.db).find((row) => row.id === entityRef)
+  if (!application) return
+  return handle.api.nextStage(application.stage) ?? undefined
 }
 
-async function applyActionToCard(repo: string, packet: string | undefined, id: string, action: string) {
-  if (!packet && (await ReqWorkspace.companyRoot(repo))) throw new Error("no focused req")
-  const dir = packet ?? repo
+async function projectCard(
+  handle: LedgerHandle,
+  input: CommitInput,
+  changes: Array<{ mutation: string; entity_ref: string; payload: unknown }>,
+) {
+  const id = input.target?.id
+  if (!id || id.includes(":")) return
+  const dir = handle.req ?? ((await ReqWorkspace.isPacket(handle.company)) ? handle.company : undefined)
+  if (!dir) return
+
+  const stage = stageFromChanges(changes)
   const existing = await CandidateCard.read(dir, id)
   if (!existing) {
-    const created = CandidateCard.parse(CandidateCard.stub(id, { stage: stageForAction(action) ?? "sourced" }))
+    if (!stage) return
+    const created = CandidateCard.parse(CandidateCard.stub(id, { stage }))
     if (!created) throw new Error(`failed to create candidate card: ${id}`)
     await CandidateCard.write(dir, created)
     return
   }
-  const stage = stageForAction(action, existing.stage)
-  if (stage === existing.stage) return
-  await CandidateCard.write(dir, {
-    id: existing.id,
-    stage,
-    score: existing.score,
-    source: existing.source,
-    ats_id: existing.ats_id,
-    extra: existing.extra,
-    body: existing.body,
-  })
+  if (!stage || stage === existing.stage) return
+  await CandidateCard.write(dir, { ...existing, stage })
 }
 
-const STAGES = ["sourced", "screen", "phone", "onsite", "offer", "hire"] as const
-
-function stageForAction(action: string, existing?: string) {
-  const normalized = action.trim().toLowerCase()
-  if (isAdverse(normalized)) return normalized
-  if (normalized === "advance") {
-    if (!existing) return "screen"
-    const index = STAGES.indexOf(existing as (typeof STAGES)[number])
-    if (index < 0) return "screen"
-    return STAGES[Math.min(index + 1, STAGES.length - 1)]
-  }
-  return existing
-}
-
-async function planWrites(cwd: string, sha: string, reason?: string): Promise<PlannedWrite[]> {
-  const files = await DecisionGit.changedFiles(cwd, sha)
-  const parent = await DecisionGit.revParse(cwd, `${sha}^`)
-  const writes: PlannedWrite[] = []
-  for (const file of files) {
-    if (!CandidateCard.isCardPath(path.join(cwd, file))) continue
-    const afterText = await DecisionGit.fileAt(cwd, sha, file)
-    const after = afterText ? CandidateCard.parse(afterText) : undefined
-    if (!after) continue
-    const beforeText = parent ? await DecisionGit.fileAt(cwd, parent, file) : undefined
-    const before = beforeText ? CandidateCard.parse(beforeText) : undefined
-    const candidate_id = after.ats_id ?? after.id
-    if (after.stage && after.stage !== before?.stage) {
-      writes.push({ tool: "change_stage", candidate_id, stage: after.stage })
-    }
-    if (after.body !== before?.body || reason) {
-      const body = reason || after.body
-      if (body) writes.push({ tool: "create_note", candidate_id, body })
+function stageFromChanges(changes: Array<{ mutation: string; payload: unknown }>) {
+  for (const change of changes) {
+    if (change.mutation === "Reject") return "Rejected"
+    if (change.mutation === "Withdraw") return "Withdrawn"
+    if (change.mutation === "AdvanceStage" && change.payload && typeof change.payload === "object" && "to" in change.payload) {
+      const to = (change.payload as { to?: unknown }).to
+      if (typeof to === "string") return to
     }
   }
-  return writes
 }
 
-function actionFromWrites(writes: PlannedWrite[]) {
-  const stage = writes.find((write) => write.tool === "change_stage")
-  if (stage && stage.tool === "change_stage") return stage.stage
-  if (writes.some((write) => write.tool === "create_note")) return "note"
-  return
+function failPush(
+  path: string,
+  code: "needs_confirm" | "not_found" | "review_required" | "already_pushed" | "nothing_to_push" | "cannot_push",
+  message: string,
+  adverse = false,
+) {
+  return { ok: false as const, code, message, path, adverse }
 }
 
-function mergeMeta(meta: unknown, writes: PlannedWrite[]) {
-  const scrubbed = scrubMeta(meta)
-  if (!scrubbed) return { writes }
-  return { ...scrubbed, writes }
+function ledgerMessage(error: unknown, fallback: string) {
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+    if (error.message === "changeset_not_found") return fallback
+    return error.message
+  }
+  return fallback
 }
 
 export * as DecisionVerbs from "./verbs"

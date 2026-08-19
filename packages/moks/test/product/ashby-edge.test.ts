@@ -4,7 +4,6 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { LayerNode } from "@moks/core/effect/layer-node"
 import { Effect } from "effect"
 import path from "path"
-import { DecisionAts } from "../../src/decision/ats"
 import { DecisionVerbs } from "../../src/decision/verbs"
 import {
   ASHBY_READ_TOOLS,
@@ -17,7 +16,6 @@ import {
   ashbyWriteDeniedMessage,
   isAshbyWriteTool,
 } from "../../src/product/ashby-edge"
-import { CandidateCard } from "../../src/product/candidate-card"
 import {
   AshbyMockTools,
   applyAshbyWrite,
@@ -141,37 +139,36 @@ describe("ashby mock handlers", () => {
     expect(state.notes).toEqual([{ candidate_id: "cand_jordan_lee", body: "strong" }])
   })
 
-  test("push --execute writes .moks/ats.json", async () => {
+  test("push --execute applies an approved changeset on the ledger", async () => {
     await using tmp = await tmpdir({
-      git: true,
       init: async (dir) => {
         await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
-        await CandidateCard.write(dir, {
-          id: "cand_jordan_lee",
-          stage: "offer",
-          ats_id: "cand_jordan_lee",
-          extra: { name: "Jordan Lee" },
-          body: "# Jordan Lee\n",
-        })
       },
     })
+    await DecisionVerbs.pull({ cwd: tmp.path })
     const committed = await DecisionVerbs.commit({
-      action: "offer",
-      target: { kind: "candidate", id: "cand_jordan_lee" },
+      action: "note",
+      target: { kind: "candidate", id: "cand_priya" },
       reason: "strong",
       cwd: tmp.path,
     })
+    if (committed.changeset.status === "staged") {
+      await DecisionVerbs.review({
+        id: committed.changeset.id,
+        action: "approve",
+        by: "you",
+        cwd: tmp.path,
+      })
+    }
     const result = await DecisionVerbs.push({
-      commit_id: committed.receipt.id,
+      id: committed.changeset.id,
       cwd: tmp.path,
-      confirm: true,
       dry_run: false,
     })
     expect(result.ok).toBe(true)
-    const cache = await DecisionAts.loadCache(tmp.path)
-    expect(cache.candidates.find((item) => item.id === "cand_jordan_lee")?.stage).toBe("offer")
-    expect(cache.notes.some((item) => item.body === "strong")).toBe(true)
-    expect(await Bun.file(path.join(tmp.path, ".moks/ats.json")).exists()).toBe(true)
+    const st = await DecisionVerbs.status({ cwd: tmp.path })
+    expect(st.report.changesets.applied).toBe(1)
+    expect(await Bun.file(path.join(tmp.path, ".moks/ats.json")).exists()).toBe(false)
   })
 })
 

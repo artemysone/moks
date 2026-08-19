@@ -1,6 +1,6 @@
-# Scorecard — Senior Backend Engineer (REQ-142)
+# Scorecard
 
-Agent screens against this. Scale is 1–4. Bar is 3 on every dimension except payments exposure, which is preferred, not required.
+Agent screens against this. Scale is 1–4. Bar is 3 on every required dimension.
 
 | Score | Meaning |
 | --- | --- |
@@ -9,40 +9,24 @@ Agent screens against this. Scale is 1–4. Bar is 3 on every dimension except p
 | 3 | At bar |
 | 4 | Above bar |
 
-Advance only with no 1s, every other dimension ≥ 2, and an average ≥ 3. A payments score of 2 is acceptable when distributed systems, backend depth, and communication are all ≥ 3.
+Advance only with no 1s, every other dimension ≥ 2, and an average ≥ 3. Mark a dimension preferred-not-required in HIRING.md when a 2 is acceptable.
 
-## Distributed systems
+Replace the dimensions below with the req's scorecard. Keep the 1–4 scale and the bar definition so screens stay comparable.
 
-**Bar (3):** Designs and reasons about distributed systems in production — consistency, failure modes, backpressure, and operational tradeoffs — without treating the network as reliable.
+## Craft
 
-- **1 — Well below:** Talks about services as if they were local function calls. No vocabulary for partitions, retries, or idempotency.
-- **2 — Below:** Has used queues or caches but cannot explain failure modes or why a design is safe under retry and timeout.
-- **3 — At bar:** Walks a real system through partition, retry, and dual-write failure. Chooses consistency vs. availability with a reason. Knows when to use outbox, idempotency keys, and backpressure.
-- **4 — Above:** Has owned hard distributed problems (exactly-once-ish pipelines, multi-region, consensus-adjacent) and can teach the tradeoffs.
+**Bar (3):** Does the work at the level this req hires for. Reasons about real systems, not interview puzzles.
 
-## Backend depth
-
-**Bar (3):** Ships and operates substantial backend systems. Strong in data modeling, API design, and production debugging. Matches the 5+ years backend bar in `hiring.md`.
-
-- **1 — Well below:** Mostly CRUD wrappers; thin on modeling, indexing, or operational ownership.
-- **2 — Below:** Solid application code but shallow on storage, concurrency, or how the system behaves under load.
-- **3 — At bar:** Designs APIs and schemas that hold up. Reasons about transactions, indexes, and tail latency. Debugs production from first principles.
-- **4 — Above:** Staff-level depth — sets conventions, simplifies complexity, and leaves systems others can operate.
-
-## Payments exposure
-
-**Bar (3):** Has worked near money movement, ledgers, or financial correctness. Preferred, not required — a 2 does not fail the screen if the other three dimensions are at or above bar.
-
-- **1 — Well below:** No exposure to money, ledgers, or correctness-sensitive systems; treats payments as a third-party checkbox.
-- **2 — Below / adjacent:** Adjacent correctness work (billing, inventory, marketplace settlement) but not payments or fintech. Acceptable if other dimensions carry.
-- **3 — At bar:** Has shipped or operated payments, ledger, or fintech systems. Understands idempotency, reconciliation, and why money bugs are different.
-- **4 — Above:** Deep payments or ledger ownership — reconciliation, audit trails, PCI-adjacent constraints, or similar.
+- **1 — Well below:** Cannot walk a real example. Vocabulary is slogans.
+- **2 — Below:** Has done adjacent work but cannot explain failure modes or why a design is safe.
+- **3 — At bar:** Walks a real system through tradeoffs. Chooses with a reason. Debugs from first principles.
+- **4 — Above:** Has owned hard problems in this domain and can teach the tradeoffs.
 
 ## Communication
 
-**Bar (3):** Writes and speaks with precision. Can explain a design, a tradeoff, and a no. Outreach and notes should match the `hiring.md` tone: warm, specific, no buzzwords.
+**Bar (3):** Writes and speaks with precision. Can explain a design, a tradeoff, and a no. Outreach and notes should match the HIRING.md tone: warm, specific, no buzzwords.
 
 - **1 — Well below:** Vague, buzzword-heavy, or unable to structure an answer.
-- **2 — Below:** Understands the work but cannot make the reasoning inspectable to a hiring manager or future teammate.
+- **2 — Below:** Understands the work but cannot make the reasoning inspectable to a hiring manager.
 - **3 — At bar:** Clear, specific, no theater. Written notes and verbal walkthroughs would survive review.
 - **4 — Above:** Teaches while talking. Compresses complexity without losing the load-bearing details.

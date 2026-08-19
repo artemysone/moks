@@ -18,7 +18,7 @@ Resolve in order (stop when found):
 3. Focused packet: that req's `HIRING.md`, optional `candidates/<id>.md`
 4. Samples only if nothing else: ship path under product fixtures/hiring
 
-Read every file or MCP payload you will cite. Never call Ashby write tools (`ashby_change_stage`, `ashby_create_note`); dispositions go through `moks commit` / `moks push`.
+Read every file or MCP payload you will cite. Never call Ashby write tools (`ashby_change_stage`, `ashby_create_note`); dispositions go through `moks commit`. A human reviews and pushes.
 
 ## Output format
 
