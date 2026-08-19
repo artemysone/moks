@@ -58,7 +58,7 @@ import { FrecencyProvider } from "./component/prompt/frecency"
 import { PromptStashProvider } from "./component/prompt/stash"
 import { DialogAlert } from "./ui/dialog-alert"
 import { DialogConfirm } from "./ui/dialog-confirm"
-import { runCommitFlow, runDecisionsFlow, runPushFlow } from "./ui/dialog-decision"
+import { runCommitFlow, runDecisionsFlow, runPushFlow, runReviewFlow } from "./ui/dialog-decision"
 import { ToastProvider, useToast } from "./ui/toast"
 import { isDefaultTitle } from "./util/session"
 import { KVProvider, useKV } from "./context/kv"
@@ -791,6 +791,19 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         category: "Decision",
         run: () => {
           void runPushFlow({
+            dialog,
+            toast,
+            cwd: project.instance.directory() || sdk.directory || undefined,
+          })
+        },
+      },
+      {
+        name: "decision.review",
+        title: "Review changeset",
+        slashName: "review",
+        category: "Decision",
+        run: () => {
+          void runReviewFlow({
             dialog,
             toast,
             cwd: project.instance.directory() || sdk.directory || undefined,
