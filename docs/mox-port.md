@@ -214,7 +214,7 @@ share-a-review-link story emerges.
 
 ### P4 — TUI surfaces on the ledger
 
-- **Status:** open — depends on P3; may run parallel with P5
+- **Status:** done (`85bc1f1dd5` on `port/p4-tui`; merged on `port/mox-into-moks`)
 - **Outcome:** The TUI decision dialog and statusline reflect ledger state. `/push` from
   the TUI can dry-run or execute (this absorbs deferred backlog item **H20**, minus its
   git-ref verify step, which is obsolete).

@@ -372,7 +372,7 @@ Still wanted. Not in the current wave order. Bring back only after a conversatio
 
 ### H20 — TUI `/push` can complete the write
 
-- **Status:** deferred
+- **Status:** done (via P4 on `port/mox-into-moks`)
 - **Outcome:** A recruiter who stays in the TUI can dry-run *or* `--execute`. Adverse still needs confirm.
 - **Keep:** CLI `moks push` dry-run default, `--execute`, `--confirm` for adverse. Mock ATS. No silent agent writes.
 - **Change:** Decision dialog grows an explicit “Write to ATS” vs “Dry-run” (or a confirm that passes `--execute`). Toast must not say “Pushed” if it was dry-run only.
