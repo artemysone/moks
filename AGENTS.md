@@ -18,8 +18,10 @@ The company folder is the workspace (the repo). A req is a subdirectory you focu
   <req>/                      ← a requisition
     HIRING.md                 ← req constitution
     candidates/<id>.md        ← working copies
-  .moks/                      ← cache only (plans, ats.json)
+  .moks/                      ← ledger + cache (ledger.sqlite, vault.key, focus)
 ```
+
+Cards are the human-readable projection. The ledger is the system of record for decisions and ATS mutations.
 
 | Piece | Role |
 |-------|------|
@@ -29,9 +31,9 @@ The company folder is the workspace (the repo). A req is a subdirectory you focu
 | `<req>/HIRING.md` | req constitution (scorecard, must-haves, process) |
 | `<req>/candidates/<id>.md` | working copies (score, outreach, notes) |
 | focus (`@<req>` or last-focused req) | working set this turn |
-| `moks commit` | git audit of a decision |
-| `moks push` | the write (local/mock ATS now; remote later) |
-| `.moks/` | cache at company root. Not a hiring book |
+| `moks commit` | stage a changeset on the moks ledger |
+| `moks push` | apply approved changesets via the ATS adapter (human only) |
+| `.moks/` | ledger + cache at company root. Not a hiring book |
 | `~/.config/moks/HIRING.md` | this recruiter’s global constitution |
 
 `/init` at the company root scaffolds a req directory. A root that itself has `HIRING.md` + `candidates/` is a single-req workspace (fixture / one-req company).
@@ -50,16 +52,18 @@ Change: prominence, defaults, copy, agent wiring, workspace paths.
 |----------|------|------------|
 | Repo / project | Company folder is the workspace | One git remote per req; cwd-only req |
 | `AGENTS.md` | `HIRING.md` at company + per req | `/init` still writes coding AGENTS.md |
-| GitHub | ATS (Ashby later) | GitHub recruiting as the product |
+| GitHub | ATS (adapter seam; live Ashby on hold) | GitHub recruiting as the product |
 | Working tree | company + focused req packet | Cloud ATS with no local drafts |
 | Diff | Local hiring file deltas | Delete diff, or only show remote ATS |
-| `git commit` | `moks commit` | Raw `git commit`; commit with no push path |
-| `git push` | `moks push` | Silent ATS writes from the agent |
+| `git commit` | `moks commit` (ledger changeset, not a git commit) | Raw `git commit`; commit with no push path |
+| `git push` | `moks push` (adapter apply, not `git push`) | Silent ATS writes from the agent |
 | PR review | `/review` packet review | `/review` still runs `gh pr` |
 | `build` doer | `recruit` | Rename the binary; keep `build` default |
 | Plan → implement | Plan → execute hiring steps | Plan → generate recruiting software |
 | Explore codebase | Explore HIRING.md / cards / notes | Explore → OSINT-only agent |
 | LSP / formatters | Not a TA surface (defaults off) | TA-LSP metaphor, or delete the subsystem |
+
+The analog map stays. Mechanics are the moks ledger (hash-chained changesets), not git. Git may still exist for `/init` repo detection. That is not the product audit trail.
 
 Default loop: open company → `/init` a req → focus it → load that `HIRING.md` → score onto the card → draft outreach → `/review` → `moks commit` → `moks push`.
 

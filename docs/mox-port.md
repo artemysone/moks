@@ -21,7 +21,7 @@ mark the item done here in the same PR.
    (`HIRING.md`, `candidates/*.md`) remain the human-readable working copies — a
    projection, never the record.
 2. **No git in the product.** `decision/git.ts`, `refs/moks/ats`, and git audit trailers
-   are deleted, not adapted. Whether a user keeps their company folder in a git repo is
+   were replaced by the ledger. Whether a user keeps their company folder in a git repo is
    their business and invisible to moks.
 3. **New package `packages/ledger` (`@moks/ledger`).** Plain TypeScript + `bun:sqlite`,
    exactly as written in Mox. Do **not** rewrite it into Effect, drizzle, or the
@@ -126,8 +126,8 @@ share-a-review-link story emerges.
 
 | File | Reason |
 |---|---|
-| `packages/moks/src/decision/git.ts` | Git plumbing, `refs/moks/ats` — decision 2 |
-| `packages/moks/src/decision/ats.ts` | `.moks/ats.json` mock write path — superseded by adapters |
+| `packages/moks/src/decision/git.ts` | Git plumbing, `refs/moks/ats` — replaced by the ledger |
+| `packages/moks/src/decision/ats.ts` | `.moks/ats.json` mock write path — replaced by the ledger adapters |
 | `packages/moks/src/decision/receipt.ts` | Receipts superseded by ledger changesets/events |
 | `packages/moks/src/decision/ledger.ts` | 3-line no-op stub — replaced by `@moks/ledger` |
 | `packages/moks/src/decision/verbs.ts` | Rewritten in P3 as a thin layer over `@moks/ledger` |
@@ -139,7 +139,7 @@ share-a-review-link story emerges.
 
 ### P1 — Mount `@moks/ledger` with the engine core, tests green
 
-- **Status:** open
+- **Status:** done
 - **Outcome:** `packages/ledger` exists in the moks workspace with Mox's domain/ledger
   core and its tests passing. Nothing else in moks imports it yet.
 - **Keep:** Mox semantics exactly — hash chain format, changeset statuses, CAS
@@ -159,7 +159,7 @@ share-a-review-link story emerges.
 
 ### P2 — Adapters, MCP seam, and the HIRING.md policy bridge
 
-- **Status:** open — depends on P1
+- **Status:** done
 - **Outcome:** The full adapter seam (mock, greenhouse-fixture, juicebox-fixture, MCP)
   works inside `@moks/ledger`, and policy loads from moks-convention `HIRING.md` with
   company fallback and fail-closed default.
@@ -177,7 +177,7 @@ share-a-review-link story emerges.
 
 ### P3 — Rewire the verbs: CLI, agent tools, and the git deletion
 
-- **Status:** open — depends on P2
+- **Status:** done
 - **Outcome:** `moks pull | status | commit | diff | review | rebase | push | log |
   activity` all run against `@moks/ledger`. `decision/git.ts` and `decision/ats.ts` are
   gone. No git invocation remains anywhere in the decision path.
@@ -209,7 +209,8 @@ share-a-review-link story emerges.
   `moks review <id> --approve --by you` → `moks push --execute` applies via the mock
   adapter → `moks log` shows the chained entry and `moks log --compliance` exports.
   `rg -n "refs/moks/ats|ats\.json|Bun.spawn\(\[\"git\"" packages/moks/src` returns
-  nothing. Existing product tests pass or are updated in the same PR.
+  nothing (those paths were replaced by the ledger). Existing product tests pass or
+  are updated in the same PR.
 
 ### P4 — TUI surfaces on the ledger
 
@@ -230,9 +231,9 @@ share-a-review-link story emerges.
 
 ### P5 — Docs and ontology
 
-- **Status:** open — depends on P3; may run parallel with P4
+- **Status:** done
 - **Outcome:** Repo docs describe the ledger-first reality. No doc tells an agent or
-  human that git or `.moks/ats.json` is the audit path.
+  human that git or `.moks/ats.json` (replaced by the ledger) is the audit path.
 - **Change:**
   - `AGENTS.md`: `.moks/` line becomes "ledger + cache (ledger.sqlite, vault.key,
     focus)"; analog map row `git commit → moks commit` gains a note that mechanics are
@@ -245,11 +246,11 @@ share-a-review-link story emerges.
   cards — all unchanged). Touch `CONTEXT.md` scope beyond decision-path mentions.
 - **Touch:** `AGENTS.md`, `docs/backlog.md`, `README.md`, `product/headless.md`, this file.
 - **Verify:** `rg -in "ats\.json|refs/moks|git trailer" AGENTS.md docs README.md` → only
-  historical references clearly marked as replaced.
+  historical references clearly marked as replaced by the ledger.
 
 ### P6 — Live Ashby through the adapter seam (post-port milestone)
 
-- **Status:** open — depends on P3; the first real-world test of the whole thesis
+- **Status:** on hold — no live Ashby connection; do not treat this as in progress
 - **Outcome:** `MOKS_ATS=ashby` syncs a real Ashby workspace through `adapters/`: `pull`
   mirrors real reqs/candidates, `push --execute` writes a staged, human-approved
   disposition back to Ashby.
