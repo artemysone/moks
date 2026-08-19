@@ -19,18 +19,18 @@ if (values.help) {
 Usage: bun script/git-cleanup.ts [options]
 
 Dry-run (default) lists leftover refs that are safe to delete.
-Only origin/dev is kept.
+Only github/dev is kept.
 
 Options:
-      --execute   Delete listed refs on origin (irreversible)
+      --execute   Delete listed refs on github (irreversible)
       --tags      Operate on tags instead of branches
   -h, --help      Show this help message
 `)
   process.exit(0)
 }
 
-const remoteHeads = await $`git ls-remote --heads origin`.text()
-const remoteTags = await $`git ls-remote --tags origin`.text()
+const remoteHeads = await $`git ls-remote --heads github`.text()
+const remoteTags = await $`git ls-remote --tags github`.text()
 
 function names(text: string, prefix: string) {
   return text
@@ -47,16 +47,16 @@ const keep = branches.filter((name) => KEEP.has(name))
 const deleteBranches = branches.filter((name) => !KEEP.has(name))
 const targets = values.tags ? tags : deleteBranches
 
-console.log(`origin heads: ${branches.length}`)
+console.log(`github heads: ${branches.length}`)
 console.log(`keep: ${keep.join(", ") || "(none)"}`)
 console.log(`delete branches: ${deleteBranches.length}`)
-console.log(`origin tags: ${tags.length}`)
+console.log(`github tags: ${tags.length}`)
 console.log(`${values.tags ? "tag" : "branch"} targets this run: ${targets.length}`)
 
 if (!values.execute) {
   for (const name of targets.slice(0, 40)) console.log(`  ${name}`)
   if (targets.length > 40) console.log(`  … ${targets.length - 40} more`)
-  console.log("\nDry-run only. Re-run with --execute after protecting origin/dev.")
+  console.log("\nDry-run only. Re-run with --execute after protecting github/dev.")
   process.exit(0)
 }
 
@@ -68,6 +68,6 @@ if (targets.length === 0) {
 const chunk = 50
 for (let i = 0; i < targets.length; i += chunk) {
   const batch = targets.slice(i, i + chunk)
-  await $`git push origin --delete ${batch}`
+  await $`git push github --delete ${batch}`
   console.log(`deleted ${Math.min(i + chunk, targets.length)}/${targets.length}`)
 }
