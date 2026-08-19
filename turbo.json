@@ -16,6 +16,10 @@
     "@moks/core#test": {
       "dependsOn": ["^build"],
       "outputs": []
+    },
+    "@moks/ledger#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
     }
   }
 }
