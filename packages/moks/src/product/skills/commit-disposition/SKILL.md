@@ -1,11 +1,11 @@
 ---
 name: commit-disposition
-description: Recommend reject, offer, hire, or advance with rationale, then instruct use of moks commit/push. Never silent ATS writes. Use when deciding next stage for a candidate.
+description: Recommend reject, offer, hire, or advance with rationale, then stage it with moks commit. Never silent ATS writes. Use when deciding next stage for a candidate.
 ---
 
 # commit-disposition
 
-Recommend a hiring disposition and record it with the native `commit` / `status` / `push` tools. You never write ATS stages silently. `commit` is the audit (git). `push` is the ATS write (mock). The CLI (`moks commit` / `moks status` / `moks push`) is the same implementation.
+Recommend a hiring disposition and stage it with the native `commit` / `status` / `diff` tools. You never write ATS stages silently. `commit` stages a ledger changeset. A human runs `moks review` and `moks push`. The CLI is the same implementation.
 
 ## Allowed actions (examples)
 
@@ -15,7 +15,7 @@ Recommend a hiring disposition and record it with the native `commit` / `status`
 - `hire` — confirm hire (adverse)
 - `note` — record context without stage claim
 
-Adverse actions: reject, offer, hire. Push requires `--confirm` for those.
+Adverse actions: reject, offer, hire. Human push requires `--confirm` for those.
 
 ## Before recommending
 
@@ -36,36 +36,38 @@ Look for `candidates/<id>.md` and cite its frontmatter `score` plus body. If the
 
 ## Record the decision (required)
 
-Prefer the native `commit` / `status` / `push` tools (same verbs as the CLI). Do not use bash or raw `git commit`.
+Prefer the native `commit` / `status` / `diff` tools. Do not use bash or raw `git commit`. Do not call push or review.
 
 commit: action=<action> target_kind=candidate target_id=<id> reason="<one line>"
 status
-push: commit_id=<id>   (dry_run defaults true; adverse needs confirm=true)
+diff
 
-CLI equivalent (implementation):
+CLI equivalent:
 
 moks commit --action <action> --target-kind candidate --target-id <id> --reason "<one line>" --meta '{"card":"candidates/<id>.md"}'
 
 Inspect:
 
 moks status
+moks diff
 
-Push when ready (adverse needs confirm):
+A human then:
 
-moks push --commit-id <id>
-moks push --commit-id <id> --confirm   # reject | offer | hire
+moks review <id> --approve --by you
+moks push --execute
+moks push --confirm --execute   # reject | offer | hire
 
 ## Do not
 - Invent silent ATS stage moves
-- Claim push wrote to Ashby/Greenhouse unless they ran execute `moks push`
+- Call `moks push` or `moks review`
 - Skip the native `commit` tool call
 - Use raw `git commit`
 ```
 
 ## Rules
 
-- Prefer the native `commit` / `status` / `push` tools when the user asks you to record it
+- Prefer the native `commit` / `status` / `diff` tools when the user asks you to record it
 - Always end with the native `commit` tool call filled in for this case
-- The CLI equivalent must include `--target-kind candidate --target-id <id>` and `--meta` with the card path
+- The CLI equivalent must include `--target-id <id>` and `--meta` with the card path
 - If evidence is thin, recommend gathering more context instead of adverse action
-- Mention that push for adverse actions needs `--confirm`
+- Mention that a human must review, then push; adverse actions need `--confirm`

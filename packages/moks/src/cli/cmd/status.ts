@@ -5,22 +5,18 @@ import { UI } from "../ui"
 
 export const StatusCommand = effectCmd({
   command: "status",
-  describe: "list unpushed hiring commits",
+  describe: "show mirrored pipeline and changeset counts (staged / approved / stale / applied)",
   instance: false,
   builder: (yargs) =>
     yargs
       .option("id", {
         type: "string",
-        describe: "filter by receipt id",
-      })
-      .option("commit-id", {
-        type: "string",
-        describe: "filter by commit id",
+        describe: "filter by changeset id",
       })
       .option("limit", {
         type: "number",
         default: 20,
-        describe: "max receipts to show",
+        describe: "max changesets to list",
       })
       .option("json", {
         type: "boolean",
@@ -35,7 +31,6 @@ export const StatusCommand = effectCmd({
     const result = yield* Effect.promise(() =>
       DecisionVerbs.status({
         id: args.id,
-        commit_id: args.commitId,
         limit: args.limit,
         cwd: args.cwd,
       }),
@@ -44,15 +39,27 @@ export const StatusCommand = effectCmd({
       console.log(JSON.stringify(result, null, 2))
       return
     }
-    UI.println(`${UI.Style.TEXT_NORMAL_BOLD}unpushed commits${UI.Style.TEXT_NORMAL} (${result.open.length})`)
-    for (const r of result.open) {
-      UI.println(`  ${r.id}  ${r.action}${r.adverse ? " [adverse]" : ""}  dry_run=${r.dry_run}`)
+    const report = result.report
+    if (!report.ats) {
+      UI.println(`${UI.Style.TEXT_DIM}mirror empty — run \`moks pull\`${UI.Style.TEXT_NORMAL}`)
+      UI.println(`${UI.Style.TEXT_DIM}${result.path}${UI.Style.TEXT_NORMAL}`)
+      return
     }
-    UI.println(`${UI.Style.TEXT_NORMAL_BOLD}receipts${UI.Style.TEXT_NORMAL} (${result.receipts.length})`)
-    for (const r of result.receipts) {
-      UI.println(
-        `  ${r.ts}  ${r.verb}/${r.state}  ${r.id}  ${r.action}${r.commit_id ? `  commit=${r.commit_id}` : ""}`,
-      )
+    const pipeline = Object.entries(report.pipeline)
+      .map(([stage, count]) => `${stage} ${count}`)
+      .join(", ")
+    UI.println(
+      `${UI.Style.TEXT_NORMAL_BOLD}${report.ats}${UI.Style.TEXT_NORMAL}: ${report.jobs} jobs, ${report.candidates} candidates, ${report.applications} applications`,
+    )
+    if (pipeline) UI.println(pipeline)
+    UI.println(
+      `changesets: staged ${report.changesets.staged}, approved ${report.changesets.approved}, stale ${report.changesets.stale}, applied ${report.changesets.applied}, rejected ${report.changesets.rejected}`,
+    )
+    if (result.open.length > 0) {
+      UI.println(`${UI.Style.TEXT_NORMAL_BOLD}open${UI.Style.TEXT_NORMAL} (${result.open.length})`)
+      for (const row of result.open) {
+        UI.println(`  ${row.id}  ${row.status}  ${row.rationale.split("\n")[0]}`)
+      }
     }
     UI.println(`${UI.Style.TEXT_DIM}${result.path}${UI.Style.TEXT_NORMAL}`)
   }),

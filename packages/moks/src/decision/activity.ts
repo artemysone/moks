@@ -1,4 +1,4 @@
-import { isPushed, listMoksCommits, listOpenCommits } from "./verbs"
+import { activityRows } from "./verbs"
 
 export type ActivitySummary = {
   days: number
@@ -13,7 +13,7 @@ export type ActivitySummary = {
   real_req_note: string
 }
 
-const REAL_REQ_NOTE = "Git log does not prove a live ATS req; confirm manually in TUI."
+const REAL_REQ_NOTE = "Ledger history does not prove a live ATS req; confirm in the TUI."
 
 export async function summarizeActivity(
   input: {
@@ -23,37 +23,25 @@ export async function summarizeActivity(
   } = {},
 ): Promise<ActivitySummary> {
   const days = input.days ?? 7
-  const cwd = input.cwd ?? process.cwd()
   const now = input.now ?? new Date()
-  const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
-  const all = await listMoksCommits(cwd, ["HEAD"])
-  const windowed = all.filter((row) => {
-    const ts = Date.parse(row.ts)
-    if (Number.isNaN(ts)) return false
-    return ts >= cutoff.getTime() && ts <= now.getTime()
-  })
-  const pushed = await Promise.all(windowed.map(async (row) => ({ row, pushed: await isPushed(cwd, row.sha) })))
+  const cutoff = now.getTime() - days * 24 * 60 * 60 * 1000
+  const { path: company, rows } = await activityRows({ cwd: input.cwd, days, now })
+  const windowed = rows.filter((row) => row.ts >= cutoff && row.ts <= now.getTime())
   const commits = windowed.length
-  const pushes = pushed.filter((item) => item.pushed).length
-  const needs_confirm = pushed.filter((item) => !item.pushed && item.row.adverse).length
+  const pushes = windowed.filter((row) => row.status === "applied").length
+  const needs_confirm = windowed.filter((row) => row.status === "staged" && row.adverse).length
   const adverse_commits = windowed.filter((row) => row.adverse).length
-  const active_days = new Set(
-    windowed.flatMap((row) => {
-      const ts = Date.parse(row.ts)
-      if (Number.isNaN(ts)) return []
-      return [new Date(ts).toISOString().slice(0, 10)]
-    }),
-  ).size
-  const open = await listOpenCommits(cwd)
+  const active_days = new Set(windowed.map((row) => new Date(row.ts).toISOString().slice(0, 10))).size
+  const open_commits = rows.filter((row) => row.status === "staged" || row.status === "approved").length
   return {
     days,
-    path: cwd,
+    path: company,
     commits,
     pushes,
     needs_confirm,
     adverse_commits,
     active_days,
-    open_commits: open.length,
+    open_commits,
     signal: commits > 0 ? "active" : "quiet",
     real_req_note: REAL_REQ_NOTE,
   }

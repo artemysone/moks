@@ -26,16 +26,16 @@ Read the full files you will cite. Use skills to deepen analysis when needed:
 1. **Fit vs scorecard** — dimension scores, must-haves, deal-breakers; cite card / HIRING.md
 2. **Evidence gaps** — missing materials, weak claims, unverified bar items
 3. **Outreach quality** — if drafts exist on the card: accuracy, tone, overclaims; never send
-4. **Disposition consistency** — recommendation matches evidence; ready for `moks commit` / risks before `moks push`
+4. **Disposition consistency** — recommendation matches evidence; ready for `moks commit`. A human reviews and pushes.
 5. **Risks before push** — adverse actions need confirm; incomplete packet; conflicting notes
 
 ## Decision verbs
 
-- Inspect: `moks status`
+- Inspect: `moks status` / `moks diff`
 - Record intent: `moks commit`
-- Push: `moks push` (adverse reject/offer/hire need confirm)
+- Human only: `moks review` then `moks push` (adverse reject/offer/hire need confirm)
 
-`moks push` is the ATS write (mock). Prefer the native `commit` / `status` / `push` tools when checking readiness. Do not use raw `git commit`.
+Prefer the native `commit` / `status` / `diff` tools when checking readiness. Do not use raw `git commit`. Do not call push or review from the agent.
 
 ## Output
 

@@ -2,11 +2,10 @@ import { describe, expect, test } from "bun:test"
 import path from "path"
 import { Effect } from "effect"
 import { Global } from "@moks/core/global"
-import { CandidateCard } from "../../src/product/candidate-card"
 import { tmpdir } from "../fixture/fixture"
 import { cliIt } from "../lib/cli-process"
 
-const SHA = /^[0-9a-f]{7,64}$/
+const SHA = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 const entry = path.join(import.meta.dir, "../../src/index.ts")
 
@@ -66,23 +65,24 @@ describe("headless surface", () => {
 
   test("commit / status / push --json exit codes", async () => {
     await using tmp = await tmpdir({
-      git: true,
       init: async (dir) => {
         await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
-        await CandidateCard.write(dir, {
-          id: "cand_ada",
-          stage: "sourced",
-          extra: { name: "Ada" },
-          body: "# Ada\n",
-        })
       },
     })
 
-    const committed = await moks(["commit", "--action", "note", "--reason", "headless"], tmp.path)
+    const pulled = await moks(["pull"], tmp.path)
+    expect(pulled.code).toBe(0)
+
+    const committed = await moks(["commit", "--action", "note", "--target-id", "cand_priya", "--reason", "headless"], tmp.path)
     expect(committed.code).toBe(0)
     expect(committed.json).toBeDefined()
-    const commitId = (committed.json as { receipt: { id: string } }).receipt.id
+    const commitId = (committed.json as { changeset: { id: string; status: string } }).changeset.id
     expect(commitId).toMatch(SHA)
+    const statusName = (committed.json as { changeset: { status: string } }).changeset.status
+    if (statusName === "staged") {
+      const reviewed = await moks(["review", commitId, "--approve", "--by", "you"], tmp.path)
+      expect(reviewed.code).toBe(0)
+    }
 
     const status = await moks(["status", "--limit", "5"], tmp.path)
     expect(status.code).toBe(0)
@@ -95,22 +95,20 @@ describe("headless surface", () => {
 
   test("push --json adverse needs_confirm exits 2", async () => {
     await using tmp = await tmpdir({
-      git: true,
       init: async (dir) => {
         await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
-        await CandidateCard.write(dir, {
-          id: "cand_ada",
-          stage: "sourced",
-          extra: { name: "Ada" },
-          body: "# Ada\n",
-        })
       },
     })
 
-    const committed = await moks(["commit", "--action", "reject", "--reason", "fit"], tmp.path)
+    const pulled = await moks(["pull"], tmp.path)
+    expect(pulled.code).toBe(0)
+
+    const committed = await moks(["commit", "--action", "reject", "--target-id", "cand_priya", "--reason", "fit"], tmp.path)
     expect(committed.code).toBe(0)
-    const commitId = (committed.json as { receipt: { id: string } }).receipt.id
+    const commitId = (committed.json as { changeset: { id: string } }).changeset.id
     expect(commitId).toMatch(SHA)
+    const reviewed = await moks(["review", commitId, "--approve", "--by", "you"], tmp.path)
+    expect(reviewed.code).toBe(0)
 
     const blocked = await moks(["push", "--commit-id", commitId], tmp.path)
     expect(blocked.code).toBe(2)

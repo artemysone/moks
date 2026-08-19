@@ -26,6 +26,11 @@ import { CommitCommand } from "./cli/cmd/commit"
 import { StatusCommand } from "./cli/cmd/status"
 import { PushCommand } from "./cli/cmd/push"
 import { ActivityCommand } from "./cli/cmd/activity"
+import { PullCommand } from "./cli/cmd/pull"
+import { DiffCommand } from "./cli/cmd/diff"
+import { ReviewCommand } from "./cli/cmd/review"
+import { RebaseCommand } from "./cli/cmd/rebase"
+import { LogCommand } from "./cli/cmd/log"
 import { Heap } from "./cli/heap"
 
 const args = hideBin(process.argv)
@@ -97,6 +102,11 @@ const cli = yargs(args)
   .command(StatusCommand)
   .command(PushCommand)
   .command(ActivityCommand)
+  .command(PullCommand)
+  .command(DiffCommand)
+  .command(ReviewCommand)
+  .command(RebaseCommand)
+  .command(LogCommand)
   .fail((msg, err) => {
     if (
       msg?.startsWith("Unknown argument") ||

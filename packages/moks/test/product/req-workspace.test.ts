@@ -15,10 +15,11 @@ test("slugify lowercases and hyphenates", () => {
 test("scaffold creates company HIRING.md only in empty cwd", async () => {
   await using tmp = await tmpdir()
   const result = await ReqWorkspace.scaffold(tmp.path, "Senior Backend")
-  expect(result.created).toEqual(["HIRING.md"])
+  expect(result.created).toEqual(["HIRING.md", "SCORECARD.md"])
   expect(result.relative).toBe(".")
   expect(result.title).toBe("Senior Backend")
   expect(await Bun.file(path.join(tmp.path, "HIRING.md")).text()).toBe(ReqWorkspace.COMPANY_STUB)
+  expect(await Bun.file(path.join(tmp.path, "SCORECARD.md")).text()).toContain("# Scorecard")
   expect(await Bun.file(path.join(tmp.path, "candidates/.gitkeep")).exists()).toBe(false)
   expect(await Bun.file(path.join(tmp.path, ".moks/reqs")).exists()).toBe(false)
   expect(await ReqWorkspace.isCompanyRoot(tmp.path)).toBe(true)
@@ -226,7 +227,7 @@ test("empty tmp then /init Senior Backend creates a req dir", async () => {
   expect(await Bun.file(path.join(tmp.path, "candidates")).exists()).toBe(false)
   const result = await ReqWorkspace.scaffold(tmp.path, "Senior Backend")
   expect(result.relative).toBe("senior-backend")
-  expect(result.created).toEqual(["senior-backend/HIRING.md", "senior-backend/candidates/.gitkeep"])
+  expect(result.created).toEqual(["senior-backend/HIRING.md", "senior-backend/SCORECARD.md", "senior-backend/candidates/.gitkeep"])
   expect(await Bun.file(path.join(tmp.path, "HIRING.md")).text()).toBe(company)
   expect(await Bun.file(path.join(tmp.path, "senior-backend", "HIRING.md")).text()).toBe(
     ReqWorkspace.stubFor("Senior Backend"),
@@ -243,6 +244,7 @@ test("fixture layout /init does not nest a second req", async () => {
   await Bun.write(path.join(tmp.path, "candidates", ".gitkeep"), "")
   const result = await ReqWorkspace.scaffold(tmp.path, "Other")
   expect(result.relative).toBe(".")
+  expect(result.created).toContain("SCORECARD.md")
   expect(await Bun.file(path.join(tmp.path, "other", "HIRING.md")).exists()).toBe(false)
   expect(await Bun.file(path.join(tmp.path, "HIRING.md")).text()).toBe("# Req\n")
   expect(await Bun.file(path.join(tmp.path, ".moks/reqs")).exists()).toBe(false)

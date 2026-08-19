@@ -4,29 +4,28 @@ import { DecisionVerbs } from "@/decision/verbs"
 import { UI } from "../ui"
 
 export const PushCommand = effectCmd({
-  command: "push",
-  describe: "push a git commit to the ATS (mock write; dry-run by default)",
+  command: "push [id]",
+  describe: "apply approved changesets to the ATS (human only; dry-run by default)",
   instance: false,
   builder: (yargs) =>
     yargs
+      .positional("id", {
+        type: "string",
+        describe: "changeset id (default: all approved)",
+      })
       .option("commit-id", {
         type: "string",
-        demandOption: true,
-        describe: "git commit SHA to push",
+        describe: "changeset id (same as positional)",
       })
       .option("execute", {
         type: "boolean",
         default: false,
-        describe: "set dry_run false (default is dry-run)",
+        describe: "write to the ATS (default is dry-run)",
       })
       .option("confirm", {
         type: "boolean",
         default: false,
-        describe: "acknowledge adverse action (reject/offer/hire)",
-      })
-      .option("meta", {
-        type: "string",
-        describe: "JSON object metadata (secrets scrubbed)",
+        describe: "acknowledge adverse action (Reject, ExtendOffer, Hire)",
       })
       .option("json", {
         type: "boolean",
@@ -38,22 +37,13 @@ export const PushCommand = effectCmd({
         describe: "working directory override",
       }),
   handler: Effect.fn("Cli.push")(function* (args) {
-    let meta: unknown
-    if (args.meta) {
-      try {
-        meta = JSON.parse(args.meta)
-      } catch {
-        return yield* fail("invalid --meta JSON")
-      }
-    }
     const result = yield* Effect.promise(() =>
       DecisionVerbs.push({
-        commit_id: args.commitId,
+        id: args.id ?? args.commitId,
         dry_run: !args.execute,
         confirm: args.confirm,
         source: "cli",
         cwd: args.cwd,
-        meta,
       }),
     )
     if (!result.ok) {
@@ -63,7 +53,6 @@ export const PushCommand = effectCmd({
             {
               error: result.code,
               message: result.message,
-              receipt: result.receipt,
               path: result.path,
             },
             null,
@@ -77,9 +66,18 @@ export const PushCommand = effectCmd({
       console.log(JSON.stringify(result, null, 2))
       return
     }
-    UI.println(
-      `${UI.Style.TEXT_SUCCESS_BOLD}pushed${UI.Style.TEXT_NORMAL} ${result.receipt.id} action=${result.receipt.action} dry_run=${result.receipt.dry_run} commit=${result.receipt.commit_id}`,
-    )
+    if (result.pushed.length === 0) {
+      UI.println(`${UI.Style.TEXT_DIM}nothing to push${UI.Style.TEXT_NORMAL}`)
+      UI.println(`${UI.Style.TEXT_DIM}${result.path}${UI.Style.TEXT_NORMAL}`)
+      return
+    }
+    const verb = result.dry_run ? "would push" : "pushed"
+    for (const item of result.pushed) {
+      const extra = "reason" in item && item.reason ? `: ${item.reason}` : ""
+      UI.println(
+        `${UI.Style.TEXT_SUCCESS_BOLD}${verb}${UI.Style.TEXT_NORMAL} ${item.id} ${item.status}${extra} dry_run=${result.dry_run}`,
+      )
+    }
     UI.println(`${UI.Style.TEXT_DIM}${result.path}${UI.Style.TEXT_NORMAL}`)
   }),
 })

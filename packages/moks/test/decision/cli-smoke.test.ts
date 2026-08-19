@@ -1,12 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import path from "path"
 import { Global } from "@moks/core/global"
-import { CandidateCard } from "../../src/product/candidate-card"
-import { DecisionAts } from "../../src/decision/ats"
 import { tmpdir } from "../fixture/fixture"
 
 const entry = path.join(import.meta.dir, "../../src/index.ts")
-const SHA = /^[0-9a-f]{7,64}$/
+const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 async function moks(args: string[], cwd: string) {
   const proc = Bun.spawn([process.execPath, entry, ...args, "--json", "--cwd", cwd], {
@@ -37,27 +35,26 @@ async function moks(args: string[], cwd: string) {
 }
 
 describe("decision cli smoke", () => {
-  test("commit → push adverse needs confirm → push with confirm", async () => {
+  test("pull → commit → review → push adverse needs confirm → push with confirm", async () => {
     await using tmp = await tmpdir({
-      git: true,
       init: async (dir) => {
         await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
-        await CandidateCard.write(dir, {
-          id: "cand_ada",
-          stage: "sourced",
-          extra: { name: "Ada" },
-          body: "# Ada\n",
-        })
       },
     })
 
+    const pulled = await moks(["pull"], tmp.path)
+    expect(pulled.code).toBe(0)
+
     const committed = await moks(
-      ["commit", "--action", "reject", "--target-id", "cand_ada", "--reason", "fit"],
+      ["commit", "--action", "reject", "--target-id", "cand_priya", "--reason", "fit"],
       tmp.path,
     )
     expect(committed.code).toBe(0)
-    const commitId = (committed.json as { receipt: { id: string } }).receipt.id
-    expect(commitId).toMatch(SHA)
+    const commitId = (committed.json as { changeset: { id: string } }).changeset.id
+    expect(commitId).toMatch(ID)
+
+    const reviewed = await moks(["review", commitId, "--approve", "--by", "you"], tmp.path)
+    expect(reviewed.code).toBe(0)
 
     const blocked = await moks(["push", "--commit-id", commitId], tmp.path)
     expect(blocked.code).toBe(2)
@@ -65,14 +62,12 @@ describe("decision cli smoke", () => {
 
     const pushed = await moks(["push", "--commit-id", commitId, "--confirm", "--execute"], tmp.path)
     expect(pushed.code).toBe(0)
-    expect((pushed.json as { ok: boolean; receipt: { state: string } }).ok).toBe(true)
-    expect((pushed.json as { receipt: { state: string } }).receipt.state).toBe("pushed")
-
-    const cache = await DecisionAts.loadCache(tmp.path)
-    expect(cache.candidates.some((item) => item.id === "cand_ada" && item.stage === "reject")).toBe(true)
+    expect((pushed.json as { ok: boolean; dry_run: boolean }).ok).toBe(true)
+    expect((pushed.json as { dry_run: boolean }).dry_run).toBe(false)
 
     const status = await moks(["status", "--limit", "10"], tmp.path)
     expect(status.code).toBe(0)
+    expect((status.json as { report: { changesets: { applied: number } } }).report.changesets.applied).toBe(1)
     expect((status.json as { open: unknown[] }).open).toEqual([])
   })
 })

@@ -229,7 +229,7 @@ function profile(name: string, platform: NodeJS.Platform, limits: Limits, defaul
       commandSection: cmdCommandSection(chain, limits, defaultTimeoutMs),
       gitCommands: "git commands",
       gitCommandRestriction: "git commands",
-      decisionInstruction: "Record a hiring decision with moks commit, then check moks status. Push only when asked.",
+      decisionInstruction: "Record a hiring decision with moks commit, then check moks status. Never push or review from the agent.",
       decisionExample: "moks commit --action reject --target-id jordan-lee --reason \"failed system design\" && moks status",
     }
   }
@@ -247,7 +247,7 @@ function profile(name: string, platform: NodeJS.Platform, limits: Limits, defaul
       ),
       gitCommands: "git commands",
       gitCommandRestriction: "git commands",
-      decisionInstruction: "Record a hiring decision with moks commit, then check moks status. Push only when asked.",
+      decisionInstruction: "Record a hiring decision with moks commit, then check moks status. Never push or review from the agent.",
       decisionExample: "moks commit --action reject --target-id jordan-lee --reason \"failed system design\"; if ($?) { moks status }",
     }
   }
@@ -260,7 +260,7 @@ function profile(name: string, platform: NodeJS.Platform, limits: Limits, defaul
     gitCommands: "bash commands",
     gitCommandRestriction: "git bash commands",
     decisionInstruction:
-      "Record a hiring decision with moks commit, then check moks status. Push only when asked.",
+      "Record a hiring decision with moks commit, then check moks status. Never push or review from the agent.",
     decisionExample: `moks commit --action reject --target-id jordan-lee --reason "failed system design" && moks status`,
   }
 }

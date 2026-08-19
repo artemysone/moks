@@ -79,6 +79,7 @@
     "@modelcontextprotocol/sdk": "1.29.0",
     "@openauthjs/openauth": "catalog:",
     "@moks/codemode": "workspace:*",
+    "@moks/ledger": "workspace:*",
     "@moks/llm": "workspace:*",
     "@moks/plugin": "workspace:*",
     "@moks/protocol": "workspace:*",

@@ -1,39 +1,71 @@
 import { Effect } from "effect"
 import { effectCmd, fail } from "../effect-cmd"
-import { DecisionVerbs } from "@/decision/verbs"
+import { DecisionVerbs, defaultAuthor } from "@/decision/verbs"
 import { UI } from "../ui"
 
 export const CommitCommand = effectCmd({
   command: "commit",
-  describe: "commit candidate/HIRING.md changes as the audit log",
+  describe: "stage typed hiring mutations on the ledger (does not write the ATS)",
   instance: false,
   builder: (yargs) =>
     yargs
       .option("action", {
         type: "string",
-        demandOption: true,
-        describe: "action name (e.g. reject, offer, hire, note)",
+        describe: "recruiter action (note, advance, reject, offer, hire) or a ledger mutation name",
+      })
+      .option("mutation", {
+        type: "string",
+        describe: "AdvanceStage | Reject | Withdraw | AddNote | AddTag | SendOutreach | ExtendOffer",
+      })
+      .option("entity", {
+        type: "string",
+        describe: "type:id (e.g. application:app_priya_142)",
       })
       .option("target-kind", {
         type: "string",
-        describe: "opaque target kind",
+        describe: "opaque target kind (usually candidate)",
       })
       .option("target-id", {
         type: "string",
-        describe: "opaque target id",
+        describe: "candidate or application id; resolved against the mirror after pull",
       })
       .option("reason", {
         type: "string",
-        describe: "human reason",
+        describe: "human reason (also used as AddNote body / ExtendOffer terms)",
+      })
+      .option("rationale", {
+        type: "string",
+        describe: "commit message; defaults to --reason",
+      })
+      .option("to", {
+        type: "string",
+        describe: "AdvanceStage target (Sourced, Screen, Interview, Offer, Hired, …)",
+      })
+      .option("body", {
+        type: "string",
+        describe: "AddNote / SendOutreach body",
+      })
+      .option("tag", {
+        type: "string",
+        describe: "AddTag value",
+      })
+      .option("terms", {
+        type: "string",
+        describe: "ExtendOffer terms",
+      })
+      .option("change", {
+        type: "array",
+        string: true,
+        describe: "repeatable raw change JSON object",
+      })
+      .option("author", {
+        alias: "by",
+        type: "string",
+        describe: "author id (defaults to $USER)",
       })
       .option("meta", {
         type: "string",
-        describe: "JSON object metadata (secrets scrubbed)",
-      })
-      .option("execute", {
-        type: "boolean",
-        default: false,
-        describe: "ignored; commit always writes a git commit",
+        describe: "JSON object metadata",
       })
       .option("json", {
         type: "boolean",
@@ -43,6 +75,12 @@ export const CommitCommand = effectCmd({
       .option("cwd", {
         type: "string",
         describe: "working directory override",
+      })
+      .check((argv) => {
+        if (!argv.action && !argv.mutation && !(argv.change && argv.change.length > 0)) {
+          throw new Error("moks commit needs --action, --mutation, or --change")
+        }
+        return true
       }),
   handler: Effect.fn("Cli.commit")(function* (args) {
     let meta: unknown
@@ -53,17 +91,36 @@ export const CommitCommand = effectCmd({
         return yield* fail("invalid --meta JSON")
       }
     }
+    const parsedChanges = []
+    for (const raw of args.change ?? []) {
+      try {
+        const value = JSON.parse(raw) as unknown
+        if (!value || typeof value !== "object" || Array.isArray(value)) {
+          return yield* fail("moks --change requires a JSON object")
+        }
+        parsedChanges.push(value as { entity_type: string; entity_ref: string; mutation: string; payload?: unknown })
+      } catch {
+        return yield* fail("moks --change requires a JSON object")
+      }
+    }
     const target =
-      args.targetKind || args.targetId
-        ? { kind: args.targetKind ?? "unknown", id: args.targetId }
-        : undefined
+      args.targetKind || args.targetId ? { kind: args.targetKind ?? "candidate", id: args.targetId } : undefined
     const result = yield* Effect.promise(() =>
       DecisionVerbs.commit({
         action: args.action,
+        mutation: args.mutation,
+        entity: args.entity,
         target,
         reason: args.reason,
+        rationale: args.rationale ?? args.reason,
+        to: args.to,
+        body: args.body,
+        tag: args.tag,
+        terms: args.terms,
+        changes: parsedChanges,
+        author_id: args.author ?? defaultAuthor(),
+        author_kind: "human",
         meta,
-        dry_run: !args.execute,
         source: "cli",
         cwd: args.cwd,
       }),
@@ -72,10 +129,11 @@ export const CommitCommand = effectCmd({
       console.log(JSON.stringify(result, null, 2))
       return
     }
+    const mutations = result.changeset.changes.map((change) => change.mutation).join(",")
     UI.println(
-      `${UI.Style.TEXT_SUCCESS_BOLD}committed${UI.Style.TEXT_NORMAL} ${result.receipt.id} action=${result.receipt.action} dry_run=${result.receipt.dry_run}`,
+      `${UI.Style.TEXT_SUCCESS_BOLD}staged${UI.Style.TEXT_NORMAL} ${result.changeset.id} ${result.changeset.status} ${mutations}`,
     )
-    if (result.receipt.adverse)
+    if (result.adverse)
       UI.println(`${UI.Style.TEXT_WARNING}adverse action — push will require --confirm${UI.Style.TEXT_NORMAL}`)
     UI.println(`${UI.Style.TEXT_DIM}${result.path}${UI.Style.TEXT_NORMAL}`)
   }),

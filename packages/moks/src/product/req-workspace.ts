@@ -1,9 +1,11 @@
-import { readdir } from "fs/promises"
+import { mkdir, readdir } from "fs/promises"
 import path from "path"
 import { Filesystem } from "@/util/filesystem"
 import { CandidateCard, CANDIDATES_DIR } from "./candidate-card"
 
 export const HIRING_FILE = "HIRING.md"
+export const SCORECARD_FILE = "SCORECARD.md"
+const SCORECARD_TEMPLATE = path.join(import.meta.dir, "templates", "SCORECARD.md")
 
 export const HIRING_STUB = `# <role title>
 
@@ -205,10 +207,13 @@ export async function scaffold(cwd: string, title?: string) {
   const existing = Bun.file(hiring)
   const present = (await existing.exists()) && (await existing.text()).trim().length > 0
 
+  await mkdir(path.join(cwd, ".moks"), { recursive: true })
+
   if (!present) {
     await Bun.write(hiring, COMPANY_STUB)
     created.push(HIRING_FILE)
-    const git = await gitInitIfNeeded(cwd, [HIRING_FILE])
+    await ensureScorecard(cwd, SCORECARD_FILE, created, skipped)
+    const git = await gitInitIfNeeded(cwd, [HIRING_FILE, SCORECARD_FILE])
     return { created, skipped, title, relative: ".", git }
   }
 
@@ -216,9 +221,11 @@ export async function scaffold(cwd: string, title?: string) {
     const slug = title ? slugify(title) : ""
     if (!slug) {
       skipped.push(HIRING_FILE)
-      const git = await gitInitIfNeeded(cwd, [HIRING_FILE], false)
+      await ensureScorecard(cwd, SCORECARD_FILE, created, skipped)
+      const git = await gitInitIfNeeded(cwd, [HIRING_FILE, SCORECARD_FILE], false)
       return { created, skipped, title, relative: ".", git }
     }
+    const reqDir = path.join(cwd, slug)
     const reqHiring = path.join(slug, HIRING_FILE)
     const reqKeep = path.join(slug, CANDIDATES_DIR, ".gitkeep")
     const reqFile = Bun.file(path.join(cwd, reqHiring))
@@ -228,6 +235,7 @@ export async function scaffold(cwd: string, title?: string) {
       await Bun.write(path.join(cwd, reqHiring), stubFor(title))
       created.push(reqHiring)
     }
+    await ensureScorecard(reqDir, path.join(slug, SCORECARD_FILE), created, skipped)
     if (await Bun.file(path.join(cwd, reqKeep)).exists()) {
       skipped.push(reqKeep)
     } else {
@@ -239,6 +247,7 @@ export async function scaffold(cwd: string, title?: string) {
   }
 
   skipped.push(HIRING_FILE)
+  await ensureScorecard(cwd, SCORECARD_FILE, created, skipped)
   const gitkeep = path.join(CANDIDATES_DIR, ".gitkeep")
   if (await Bun.file(path.join(cwd, gitkeep)).exists()) {
     skipped.push(gitkeep)
@@ -248,6 +257,17 @@ export async function scaffold(cwd: string, title?: string) {
   }
   const git = await gitInitIfNeeded(cwd, [HIRING_FILE, CANDIDATES_DIR], false)
   return { created, skipped, title, relative: ".", git }
+}
+
+async function ensureScorecard(dir: string, relative: string, created: string[], skipped: string[]) {
+  const dest = path.join(dir, SCORECARD_FILE)
+  const existing = Bun.file(dest)
+  if ((await existing.exists()) && (await existing.text()).trim().length > 0) {
+    skipped.push(relative)
+    return
+  }
+  await Bun.write(dest, await Bun.file(SCORECARD_TEMPLATE).text())
+  created.push(relative)
 }
 
 async function gitToplevel(dir: string) {
