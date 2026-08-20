@@ -14,7 +14,7 @@ export type WorkspacePaths = {
   juiceboxFixtureFile: string;
   vaultKey: string;
   hiringFile: string;
-  scorecardFile: string;
+  companyFile: string;
   configFile: string;
 };
 
@@ -32,7 +32,7 @@ export function workspacePaths(cwd: string): WorkspacePaths {
     juiceboxFixtureFile: defaultJuiceboxFixturePath(),
     vaultKey: join(dir, "vault.key"),
     hiringFile: join(cwd, "HIRING.md"),
-    scorecardFile: join(cwd, "SCORECARD.md"),
+    companyFile: join(cwd, "COMPANY.md"),
     configFile: join(dir, "config.json"),
   };
 }

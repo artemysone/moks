@@ -1,4 +1,4 @@
-# HIRING.md — Northline Analytics (company constitution)
+# COMPANY.md — Northline Analytics (company constitution)
 
 ## About
 Analytics platform, ~120 people, currently staffing the payments-infra rewrite.
@@ -12,7 +12,7 @@ against the scorecard; the hiring manager owns the onsite decision.
 ## Bar
 - Strong fundamentals over framework familiarity
 - Evidence of ownership: shipped and operated real systems
-- Scorecard: ./SCORECARD.md (agent screens against this)
+- Each req's HIRING.md carries the role scorecard the agent screens against
 
 ## Comp
 Bands live on each req. Never state comp in outreach.

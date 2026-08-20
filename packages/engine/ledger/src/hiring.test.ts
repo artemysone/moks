@@ -9,17 +9,17 @@ function tempCompany(): string {
   return mkdtempSync(join(tmpdir(), "moks-hiring-"));
 }
 
-function writeHiring(dir: string, policy: string): void {
+function writeConstitution(dir: string, file: string, policy: string): void {
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "HIRING.md"), `# HIRING.md\n\n## Policy\n${policy}\n`);
+  writeFileSync(join(dir, file), `# ${file}\n\n## Policy\n${policy}\n`);
 }
 
 describe("readWorkspacePolicy", () => {
-  test("req-level HIRING.md wins over company-level HIRING.md", () => {
+  test("req-level HIRING.md wins over COMPANY.md", () => {
     const cwd = tempCompany();
-    writeHiring(cwd, "auto_approve: [AddNote, AddTag]\nalways_gate: [Reject]\n");
+    writeConstitution(cwd, "COMPANY.md", "auto_approve: [AddNote, AddTag]\nalways_gate: [Reject]\n");
     const reqDir = join(cwd, "reqs", "staff-backend");
-    writeHiring(reqDir, "always_gate: [AddNote, AdvanceStage]\n");
+    writeConstitution(reqDir, "HIRING.md", "always_gate: [AddNote, AdvanceStage]\n");
 
     const resolved = readWorkspacePolicy({ cwd, reqDir });
     expect(resolved.missing).toBe(false);
@@ -29,9 +29,9 @@ describe("readWorkspacePolicy", () => {
     expect(gateFor("AddNote", resolved.policy)).toBe("always");
   });
 
-  test("company HIRING.md is used when the focused req has none", () => {
+  test("COMPANY.md is used when the focused req has no HIRING.md", () => {
     const cwd = tempCompany();
-    writeHiring(cwd, "auto_approve: [AddNote, AddTag]\n");
+    writeConstitution(cwd, "COMPANY.md", "auto_approve: [AddNote, AddTag]\n");
     const reqDir = join(cwd, "reqs", "empty-req");
     mkdirSync(reqDir, { recursive: true });
 
@@ -41,7 +41,17 @@ describe("readWorkspacePolicy", () => {
     expect(gateFor("AddNote", resolved.policy)).toBe("auto");
   });
 
-  test("missing both HIRING.md files fails closed to always_gate", () => {
+  test("a single-req root HIRING.md wins over COMPANY.md", () => {
+    const cwd = tempCompany();
+    writeConstitution(cwd, "COMPANY.md", "auto_approve: [AddTag]\n");
+    writeConstitution(cwd, "HIRING.md", "auto_approve: [AddNote]\n");
+
+    const resolved = readWorkspacePolicy({ cwd });
+    expect(resolved.missing).toBe(false);
+    expect(resolved.policy.autoApprove).toEqual(["AddNote"]);
+  });
+
+  test("missing every constitution fails closed to always_gate", () => {
     const cwd = tempCompany();
     const reqDir = join(cwd, "reqs", "uninitialized");
     mkdirSync(reqDir, { recursive: true });
