@@ -69,7 +69,7 @@ function parse(tip: string): TipPart[] {
 const EMPTY_COMPANY_TIP = "This folder is the company. {highlight}/init{/highlight} to start."
 const EMPTY_COMPANY_PARTS = parse(EMPTY_COMPANY_TIP)
 const NO_MODELS_TIP =
-  "Run {highlight}/connect{/highlight} to add an AI provider and start hiring — open a req with {highlight}/init{/highlight}"
+  "Run {highlight}/connect{/highlight} to add an AI provider and start hiring — open a req with {highlight}/open-req{/highlight}"
 const NO_MODELS_PARTS = parse(NO_MODELS_TIP)
 
 function shortcutText(value: string) {
@@ -166,7 +166,7 @@ export function Tips(props: { api: TuiPluginApi; connected?: boolean; company?: 
 
 const TIPS: Tip[] = [
   // Hero hiring loop
-  "This folder is the company — {highlight}/init{/highlight} writes company {highlight}HIRING.md{/highlight} or a req directory",
+  "This folder is the company — {highlight}/init{/highlight} writes company {highlight}HIRING.md{/highlight}, {highlight}/open-req{/highlight} opens a req directory",
   "Use {highlight}/review{/highlight} for packet review before {highlight}moks commit{/highlight} / {highlight}push{/highlight}",
   "Ask for the {highlight}req-context{/highlight} skill to load {highlight}HIRING.md{/highlight}",
   "Score a resume onto a {highlight}candidates/{/highlight} card with {highlight}score-candidate{/highlight}",

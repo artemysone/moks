@@ -6,7 +6,7 @@ describe("prompt placeholders", () => {
     expect(DEFAULT_PLACEHOLDERS.normal).toEqual([
       "Score this resume against the req",
       "Draft outreach for the shortlist",
-      "Open a req with /init",
+      "Open a req with /open-req",
     ])
     expect(DEFAULT_PLACEHOLDERS.shell).toEqual(["moks status", "ls candidates", "pwd"])
   })
