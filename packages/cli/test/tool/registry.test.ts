@@ -303,7 +303,7 @@ describe("tool.registry", () => {
     Effect.gen(function* () {
       const test = yield* TestInstance
       const customTools = path.join(test.directory, ".moks", "tools")
-      const pluginTool = pathToFileURL(path.resolve(import.meta.dir, "../../../plugin/src/tool.ts")).href
+      const pluginTool = pathToFileURL(path.resolve(import.meta.dir, "../../../engine/plugin/src/tool.ts")).href
       yield* Effect.promise(() => fs.mkdir(customTools, { recursive: true }))
       yield* Effect.promise(() =>
         Bun.write(
@@ -357,7 +357,7 @@ describe("tool.registry", () => {
         const test = yield* TestInstance
         const opencode = path.join(test.directory, ".moks")
         const customTools = path.join(opencode, "tools")
-        const plugin = path.join(opencode, "node_modules", "@opencode-ai", "plugin")
+        const plugin = path.join(opencode, "node_modules", "@moks", "plugin")
         yield* Effect.promise(() => fs.mkdir(path.join(plugin, "dist"), { recursive: true }))
         yield* Effect.promise(() => fs.mkdir(customTools, { recursive: true }))
         yield* Effect.promise(() =>
@@ -421,7 +421,7 @@ describe("tool.registry", () => {
     Effect.gen(function* () {
       const test = yield* TestInstance
       const customTools = path.join(test.directory, ".moks", "tools")
-      const pluginTool = pathToFileURL(path.resolve(import.meta.dir, "../../../plugin/src/tool.ts")).href
+      const pluginTool = pathToFileURL(path.resolve(import.meta.dir, "../../../engine/plugin/src/tool.ts")).href
       yield* Effect.promise(() => fs.mkdir(customTools, { recursive: true }))
       yield* Effect.promise(() =>
         Bun.write(
