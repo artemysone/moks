@@ -1,0 +1,4 @@
+{
+  "name": "moks",
+  "install": "bash .cursor/install.sh"
+}
