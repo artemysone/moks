@@ -2,9 +2,9 @@ Open company intake at `${path}`.
 
 This is the company dossier conversation, not req intake.
 
-Company `HIRING.md` is the company constitution: who the company is, how it hires, the bar, the outreach tone, and the approval policy. The company workspace was already scaffolded before this turn: a `HIRING.md` stub if it was missing or empty, plus the `.moks/` ledger, so `moks commit` works from the first decision. Do not overwrite non-empty user content. Do not create `candidates/` at the company root. Do not create a req directory here, even if the notes name a role. `/open-req <title>` opens roles.
+`COMPANY.md` at the company root is the company constitution: who the company is, how it hires, the bar, the outreach tone, and the approval policy. The company workspace was already scaffolded before this turn: a `COMPANY.md` stub if it was missing or empty, plus the `.moks/` ledger, so `moks commit` works from the first decision. Do not overwrite non-empty user content. Do not create `candidates/` at the company root. Do not create a req directory here, even if the notes name a role. `/open-req <title>` opens roles.
 
-If this root already has `HIRING.md` + `candidates/`, the folder is a single-req workspace; one `HIRING.md` is both company and req. Continue it in place.
+If this root already has `HIRING.md` + `candidates/`, the folder is a single-req workspace; that `HIRING.md` is both company and req constitution. Continue it in place; do not add a `COMPANY.md` next to it.
 
 The ledger is the audit log (`moks commit`), not git.
 
@@ -13,14 +13,14 @@ $ARGUMENTS
 
 ## Intake
 
-Talk like a recruiter onboarding a new client company. Write only what they confirmed. Leave the rest TBD. If `HIRING.md` already has real content, read it first and continue or update the dossier. Never restart it.
+Talk like a recruiter onboarding a new client company. Write only what they confirmed. Leave the rest TBD. If `COMPANY.md` already has real content, read it first and continue or update the dossier. Never restart it.
 
-After each answer, update company `HIRING.md`, then use the question tool for the next 2–4 gaps. Keep going until about, how we hire, bar, and tone are real. Do not stop after the company name.
+After each answer, update `COMPANY.md`, then use the question tool for the next 2–4 gaps. Keep going until about, how we hire, bar, and tone are real. Do not stop after the company name.
 
 Ask about, in roughly this order:
 - Who they are: product, stage, team size
 - How they hire: stages, interview owners, who decides
-- The bar: what a strong hire looks like here, deal-breakers
+- The bar: what a strong hire looks like here, deal-breakers (the `## Bar` section; role scorecards live on each req's `HIRING.md`)
 - Tone: outreach voice, what never to say (comp, buzzwords)
 - Policy: which decisions the agent may auto-approve and which always need a human
 

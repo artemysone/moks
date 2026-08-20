@@ -34,7 +34,7 @@ describe("CommandPlugin.Plugin", () => {
 
       expect(yield* command.get("init")).toMatchObject({
         name: "init",
-        description: "write or update the company dossier (company HIRING.md)",
+        description: "write or update the company dossier (COMPANY.md)",
       })
       expect((yield* command.get("init"))?.template).toContain("`/repo/packages/app`")
       expect((yield* command.get("init"))?.template).toContain("HIRING.md")

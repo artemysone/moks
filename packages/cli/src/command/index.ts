@@ -71,7 +71,7 @@ const layer = Layer.effect(
 
       commands[Default.INIT] = {
         name: Default.INIT,
-        description: "write or update the company dossier (company HIRING.md)",
+        description: "write or update the company dossier (COMPANY.md)",
         source: "command",
         get template() {
           return PROMPT_INITIALIZE.replace("${path}", ctx.directory)

@@ -292,7 +292,7 @@ describe("Instruction.system", () => {
     ),
   )
 
-  it.live("loads company and focused req HIRING.md when the packet is cwd", () =>
+  it.live("loads COMPANY.md and focused req HIRING.md when the packet is cwd", () =>
     Effect.gen(function* () {
       const globalTmp = yield* tmpdirScoped()
       const root = yield* tmpdirScoped()
@@ -300,8 +300,8 @@ describe("Instruction.system", () => {
       const focused = path.join(company, "senior-backend")
       const sibling = path.join(company, "staff-platform")
       yield* writeFiles(root, {
-        "HIRING.md": "# Software",
-        "acme/HIRING.md": "# Acme",
+        "COMPANY.md": "# Software",
+        "acme/COMPANY.md": "# Acme",
         "acme/senior-backend/HIRING.md": "# SB",
         "acme/senior-backend/candidates/.gitkeep": "",
         "acme/senior-backend/candidates/alice.md": "# Alice",
@@ -312,23 +312,23 @@ describe("Instruction.system", () => {
       yield* Effect.gen(function* () {
         const svc = yield* Instruction.Service
         const paths = yield* svc.systemPaths()
-        expect(paths.has(path.join(company, "HIRING.md"))).toBe(true)
+        expect(paths.has(path.join(company, "COMPANY.md"))).toBe(true)
         expect(paths.has(path.join(focused, "HIRING.md"))).toBe(true)
         expect(paths.has(path.join(sibling, "HIRING.md"))).toBe(false)
-        expect(paths.has(path.join(root, "HIRING.md"))).toBe(false)
+        expect(paths.has(path.join(root, "COMPANY.md"))).toBe(false)
         expect(paths.has(path.join(focused, "candidates", "alice.md"))).toBe(false)
       }).pipe(provideInstance(focused), provideInstruction({ home: globalTmp, config: globalTmp }))
     }),
   )
 
-  it.live("loads company and focused req HIRING.md from writeFocus", () =>
+  it.live("loads COMPANY.md and focused req HIRING.md from writeFocus", () =>
     Effect.gen(function* () {
       const globalTmp = yield* tmpdirScoped()
       const company = yield* tmpdirScoped()
       const focused = path.join(company, "senior-backend")
       const sibling = path.join(company, "staff-platform")
       yield* writeFiles(company, {
-        "HIRING.md": "# Acme",
+        "COMPANY.md": "# Acme",
         "senior-backend/HIRING.md": "# SB",
         "senior-backend/candidates/.gitkeep": "",
         "staff-platform/HIRING.md": "# SP",
@@ -339,28 +339,28 @@ describe("Instruction.system", () => {
       yield* Effect.gen(function* () {
         const svc = yield* Instruction.Service
         const paths = yield* svc.systemPaths()
-        expect(paths.has(path.join(company, "HIRING.md"))).toBe(true)
+        expect(paths.has(path.join(company, "COMPANY.md"))).toBe(true)
         expect(paths.has(path.join(focused, "HIRING.md"))).toBe(true)
         expect(paths.has(path.join(sibling, "HIRING.md"))).toBe(false)
       }).pipe(provideInstance(company), provideInstruction({ home: globalTmp, config: globalTmp }))
     }),
   )
 
-  it.live("does not load a parent software HIRING.md when the tmp dir is a company", () =>
+  it.live("does not load a parent COMPANY.md when the tmp dir is a company", () =>
     Effect.gen(function* () {
       const globalTmp = yield* tmpdirScoped()
       const root = yield* tmpdirScoped()
       const company = path.join(root, "acme")
       yield* writeFiles(root, {
-        "HIRING.md": "# Software",
-        "acme/HIRING.md": "# Acme",
+        "COMPANY.md": "# Software",
+        "acme/COMPANY.md": "# Acme",
       })
 
       yield* Effect.gen(function* () {
         const svc = yield* Instruction.Service
         const paths = yield* svc.systemPaths()
-        expect(paths.has(path.join(company, "HIRING.md"))).toBe(true)
-        expect(paths.has(path.join(root, "HIRING.md"))).toBe(false)
+        expect(paths.has(path.join(company, "COMPANY.md"))).toBe(true)
+        expect(paths.has(path.join(root, "COMPANY.md"))).toBe(false)
       }).pipe(provideInstance(company), provideInstruction({ home: globalTmp, config: globalTmp }))
     }),
   )

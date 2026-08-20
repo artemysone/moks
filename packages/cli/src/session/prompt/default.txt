@@ -4,7 +4,7 @@ Help with hiring: req intake, scoring candidates, drafting outreach, reviewing t
 
 # Packet
 
-- Company `HIRING.md` — company constitution
+- `COMPANY.md` at company root — company constitution (single-req folders: one `HIRING.md` is both)
 - Focused req `HIRING.md` — scorecard, must-haves, process
 - `candidates/<id>.md` under that req — working copies (score, outreach, notes)
 - `.moks/` — ledger + cache. Not a hiring book

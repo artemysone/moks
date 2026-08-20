@@ -16,14 +16,14 @@ test("scaffoldCompany stands up the full company workspace in empty cwd", async 
   await using tmp = await tmpdir()
   const result = await ReqWorkspace.scaffoldCompany(tmp.path)
   expect(result.created).toEqual([
-    "HIRING.md",
-    "SCORECARD.md",
+    "COMPANY.md",
     path.join(".moks", "ledger.sqlite"),
     path.join(".moks", "vault.key"),
   ])
   expect(result.relative).toBe(".")
-  expect(await Bun.file(path.join(tmp.path, "HIRING.md")).text()).toBe(ReqWorkspace.COMPANY_STUB)
-  expect(await Bun.file(path.join(tmp.path, "SCORECARD.md")).text()).toContain("# Scorecard")
+  expect(await Bun.file(path.join(tmp.path, "COMPANY.md")).text()).toBe(ReqWorkspace.COMPANY_STUB)
+  expect(await Bun.file(path.join(tmp.path, "HIRING.md")).exists()).toBe(false)
+  expect(await Bun.file(path.join(tmp.path, "SCORECARD.md")).exists()).toBe(false)
   expect(await Bun.file(path.join(tmp.path, ".moks", "ledger.sqlite")).exists()).toBe(true)
   expect(await Bun.file(path.join(tmp.path, ".moks", "vault.key")).exists()).toBe(true)
   expect(await Bun.file(path.join(tmp.path, "candidates/.gitkeep")).exists()).toBe(false)
@@ -51,8 +51,7 @@ test("scaffoldCompany rerun converges: everything skipped, nothing rewritten", a
   const result = await ReqWorkspace.scaffoldCompany(tmp.path)
   expect(result.created).toEqual([])
   expect(result.skipped).toEqual([
-    "HIRING.md",
-    "SCORECARD.md",
+    "COMPANY.md",
     path.join(".moks", "ledger.sqlite"),
     path.join(".moks", "vault.key"),
   ])
@@ -62,22 +61,32 @@ test("scaffoldCompany rerun converges: everything skipped, nothing rewritten", a
 test("scaffoldCompany never creates a req dir, even after a title-shaped edit", async () => {
   await using tmp = await tmpdir()
   await ReqWorkspace.scaffoldCompany(tmp.path)
-  const hiring = path.join(tmp.path, "HIRING.md")
-  await Bun.write(hiring, "# Northline Analytics\n")
+  const company = path.join(tmp.path, "COMPANY.md")
+  await Bun.write(company, "# Northline Analytics\n")
   const result = await ReqWorkspace.scaffoldCompany(tmp.path)
-  expect(await Bun.file(hiring).text()).toBe("# Northline Analytics\n")
-  expect(result.skipped).toContain("HIRING.md")
+  expect(await Bun.file(company).text()).toBe("# Northline Analytics\n")
+  expect(result.skipped).toContain("COMPANY.md")
   expect(result.relative).toBe(".")
   expect(await ReqWorkspace.listReqs(tmp.path)).toEqual([])
 })
 
-test("scaffoldReq does not overwrite non-empty company HIRING.md", async () => {
+test("scaffoldCompany on a single-req packet does not add a COMPANY.md", async () => {
+  await using tmp = await tmpdir()
+  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Req\n")
+  await Bun.write(path.join(tmp.path, "candidates", ".gitkeep"), "")
+  const result = await ReqWorkspace.scaffoldCompany(tmp.path)
+  expect(result.skipped).toContain("HIRING.md")
+  expect(await Bun.file(path.join(tmp.path, "COMPANY.md")).exists()).toBe(false)
+  expect(await Bun.file(path.join(tmp.path, "HIRING.md")).text()).toBe("# Req\n")
+})
+
+test("scaffoldReq does not overwrite non-empty COMPANY.md", async () => {
   await using tmp = await tmpdir()
   await ReqWorkspace.scaffoldCompany(tmp.path)
-  const hiring = path.join(tmp.path, "HIRING.md")
-  await Bun.write(hiring, "# Staff Engineer\n")
+  const company = path.join(tmp.path, "COMPANY.md")
+  await Bun.write(company, "# Northline Analytics\n")
   const result = await ReqWorkspace.scaffoldReq(tmp.path, "Other Title")
-  expect(await Bun.file(hiring).text()).toBe("# Staff Engineer\n")
+  expect(await Bun.file(company).text()).toBe("# Northline Analytics\n")
   expect(result.relative).toBe("other-title")
   expect(await Bun.file(path.join(tmp.path, "other-title", "HIRING.md")).exists()).toBe(true)
 })
@@ -97,33 +106,33 @@ test("does not create a gitignore when none exists", async () => {
   expect(await Bun.file(path.join(tmp.path, ".gitignore")).exists()).toBe(false)
 })
 
-test("resolve walks up to HIRING.md", async () => {
+test("resolve walks up to the company constitution", async () => {
   await using tmp = await tmpdir()
   await ReqWorkspace.scaffoldCompany(tmp.path)
-  const nested = path.join(tmp.path, "candidates", "nested")
+  const nested = path.join(tmp.path, "notes", "nested")
   await Bun.write(path.join(nested, "keep.txt"), "x")
   expect(await ReqWorkspace.resolve(nested, tmp.path)).toBe(tmp.path)
   expect(await ReqWorkspace.resolve(tmp.path, tmp.path)).toBe(tmp.path)
 })
 
-test("resolve returns undefined when no HIRING.md is found", async () => {
+test("resolve returns undefined when no constitution is found", async () => {
   await using tmp = await tmpdir()
   expect(await ReqWorkspace.resolve(tmp.path, tmp.path)).toBeUndefined()
 })
 
-test("companyRoot is undefined without HIRING.md", async () => {
+test("companyRoot is undefined without a constitution", async () => {
   await using tmp = await tmpdir({ git: true })
   expect(await ReqWorkspace.companyRoot(tmp.path)).toBeUndefined()
 })
 
-test("companyRoot of a git-less tmp without HIRING.md is undefined", async () => {
+test("companyRoot of a git-less tmp without a constitution is undefined", async () => {
   await using tmp = await tmpdir()
   expect(await ReqWorkspace.companyRoot(tmp.path)).toBeUndefined()
 })
 
 test("companyRoot does not walk more than 4 ancestors without git", async () => {
   await using tmp = await tmpdir()
-  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Far\n")
+  await Bun.write(path.join(tmp.path, "COMPANY.md"), "# Far\n")
   const leaf = path.join(tmp.path, "a", "b", "c", "d", "e")
   await Bun.write(path.join(leaf, "keep.txt"), "x")
   expect(await ReqWorkspace.companyRoot(leaf)).toBeUndefined()
@@ -131,14 +140,21 @@ test("companyRoot does not walk more than 4 ancestors without git", async () => 
 
 test("companyRoot returns a single-req packet", async () => {
   await using tmp = await tmpdir()
-  await ReqWorkspace.scaffoldCompany(tmp.path)
+  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Req\n")
+  await Bun.write(path.join(tmp.path, "candidates", ".gitkeep"), "")
   expect(await ReqWorkspace.companyRoot(tmp.path)).toBe(tmp.path)
   expect(await ReqWorkspace.companyRoot(path.join(tmp.path, "candidates"))).toBe(tmp.path)
 })
 
+test("companyRoot ignores a bare HIRING.md without candidates or COMPANY.md", async () => {
+  await using tmp = await tmpdir()
+  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Stray\n")
+  expect(await ReqWorkspace.companyRoot(tmp.path)).toBeUndefined()
+})
+
 test("companyRoot returns company-only and lifts a nested req", async () => {
   await using tmp = await tmpdir()
-  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Co\n")
+  await Bun.write(path.join(tmp.path, "COMPANY.md"), "# Co\n")
   const req = path.join(tmp.path, "senior-backend")
   await Bun.write(path.join(req, "HIRING.md"), "# SB\n")
   await Bun.write(path.join(req, "candidates", ".gitkeep"), "")
@@ -146,11 +162,11 @@ test("companyRoot returns company-only and lifts a nested req", async () => {
   expect(await ReqWorkspace.companyRoot(req)).toBe(tmp.path)
 })
 
-test("companyRoot does not walk past the company into a parent HIRING.md", async () => {
+test("companyRoot does not walk past the company into a parent constitution", async () => {
   await using tmp = await tmpdir()
-  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Software\n")
+  await Bun.write(path.join(tmp.path, "COMPANY.md"), "# Software\n")
   const company = path.join(tmp.path, "acme")
-  await Bun.write(path.join(company, "HIRING.md"), "# Acme\n")
+  await Bun.write(path.join(company, "COMPANY.md"), "# Acme\n")
   const req = path.join(company, "senior-backend")
   await Bun.write(path.join(req, "HIRING.md"), "# SB\n")
   await Bun.write(path.join(req, "candidates", ".gitkeep"), "")
@@ -183,20 +199,28 @@ test("git init is skipped when already a repo", async () => {
   expect((await $`git rev-list --count HEAD`.cwd(tmp.path).text()).trim()).toBe(before)
 })
 
-test("isPacket requires HIRING.md and candidates/", async () => {
+test("isCompanyRoot needs COMPANY.md or a full packet", async () => {
   await using tmp = await tmpdir()
   expect(await ReqWorkspace.isPacket(tmp.path)).toBe(false)
   expect(await ReqWorkspace.isCompanyRoot(tmp.path)).toBe(false)
-  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Co\n")
+  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Req\n")
   expect(await ReqWorkspace.isPacket(tmp.path)).toBe(false)
-  expect(await ReqWorkspace.isCompanyRoot(tmp.path)).toBe(true)
+  expect(await ReqWorkspace.isCompanyRoot(tmp.path)).toBe(false)
   await Bun.write(path.join(tmp.path, "candidates", ".gitkeep"), "")
   expect(await ReqWorkspace.isPacket(tmp.path)).toBe(true)
+  expect(await ReqWorkspace.isCompanyRoot(tmp.path)).toBe(true)
+})
+
+test("isCompanyRoot accepts COMPANY.md without any req", async () => {
+  await using tmp = await tmpdir()
+  await Bun.write(path.join(tmp.path, "COMPANY.md"), "# Co\n")
+  expect(await ReqWorkspace.isCompanyRoot(tmp.path)).toBe(true)
+  expect(await ReqWorkspace.isPacket(tmp.path)).toBe(false)
 })
 
 test("listReqs returns sorted child dirs with HIRING.md", async () => {
   await using tmp = await tmpdir()
-  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Co\n")
+  await Bun.write(path.join(tmp.path, "COMPANY.md"), "# Co\n")
   await Bun.write(path.join(tmp.path, "staff-platform", "HIRING.md"), "# SP\n")
   await Bun.write(path.join(tmp.path, "senior-backend", "HIRING.md"), "# SB\n")
   await Bun.write(path.join(tmp.path, "notes", "keep.txt"), "x")
@@ -209,24 +233,24 @@ test("workspaceEnv treats a packet cwd as company and req", async () => {
     company: HiringFixtures.dir,
     focused: "same as company",
     candidates: path.join(HiringFixtures.dir, "candidates"),
-    hiring: "present",
+    constitution: "HIRING.md (single-req)",
   })
 })
 
 test("workspaceEnv treats company-only cwd as unfocused", async () => {
   await using tmp = await tmpdir()
-  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Co\n")
+  await Bun.write(path.join(tmp.path, "COMPANY.md"), "# Co\n")
   expect(await ReqWorkspace.workspaceEnv(tmp.path)).toEqual({
     company: tmp.path,
     focused: "none",
     candidates: "none",
-    hiring: "present",
+    constitution: "COMPANY.md",
   })
 })
 
 test("workspaceEnv treats a nested packet as focused req", async () => {
   await using tmp = await tmpdir()
-  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Co\n")
+  await Bun.write(path.join(tmp.path, "COMPANY.md"), "# Co\n")
   const req = path.join(tmp.path, "senior-backend")
   await Bun.write(path.join(req, "HIRING.md"), "# SB\n")
   await Bun.write(path.join(req, "candidates", ".gitkeep"), "")
@@ -234,7 +258,7 @@ test("workspaceEnv treats a nested packet as focused req", async () => {
     company: tmp.path,
     focused: req,
     candidates: path.join(req, "candidates"),
-    hiring: "present",
+    constitution: "COMPANY.md",
   })
 })
 
@@ -249,7 +273,7 @@ test("slateBlock lists fixture cards without body", async () => {
 
 test("slateBlock at company root lists req names not cards", async () => {
   await using tmp = await tmpdir()
-  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Co\n")
+  await Bun.write(path.join(tmp.path, "COMPANY.md"), "# Co\n")
   await Bun.write(path.join(tmp.path, "staff-platform", "HIRING.md"), "# SP\n")
   await Bun.write(path.join(tmp.path, "senior-backend", "HIRING.md"), "# SB\n")
   await CandidateCard.write(path.join(tmp.path, "senior-backend"), {
@@ -266,17 +290,18 @@ test("slateBlock at company root lists req names not cards", async () => {
 test("empty tmp then /open-req Senior Backend creates a req dir", async () => {
   await using tmp = await tmpdir()
   await ReqWorkspace.scaffoldCompany(tmp.path)
-  const company = await Bun.file(path.join(tmp.path, "HIRING.md")).text()
+  const company = await Bun.file(path.join(tmp.path, "COMPANY.md")).text()
   expect(company).toBe(ReqWorkspace.COMPANY_STUB)
   expect(await Bun.file(path.join(tmp.path, "candidates")).exists()).toBe(false)
   const result = await ReqWorkspace.scaffoldReq(tmp.path, "Senior Backend")
   expect(result.relative).toBe("senior-backend")
-  expect(result.created).toEqual(["senior-backend/HIRING.md", "senior-backend/SCORECARD.md", "senior-backend/candidates/.gitkeep"])
-  expect(await Bun.file(path.join(tmp.path, "HIRING.md")).text()).toBe(company)
+  expect(result.created).toEqual(["senior-backend/HIRING.md", "senior-backend/candidates/.gitkeep"])
+  expect(await Bun.file(path.join(tmp.path, "COMPANY.md")).text()).toBe(company)
   expect(await Bun.file(path.join(tmp.path, "senior-backend", "HIRING.md")).text()).toBe(
     ReqWorkspace.stubFor("Senior Backend"),
   )
   expect(await Bun.file(path.join(tmp.path, "senior-backend", "candidates", ".gitkeep")).exists()).toBe(true)
+  expect(await Bun.file(path.join(tmp.path, "senior-backend", "SCORECARD.md")).exists()).toBe(false)
   expect(await Bun.file(path.join(tmp.path, ".moks/reqs")).exists()).toBe(false)
   expect(await ReqWorkspace.listReqs(tmp.path)).toEqual(["senior-backend"])
   expect(await ReqWorkspace.isPacket(path.join(tmp.path, "senior-backend"))).toBe(true)
@@ -286,7 +311,8 @@ test("/open-req on an empty folder scaffolds the company first", async () => {
   await using tmp = await tmpdir()
   const result = await ReqWorkspace.scaffoldReq(tmp.path, "Staff ML")
   expect(result.relative).toBe("staff-ml")
-  expect(await Bun.file(path.join(tmp.path, "HIRING.md")).text()).toBe(ReqWorkspace.COMPANY_STUB)
+  expect(await Bun.file(path.join(tmp.path, "COMPANY.md")).text()).toBe(ReqWorkspace.COMPANY_STUB)
+  expect(await Bun.file(path.join(tmp.path, "HIRING.md")).exists()).toBe(false)
   expect(await Bun.file(path.join(tmp.path, "candidates")).exists()).toBe(false)
   expect(await ReqWorkspace.isPacket(path.join(tmp.path, "staff-ml"))).toBe(true)
 })
@@ -309,8 +335,8 @@ test("fixture layout /open-req does not nest a second req", async () => {
   await Bun.write(path.join(tmp.path, "candidates", ".gitkeep"), "")
   const result = await ReqWorkspace.scaffoldReq(tmp.path, "Other")
   expect(result.relative).toBe(".")
-  expect(result.created).toContain("SCORECARD.md")
   expect(await Bun.file(path.join(tmp.path, "other", "HIRING.md")).exists()).toBe(false)
+  expect(await Bun.file(path.join(tmp.path, "COMPANY.md")).exists()).toBe(false)
   expect(await Bun.file(path.join(tmp.path, "HIRING.md")).text()).toBe("# Req\n")
   expect(await Bun.file(path.join(tmp.path, ".moks/reqs")).exists()).toBe(false)
 })
@@ -329,7 +355,7 @@ test("focusedReq of a fixture is the fixture dir", async () => {
 
 test("focusedReq walks from candidates to the req packet", async () => {
   await using tmp = await tmpdir()
-  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Co\n")
+  await Bun.write(path.join(tmp.path, "COMPANY.md"), "# Co\n")
   const req = path.join(tmp.path, "senior-backend")
   await Bun.write(path.join(req, "HIRING.md"), "# SB\n")
   await Bun.write(path.join(req, "candidates", ".gitkeep"), "")
@@ -343,7 +369,7 @@ test("focusedReq of fixture candidates is the fixture dir", async () => {
 
 test("writeFocus persists a slug and focusedReq reads it back", async () => {
   await using tmp = await tmpdir()
-  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Co\n")
+  await Bun.write(path.join(tmp.path, "COMPANY.md"), "# Co\n")
   const req = path.join(tmp.path, "staff-platform")
   await Bun.write(path.join(req, "HIRING.md"), "# SP\n")
   await Bun.write(path.join(req, "candidates", ".gitkeep"), "")
@@ -359,7 +385,7 @@ test("writeFocus persists a slug and focusedReq reads it back", async () => {
 
 test("readFocus ignores empty slugs and path traversal", async () => {
   await using tmp = await tmpdir()
-  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Co\n")
+  await Bun.write(path.join(tmp.path, "COMPANY.md"), "# Co\n")
   await Bun.write(path.join(tmp.path, ".moks/focus"), "   \n")
   expect(await ReqWorkspace.readFocus(tmp.path)).toBeUndefined()
   await Bun.write(path.join(tmp.path, ".moks/focus"), "../staff-platform\n")
@@ -370,7 +396,7 @@ test("readFocus ignores empty slugs and path traversal", async () => {
 
 test("slateBlock at a focused company lists that packet only", async () => {
   await using tmp = await tmpdir()
-  await Bun.write(path.join(tmp.path, "HIRING.md"), "# Co\n")
+  await Bun.write(path.join(tmp.path, "COMPANY.md"), "# Co\n")
   await Bun.write(path.join(tmp.path, "staff-platform", "HIRING.md"), "# SP\n")
   await Bun.write(path.join(tmp.path, "senior-backend", "HIRING.md"), "# SB\n")
   await CandidateCard.write(path.join(tmp.path, "staff-platform"), {
@@ -393,7 +419,7 @@ test("slateBlock at a focused company lists that packet only", async () => {
     company: tmp.path,
     focused: path.join(tmp.path, "staff-platform"),
     candidates: path.join(tmp.path, "staff-platform", "candidates"),
-    hiring: "present",
+    constitution: "COMPANY.md",
   })
   expect(await Bun.file(path.join(tmp.path, ".moks/focus")).exists()).toBe(true)
   expect(await Bun.file(path.join(tmp.path, ".moks/reqs")).exists()).toBe(false)

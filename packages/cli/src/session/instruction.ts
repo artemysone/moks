@@ -135,6 +135,9 @@ const layer: Layer.Layer<
           }
         }
         if (company) {
+          const companyFile = path.join(company, "COMPANY.md")
+          if (yield* fs.existsSafe(companyFile)) paths.add(path.resolve(companyFile))
+          // A single-req root's HIRING.md is both company and req constitution.
           const companyHiring = path.join(company, "HIRING.md")
           if (yield* fs.existsSafe(companyHiring)) paths.add(path.resolve(companyHiring))
           const focused = yield* Effect.promise(() => ReqWorkspace.focusedReq(ctx.directory))

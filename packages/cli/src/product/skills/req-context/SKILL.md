@@ -7,7 +7,7 @@ description: Load and synthesize a hiring req brief from HIRING.md. List missing
 
 Build a structured req brief from local materials. Do not invent company secrets or headcount.
 
-The focused req is the packet (env Focused req). Load company `HIRING.md` plus that req's `HIRING.md`. Do not treat company root as a req when reqs live in subdirectories.
+The focused req is the packet (env Focused req). Load `COMPANY.md` plus that req's `HIRING.md`. Do not treat company root as a req when reqs live in subdirectories.
 
 ## Discover inputs
 

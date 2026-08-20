@@ -1788,7 +1788,8 @@ it.instance(
         arguments: "Senior Backend",
       })
 
-      expect(yield* Effect.promise(() => Bun.file(path.join(dir, "HIRING.md")).text())).toBe(ReqWorkspace.COMPANY_STUB)
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, "COMPANY.md")).text())).toBe(ReqWorkspace.COMPANY_STUB)
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, "HIRING.md")).exists())).toBe(false)
       expect(yield* Effect.promise(() => Bun.file(path.join(dir, ".moks", "ledger.sqlite")).exists())).toBe(true)
       expect(yield* Effect.promise(() => Bun.file(path.join(dir, ".moks", "vault.key")).exists())).toBe(true)
       expect(yield* Effect.promise(() => Bun.file(path.join(dir, "senior-backend", "HIRING.md")).exists())).toBe(false)
@@ -1807,8 +1808,8 @@ it.instance(
     Effect.gen(function* () {
       const { dir, llm } = yield* useServerConfig(providerCfg)
       const { prompt, chat } = yield* boot()
-      const hiring = path.join(dir, "HIRING.md")
-      yield* Effect.promise(() => Bun.write(hiring, "# Northline Analytics\n\n## About\n- analytics platform\n"))
+      const dossier = path.join(dir, "COMPANY.md")
+      yield* Effect.promise(() => Bun.write(dossier, "# Northline Analytics\n\n## About\n- analytics platform\n"))
       yield* llm.text("done")
 
       yield* prompt.command({
@@ -1817,7 +1818,7 @@ it.instance(
         arguments: "Staff Platform",
       })
 
-      expect(yield* Effect.promise(() => Bun.file(hiring).text())).toBe(
+      expect(yield* Effect.promise(() => Bun.file(dossier).text())).toBe(
         "# Northline Analytics\n\n## About\n- analytics platform\n",
       )
       expect(yield* Effect.promise(() => Bun.file(path.join(dir, ".moks", "ledger.sqlite")).exists())).toBe(true)

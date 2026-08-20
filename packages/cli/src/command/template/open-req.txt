@@ -5,7 +5,7 @@ This is hiring intake for one requisition.
 Title: `${title}`
 Slug: `${slug}`
 
-`/open-req [title]` creates or focuses `<slug>/` with the req `HIRING.md` + `candidates/`. Intake updates the req `HIRING.md`, not the company one. If this root already has `HIRING.md` + `candidates/`, this directory is the req. Do not nest a second req.
+`/open-req [title]` creates or focuses `<slug>/` with the req `HIRING.md` + `candidates/`. Intake updates the req `HIRING.md`, not the company `COMPANY.md`. If this root already has `HIRING.md` + `candidates/`, this directory is the req. Do not nest a second req.
 
 Constitution is the req `HIRING.md`. Candidate files are `candidates/<id>.md` (YAML frontmatter). The ledger is the audit log (`moks commit`), not git.
 
