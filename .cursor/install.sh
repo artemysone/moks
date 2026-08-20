@@ -17,4 +17,5 @@ if command -v sudo >/dev/null 2>&1 && [ ! -e /usr/local/bin/bun ]; then
 fi
 
 # Idempotent: reruns are a no-op when the lockfile is already satisfied.
-bun install
+# Frozen so Cloud Agent builds fail instead of rewriting bun.lock.
+bun install --frozen-lockfile
