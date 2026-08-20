@@ -8,6 +8,7 @@ import { Config } from "@/config/config"
 import { MCP } from "../mcp"
 import { Skill } from "../skill"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
+import PROMPT_OPEN_REQ from "./template/open-req.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 import { LegacyEvent } from "@moks/schema/legacy-event"
 
@@ -45,6 +46,7 @@ export function hints(template: string) {
 
 export const Default = {
   INIT: "init",
+  OPEN_REQ: "open-req",
   REVIEW: "review",
 } as const
 
@@ -69,12 +71,21 @@ const layer = Layer.effect(
 
       commands[Default.INIT] = {
         name: Default.INIT,
-        description: "scaffold a company or a req directory (HIRING.md + candidates/)",
+        description: "write or update the company dossier (company HIRING.md)",
         source: "command",
         get template() {
           return PROMPT_INITIALIZE.replace("${path}", ctx.directory)
         },
         hints: hints(PROMPT_INITIALIZE),
+      }
+      commands[Default.OPEN_REQ] = {
+        name: Default.OPEN_REQ,
+        description: "create or focus a req directory (HIRING.md + candidates/), then run role intake",
+        source: "command",
+        get template() {
+          return PROMPT_OPEN_REQ.replace("${path}", ctx.directory)
+        },
+        hints: hints(PROMPT_OPEN_REQ),
       }
       commands[Default.REVIEW] = {
         name: Default.REVIEW,

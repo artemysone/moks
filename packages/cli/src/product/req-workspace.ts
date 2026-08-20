@@ -35,11 +35,18 @@ export const COMPANY_STUB = `# Company
 ## About
 - TBD
 
-## Hiring principles
+## How we hire
+- Stages: TBD
+- Reqs live in subdirectories. Each req has HIRING.md + candidates/. Open one with /open-req.
+
+## Bar
 - TBD
 
-## Process
-- Reqs live in subdirectories. Each req has HIRING.md + candidates/.
+## Tone
+- TBD
+
+## Policy
+- TBD
 `
 
 export function slugify(input: string) {
@@ -200,7 +207,7 @@ export function stubFor(title?: string) {
   return HIRING_STUB.replaceAll("<role title>", title)
 }
 
-export async function scaffold(cwd: string, title?: string) {
+export async function scaffoldCompany(cwd: string) {
   const created: string[] = []
   const skipped: string[] = []
   const hiring = hiringPath(cwd)
@@ -209,54 +216,56 @@ export async function scaffold(cwd: string, title?: string) {
 
   await mkdir(path.join(cwd, ".moks"), { recursive: true })
 
-  if (!present) {
+  if (present) {
+    skipped.push(HIRING_FILE)
+  } else {
     await Bun.write(hiring, COMPANY_STUB)
     created.push(HIRING_FILE)
-    await ensureScorecard(cwd, SCORECARD_FILE, created, skipped)
-    const git = await gitInitIfNeeded(cwd)
-    return { created, skipped, title, relative: ".", git }
   }
-
-  if (!(await Filesystem.isDir(path.join(cwd, CANDIDATES_DIR)))) {
-    const slug = title ? slugify(title) : ""
-    if (!slug) {
-      skipped.push(HIRING_FILE)
-      await ensureScorecard(cwd, SCORECARD_FILE, created, skipped)
-      const git = await gitInitIfNeeded(cwd, false)
-      return { created, skipped, title, relative: ".", git }
-    }
-    const reqDir = path.join(cwd, slug)
-    const reqHiring = path.join(slug, HIRING_FILE)
-    const reqKeep = path.join(slug, CANDIDATES_DIR, ".gitkeep")
-    const reqFile = Bun.file(path.join(cwd, reqHiring))
-    if ((await reqFile.exists()) && (await reqFile.text()).trim().length > 0) {
-      skipped.push(reqHiring)
-    } else {
-      await Bun.write(path.join(cwd, reqHiring), stubFor(title))
-      created.push(reqHiring)
-    }
-    await ensureScorecard(reqDir, path.join(slug, SCORECARD_FILE), created, skipped)
-    if (await Bun.file(path.join(cwd, reqKeep)).exists()) {
-      skipped.push(reqKeep)
-    } else {
-      await Bun.write(path.join(cwd, reqKeep), "")
-      created.push(reqKeep)
-    }
-    const git = await gitInitIfNeeded(cwd, false)
-    return { created, skipped, title, relative: slug, git }
-  }
-
-  skipped.push(HIRING_FILE)
   await ensureScorecard(cwd, SCORECARD_FILE, created, skipped)
-  const gitkeep = path.join(CANDIDATES_DIR, ".gitkeep")
-  if (await Bun.file(path.join(cwd, gitkeep)).exists()) {
-    skipped.push(gitkeep)
-  } else {
-    await Bun.write(path.join(cwd, gitkeep), "")
-    created.push(gitkeep)
+  const git = await gitInitIfNeeded(cwd, !present)
+  return { created, skipped, relative: ".", git }
+}
+
+export async function scaffoldReq(cwd: string, title?: string) {
+  // A root that already has HIRING.md + candidates/ is the req itself; never nest.
+  const packet = await isPacket(cwd)
+  const company = await scaffoldCompany(cwd)
+  const created = [...company.created]
+  const skipped = [...company.skipped]
+
+  if (packet) {
+    const gitkeep = path.join(CANDIDATES_DIR, ".gitkeep")
+    if (await Bun.file(path.join(cwd, gitkeep)).exists()) {
+      skipped.push(gitkeep)
+    } else {
+      await Bun.write(path.join(cwd, gitkeep), "")
+      created.push(gitkeep)
+    }
+    return { created, skipped, title, relative: ".", git: company.git }
   }
-  const git = await gitInitIfNeeded(cwd, false)
-  return { created, skipped, title, relative: ".", git }
+
+  const slug = title ? slugify(title) : ""
+  if (!slug) return { created, skipped, title, relative: ".", git: company.git }
+
+  const reqDir = path.join(cwd, slug)
+  const reqHiring = path.join(slug, HIRING_FILE)
+  const reqKeep = path.join(slug, CANDIDATES_DIR, ".gitkeep")
+  const reqFile = Bun.file(path.join(cwd, reqHiring))
+  if ((await reqFile.exists()) && (await reqFile.text()).trim().length > 0) {
+    skipped.push(reqHiring)
+  } else {
+    await Bun.write(path.join(cwd, reqHiring), stubFor(title))
+    created.push(reqHiring)
+  }
+  await ensureScorecard(reqDir, path.join(slug, SCORECARD_FILE), created, skipped)
+  if (await Bun.file(path.join(cwd, reqKeep)).exists()) {
+    skipped.push(reqKeep)
+  } else {
+    await Bun.write(path.join(cwd, reqKeep), "")
+    created.push(reqKeep)
+  }
+  return { created, skipped, title, relative: slug, git: company.git }
 }
 
 async function ensureScorecard(dir: string, relative: string, created: string[], skipped: string[]) {

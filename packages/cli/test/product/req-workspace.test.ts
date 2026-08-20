@@ -12,12 +12,11 @@ test("slugify lowercases and hyphenates", () => {
   expect(ReqWorkspace.slugify("!!!")).toBe("")
 })
 
-test("scaffold creates company HIRING.md only in empty cwd", async () => {
+test("scaffoldCompany creates company HIRING.md only in empty cwd", async () => {
   await using tmp = await tmpdir()
-  const result = await ReqWorkspace.scaffold(tmp.path, "Senior Backend")
+  const result = await ReqWorkspace.scaffoldCompany(tmp.path)
   expect(result.created).toEqual(["HIRING.md", "SCORECARD.md"])
   expect(result.relative).toBe(".")
-  expect(result.title).toBe("Senior Backend")
   expect(await Bun.file(path.join(tmp.path, "HIRING.md")).text()).toBe(ReqWorkspace.COMPANY_STUB)
   expect(await Bun.file(path.join(tmp.path, "SCORECARD.md")).text()).toContain("# Scorecard")
   expect(await Bun.file(path.join(tmp.path, "candidates/.gitkeep")).exists()).toBe(false)
@@ -27,12 +26,24 @@ test("scaffold creates company HIRING.md only in empty cwd", async () => {
   expect(await ReqWorkspace.listReqs(tmp.path)).toEqual([])
 })
 
-test("second call does not overwrite non-empty HIRING.md", async () => {
+test("scaffoldCompany never creates a req dir, even after a title-shaped edit", async () => {
   await using tmp = await tmpdir()
-  await ReqWorkspace.scaffold(tmp.path, "Senior Backend")
+  await ReqWorkspace.scaffoldCompany(tmp.path)
+  const hiring = path.join(tmp.path, "HIRING.md")
+  await Bun.write(hiring, "# Northline Analytics\n")
+  const result = await ReqWorkspace.scaffoldCompany(tmp.path)
+  expect(await Bun.file(hiring).text()).toBe("# Northline Analytics\n")
+  expect(result.skipped).toContain("HIRING.md")
+  expect(result.relative).toBe(".")
+  expect(await ReqWorkspace.listReqs(tmp.path)).toEqual([])
+})
+
+test("scaffoldReq does not overwrite non-empty company HIRING.md", async () => {
+  await using tmp = await tmpdir()
+  await ReqWorkspace.scaffoldCompany(tmp.path)
   const hiring = path.join(tmp.path, "HIRING.md")
   await Bun.write(hiring, "# Staff Engineer\n")
-  const result = await ReqWorkspace.scaffold(tmp.path, "Other Title")
+  const result = await ReqWorkspace.scaffoldReq(tmp.path, "Other Title")
   expect(await Bun.file(hiring).text()).toBe("# Staff Engineer\n")
   expect(result.relative).toBe("other-title")
   expect(await Bun.file(path.join(tmp.path, "other-title", "HIRING.md")).exists()).toBe(true)
@@ -42,20 +53,20 @@ test("does not add .moks/ to .gitignore", async () => {
   await using tmp = await tmpdir()
   const gi = path.join(tmp.path, ".gitignore")
   await Bun.write(gi, "node_modules/\n")
-  await ReqWorkspace.scaffold(tmp.path, "Senior Backend")
+  await ReqWorkspace.scaffoldCompany(tmp.path)
   expect(await Bun.file(gi).text()).toBe("node_modules/\n")
   expect(await Bun.file(path.join(tmp.path, ".gitignore")).text()).not.toContain(".moks/")
 })
 
 test("does not create a gitignore when none exists", async () => {
   await using tmp = await tmpdir()
-  await ReqWorkspace.scaffold(tmp.path, "Senior Backend")
+  await ReqWorkspace.scaffoldCompany(tmp.path)
   expect(await Bun.file(path.join(tmp.path, ".gitignore")).exists()).toBe(false)
 })
 
 test("resolve walks up to HIRING.md", async () => {
   await using tmp = await tmpdir()
-  await ReqWorkspace.scaffold(tmp.path, "Staff ML")
+  await ReqWorkspace.scaffoldCompany(tmp.path)
   const nested = path.join(tmp.path, "candidates", "nested")
   await Bun.write(path.join(nested, "keep.txt"), "x")
   expect(await ReqWorkspace.resolve(nested, tmp.path)).toBe(tmp.path)
@@ -87,7 +98,7 @@ test("companyRoot does not walk more than 4 ancestors without git", async () => 
 
 test("companyRoot returns a single-req packet", async () => {
   await using tmp = await tmpdir()
-  await ReqWorkspace.scaffold(tmp.path, "Staff ML")
+  await ReqWorkspace.scaffoldCompany(tmp.path)
   expect(await ReqWorkspace.companyRoot(tmp.path)).toBe(tmp.path)
   expect(await ReqWorkspace.companyRoot(path.join(tmp.path, "candidates"))).toBe(tmp.path)
 })
@@ -116,7 +127,7 @@ test("companyRoot does not walk past the company into a parent HIRING.md", async
 
 test("git init happens when cwd is not a repo", async () => {
   await using tmp = await tmpdir()
-  const result = await ReqWorkspace.scaffold(tmp.path, "Senior Backend")
+  const result = await ReqWorkspace.scaffoldCompany(tmp.path)
   expect(result.git).toBe("created")
   expect((await $`git rev-parse --is-inside-work-tree`.cwd(tmp.path).text()).trim()).toBe("true")
   expect((await $`git rev-parse --verify HEAD`.cwd(tmp.path).quiet().nothrow()).exitCode).not.toBe(0)
@@ -134,7 +145,7 @@ test("isReqMaterial includes HIRING.md and candidates/*.md", () => {
 test("git init is skipped when already a repo", async () => {
   await using tmp = await tmpdir({ git: true })
   const before = (await $`git rev-list --count HEAD`.cwd(tmp.path).text()).trim()
-  const result = await ReqWorkspace.scaffold(tmp.path, "Senior Backend")
+  const result = await ReqWorkspace.scaffoldCompany(tmp.path)
   expect(result.git).toBe("existing")
   expect((await $`git rev-list --count HEAD`.cwd(tmp.path).text()).trim()).toBe(before)
 })
@@ -219,13 +230,13 @@ test("slateBlock at company root lists req names not cards", async () => {
   )
 })
 
-test("empty tmp then /init Senior Backend creates a req dir", async () => {
+test("empty tmp then /open-req Senior Backend creates a req dir", async () => {
   await using tmp = await tmpdir()
-  await ReqWorkspace.scaffold(tmp.path)
+  await ReqWorkspace.scaffoldCompany(tmp.path)
   const company = await Bun.file(path.join(tmp.path, "HIRING.md")).text()
   expect(company).toBe(ReqWorkspace.COMPANY_STUB)
   expect(await Bun.file(path.join(tmp.path, "candidates")).exists()).toBe(false)
-  const result = await ReqWorkspace.scaffold(tmp.path, "Senior Backend")
+  const result = await ReqWorkspace.scaffoldReq(tmp.path, "Senior Backend")
   expect(result.relative).toBe("senior-backend")
   expect(result.created).toEqual(["senior-backend/HIRING.md", "senior-backend/SCORECARD.md", "senior-backend/candidates/.gitkeep"])
   expect(await Bun.file(path.join(tmp.path, "HIRING.md")).text()).toBe(company)
@@ -238,11 +249,32 @@ test("empty tmp then /init Senior Backend creates a req dir", async () => {
   expect(await ReqWorkspace.isPacket(path.join(tmp.path, "senior-backend"))).toBe(true)
 })
 
-test("fixture layout /init does not nest a second req", async () => {
+test("/open-req on an empty folder scaffolds the company first", async () => {
+  await using tmp = await tmpdir()
+  const result = await ReqWorkspace.scaffoldReq(tmp.path, "Staff ML")
+  expect(result.relative).toBe("staff-ml")
+  expect(await Bun.file(path.join(tmp.path, "HIRING.md")).text()).toBe(ReqWorkspace.COMPANY_STUB)
+  expect(await Bun.file(path.join(tmp.path, "candidates")).exists()).toBe(false)
+  expect(await ReqWorkspace.isPacket(path.join(tmp.path, "staff-ml"))).toBe(true)
+})
+
+test("/open-req on an existing req focuses without recreating", async () => {
+  await using tmp = await tmpdir()
+  await ReqWorkspace.scaffoldReq(tmp.path, "Senior Backend")
+  await Bun.write(path.join(tmp.path, "senior-backend", "HIRING.md"), "# Senior Backend (edited)\n")
+  const result = await ReqWorkspace.scaffoldReq(tmp.path, "Senior Backend")
+  expect(result.relative).toBe("senior-backend")
+  expect(result.skipped).toContain(path.join("senior-backend", "HIRING.md"))
+  expect(await Bun.file(path.join(tmp.path, "senior-backend", "HIRING.md")).text()).toBe(
+    "# Senior Backend (edited)\n",
+  )
+})
+
+test("fixture layout /open-req does not nest a second req", async () => {
   await using tmp = await tmpdir()
   await Bun.write(path.join(tmp.path, "HIRING.md"), "# Req\n")
   await Bun.write(path.join(tmp.path, "candidates", ".gitkeep"), "")
-  const result = await ReqWorkspace.scaffold(tmp.path, "Other")
+  const result = await ReqWorkspace.scaffoldReq(tmp.path, "Other")
   expect(result.relative).toBe(".")
   expect(result.created).toContain("SCORECARD.md")
   expect(await Bun.file(path.join(tmp.path, "other", "HIRING.md")).exists()).toBe(false)
@@ -250,10 +282,10 @@ test("fixture layout /init does not nest a second req", async () => {
   expect(await Bun.file(path.join(tmp.path, ".moks/reqs")).exists()).toBe(false)
 })
 
-test("company /init without a title does not invent a slug", async () => {
+test("/open-req without a title does not invent a slug", async () => {
   await using tmp = await tmpdir()
-  await ReqWorkspace.scaffold(tmp.path)
-  const result = await ReqWorkspace.scaffold(tmp.path)
+  await ReqWorkspace.scaffoldCompany(tmp.path)
+  const result = await ReqWorkspace.scaffoldReq(tmp.path)
   expect(result.relative).toBe(".")
   expect(await ReqWorkspace.listReqs(tmp.path)).toEqual([])
 })

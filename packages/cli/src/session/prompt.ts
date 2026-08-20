@@ -1363,9 +1363,13 @@ const layer = Layer.effect(
       }
       if (input.command === Command.Default.INIT) {
         const ctx = yield* InstanceState.context
+        yield* Effect.promise(() => ReqWorkspace.scaffoldCompany(ctx.directory))
+      }
+      if (input.command === Command.Default.OPEN_REQ) {
+        const ctx = yield* InstanceState.context
         const title = (input.arguments.split("\n")[0] ?? "").trim()
         yield* Effect.promise(async () => {
-          const result = await ReqWorkspace.scaffold(ctx.directory, title || undefined)
+          const result = await ReqWorkspace.scaffoldReq(ctx.directory, title || undefined)
           if (result.relative !== ".") await ReqWorkspace.writeFocus(ctx.directory, result.relative)
         })
       }
@@ -1396,7 +1400,7 @@ const layer = Layer.effect(
         template = template + "\n\n" + input.arguments
       }
 
-      if (input.command === Command.Default.INIT) {
+      if (input.command === Command.Default.OPEN_REQ) {
         const title = (input.arguments.split("\n")[0] ?? "").trim()
         const slug = ReqWorkspace.slugify(title)
         template = template
