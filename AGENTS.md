@@ -51,7 +51,7 @@ Change: prominence, defaults, copy, agent wiring, workspace paths.
 | OpenCode | moks | Wrong port |
 |----------|------|------------|
 | Repo / project | Company folder is the workspace | One git remote per req; cwd-only req |
-| `AGENTS.md` | `HIRING.md` at company + per req | `/init` still writes coding AGENTS.md |
+| `AGENTS.md` | `COMPANY.md` at company + `HIRING.md` per req | `/init` still writes coding AGENTS.md |
 | GitHub | ATS (adapter seam; live Ashby on hold) | GitHub recruiting as the product |
 | Working tree | company + focused req packet | Cloud ATS with no local drafts |
 | Diff | Local hiring file deltas | Delete diff, or only show remote ATS |
