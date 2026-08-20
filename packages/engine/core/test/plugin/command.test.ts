@@ -34,10 +34,18 @@ describe("CommandPlugin.Plugin", () => {
 
       expect(yield* command.get("init")).toMatchObject({
         name: "init",
-        description: "scaffold a company or a req directory (HIRING.md + candidates/)",
+        description: "write or update the company dossier (company HIRING.md)",
       })
       expect((yield* command.get("init"))?.template).toContain("`/repo/packages/app`")
       expect((yield* command.get("init"))?.template).toContain("HIRING.md")
+      expect((yield* command.get("init"))?.template).toContain("company dossier")
+      expect((yield* command.get("init"))?.template).not.toContain("taking a req from a hiring manager")
+      expect(yield* command.get("open-req")).toMatchObject({
+        name: "open-req",
+        description: "create or focus a req directory (HIRING.md + candidates/), then run role intake",
+      })
+      expect((yield* command.get("open-req"))?.template).toContain("`/repo/packages/app`")
+      expect((yield* command.get("open-req"))?.template).toContain("Do not nest a second req")
       expect(yield* command.get("init-code")).toBeUndefined()
       expect(yield* command.get("review")).toMatchObject({
         name: "review",

@@ -4,6 +4,7 @@ import { define } from "./internal"
 import { Effect } from "effect"
 import { Location } from "../location"
 import PROMPT_INITIALIZE from "./command/initialize.txt"
+import PROMPT_OPEN_REQ from "./command/open-req.txt"
 import PROMPT_REVIEW from "./command/review.txt"
 
 export const Plugin = define({
@@ -13,7 +14,11 @@ export const Plugin = define({
     yield* ctx.command.transform((draft) => {
       draft.update("init", (command) => {
         command.template = PROMPT_INITIALIZE.replace("${path}", location.directory)
-        command.description = "scaffold a company or a req directory (HIRING.md + candidates/)"
+        command.description = "write or update the company dossier (company HIRING.md)"
+      })
+      draft.update("open-req", (command) => {
+        command.template = PROMPT_OPEN_REQ.replace("${path}", location.directory)
+        command.description = "create or focus a req directory (HIRING.md + candidates/), then run role intake"
       })
       draft.update("review", (command) => {
         command.template = PROMPT_REVIEW.replace("${path}", location.project.directory)
