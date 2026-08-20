@@ -1,19 +1,25 @@
-# hiring.md — Senior Backend Engineer (REQ-142)
+# HIRING.md — Northline Analytics (company constitution)
 
-## Role
-Staff-leaning senior backend engineer, payments team. JD: ./jd.md
+## About
+Analytics platform, ~120 people, currently staffing the payments-infra rewrite.
+Reqs live in subdirectories; each has its own HIRING.md + candidates/. A req
+HIRING.md overrides this file for its packet.
+
+## How we hire
+Stages: sourced → screen → phone → onsite → offer → hire. Recruiter screens
+against the scorecard; the hiring manager owns the onsite decision.
 
 ## Bar
-- 5+ yrs backend; strong distributed-systems fundamentals
-- Payments/fintech exposure preferred, not required
-- Scorecard: ./scorecard.md (agent screens against this)
+- Strong fundamentals over framework familiarity
+- Evidence of ownership: shipped and operated real systems
+- Scorecard: ./SCORECARD.md (agent screens against this)
 
 ## Comp
-Band: $185k–$225k base + 0.05–0.15%. Never state comp in outreach.
+Bands live on each req. Never state comp in outreach.
 
 ## Tone & outreach
-Warm, specific, no buzzwords. 2 short paragraphs max. Always mention
-the payments-infra rewrite. Follow-ups: max 2, spaced 4 business days.
+Warm, specific, no buzzwords. 2 short paragraphs max. Follow-ups: max 2,
+spaced 4 business days.
 
 ## Policy
 auto_approve: [AddNote, AddTag]   # reversible only; irreversible/compensable never auto-approve
