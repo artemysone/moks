@@ -279,12 +279,12 @@ describe("run session replay", () => {
       }),
       expect.objectContaining({
         kind: "system",
-        text: "▣ Build · gpt-5 · 2.8s",
+        text: "▣ Recruit · gpt-5 · 2.8s",
         phase: "final",
         source: "system",
         messageID: "msg-1",
         summary: {
-          agent: "Build",
+          agent: "Recruit",
           model: "gpt-5",
           duration: "2.8s",
         },
@@ -314,9 +314,9 @@ describe("run session replay", () => {
     expect(out.commits.at(-1)).toEqual(
       expect.objectContaining({
         kind: "system",
-        text: "▣ Build · Little Frank · 2.8s",
+        text: "▣ Recruit · Little Frank · 2.8s",
         summary: {
-          agent: "Build",
+          agent: "Recruit",
           model: "Little Frank",
           duration: "2.8s",
         },
@@ -346,7 +346,7 @@ describe("run session replay", () => {
     expect(out.commits.filter((commit) => commit.summary)).toEqual([
       expect.objectContaining({
         kind: "system",
-        text: "▣ Build · gpt-5 · 2.0s",
+        text: "▣ Recruit · gpt-5 · 2.0s",
         messageID: "msg-step-2",
       }),
     ])

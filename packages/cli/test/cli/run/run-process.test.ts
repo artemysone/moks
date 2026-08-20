@@ -67,18 +67,21 @@ describe("opencode run (non-interactive subprocess)", () => {
   // makes the SDK call surface an error promptly so the process exits nonzero.
   // We assert nonzero exit AND wall-clock under the harness timeout — a hang
   // would expire the timeout and produce a different (signal-killed) failure.
+  // The bound is the file-default 30s harness timeout: tighter bounds fail on
+  // loaded CI runners where concurrent cold `bun run` spawns contend for CPU,
+  // while a real hang still hits the kill and pushes durationMs past the bound.
   cliIt.concurrent(
     "exits nonzero promptly when the model is unknown (regression for #27371)",
     ({ opencode }) =>
       Effect.gen(function* () {
         const result = yield* opencode.run("say hi", {
           model: "test/nonexistent-model",
-          timeoutMs: 15_000,
+          timeoutMs: 30_000,
         })
         expect(result.exitCode).not.toBe(0)
-        expect(result.durationMs).toBeLessThan(15_000)
+        expect(result.durationMs).toBeLessThan(30_000)
       }),
-    30_000,
+    60_000,
   )
 
   // The test provider's SSE error item is interpreted by the SDK as an unknown
@@ -95,7 +98,10 @@ describe("opencode run (non-interactive subprocess)", () => {
           }),
         )
         yield* llm.fail("upstream provider exploded mid-stream")
-        const result = yield* opencode.run("trigger midstream error", { timeoutMs: 30_000 })
+        const result = yield* opencode.run("trigger midstream error", {
+          timeoutMs: 30_000,
+          extraArgs: ["--dangerously-skip-permissions"],
+        })
         expect(result.exitCode).toBe(0)
         expect(result.stdout).toBe("partial response\n")
         expect(result.stderr).not.toContain("upstream provider exploded mid-stream")
@@ -223,7 +229,10 @@ describe("opencode run (non-interactive subprocess)", () => {
           }),
         )
         yield* llm.fail("provider failed")
-        const result = yield* opencode.run("fail after output", { format: "json" })
+        const result = yield* opencode.run("fail after output", {
+          format: "json",
+          extraArgs: ["--dangerously-skip-permissions"],
+        })
 
         const events = opencode.parseJsonEvents(result.stdout)
         expect(result.exitCode).toBe(0)

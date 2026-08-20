@@ -145,18 +145,18 @@ describe("session.list", () => {
       Effect.gen(function* () {
         const test = yield* TestInstance
         yield* Effect.promise(() =>
-          mkdir(path.join(test.directory, "packages", "opencode", "src", "deep"), { recursive: true }),
+          mkdir(path.join(test.directory, "packages", "moks", "src", "deep"), { recursive: true }),
         )
         yield* Effect.promise(() => mkdir(path.join(test.directory, "packages", "app"), { recursive: true }))
 
         const parent = yield* withSession({ title: "parent" }).pipe(
-          provideInstance(path.join(test.directory, "packages", "opencode")),
+          provideInstance(path.join(test.directory, "packages", "moks")),
         )
         const current = yield* withSession({ title: "current" }).pipe(
-          provideInstance(path.join(test.directory, "packages", "opencode", "src")),
+          provideInstance(path.join(test.directory, "packages", "moks", "src")),
         )
         const deeper = yield* withSession({ title: "deeper" }).pipe(
-          provideInstance(path.join(test.directory, "packages", "opencode", "src", "deep")),
+          provideInstance(path.join(test.directory, "packages", "moks", "src", "deep")),
         )
         const sibling = yield* withSession({ title: "sibling" }).pipe(
           provideInstance(path.join(test.directory, "packages", "app")),
@@ -175,7 +175,7 @@ describe("session.list", () => {
 
         if (process.platform === "win32") {
           const windowsPathIDs = (yield* SessionNs.Service.use((session) =>
-            session.list({ path: "packages\\opencode\\src" }),
+            session.list({ path: "packages\\moks\\src" }),
           )).map((session) => session.id)
           expect(windowsPathIDs).toContain(current.id)
           expect(windowsPathIDs).toContain(deeper.id)

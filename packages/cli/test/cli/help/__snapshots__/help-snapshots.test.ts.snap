@@ -90,7 +90,6 @@ exports[`opencode CLI help-text snapshots every documented command emits stable 
 
 Commands:
   moks debug config        show resolved configuration
-  moks debug lsp           LSP debugging utilities
   moks debug rg            ripgrep debugging utilities
   moks debug file          file system debugging utilities
   moks debug scrap         list all known projects
@@ -450,7 +449,7 @@ Options:
       --mode                  agent mode            [string] [choices: "all", "primary", "subagent"]
       --permissions, --tools  comma-separated list of permissions to allow (default: all).
                               Available: "bash, read, edit, glob, grep, webfetch, task, todowrite,
-                              websearch, lsp, skill"                                        [string]
+                              websearch, skill"                                             [string]
   -m, --model                 model to use in the format of provider/model                  [string]"
 `;
 
