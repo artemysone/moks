@@ -12,18 +12,51 @@ test("slugify lowercases and hyphenates", () => {
   expect(ReqWorkspace.slugify("!!!")).toBe("")
 })
 
-test("scaffoldCompany creates company HIRING.md only in empty cwd", async () => {
+test("scaffoldCompany stands up the full company workspace in empty cwd", async () => {
   await using tmp = await tmpdir()
   const result = await ReqWorkspace.scaffoldCompany(tmp.path)
-  expect(result.created).toEqual(["HIRING.md", "SCORECARD.md"])
+  expect(result.created).toEqual([
+    "HIRING.md",
+    "SCORECARD.md",
+    path.join(".moks", "ledger.sqlite"),
+    path.join(".moks", "vault.key"),
+  ])
   expect(result.relative).toBe(".")
   expect(await Bun.file(path.join(tmp.path, "HIRING.md")).text()).toBe(ReqWorkspace.COMPANY_STUB)
   expect(await Bun.file(path.join(tmp.path, "SCORECARD.md")).text()).toContain("# Scorecard")
+  expect(await Bun.file(path.join(tmp.path, ".moks", "ledger.sqlite")).exists()).toBe(true)
+  expect(await Bun.file(path.join(tmp.path, ".moks", "vault.key")).exists()).toBe(true)
   expect(await Bun.file(path.join(tmp.path, "candidates/.gitkeep")).exists()).toBe(false)
   expect(await Bun.file(path.join(tmp.path, ".moks/reqs")).exists()).toBe(false)
   expect(await ReqWorkspace.isCompanyRoot(tmp.path)).toBe(true)
   expect(await ReqWorkspace.isPacket(tmp.path)).toBe(false)
   expect(await ReqWorkspace.listReqs(tmp.path)).toEqual([])
+})
+
+test("scaffoldCompany ledger works for moks commands after /init", async () => {
+  await using tmp = await tmpdir()
+  await ReqWorkspace.scaffoldCompany(tmp.path)
+  const { openSqlite, migrateWorkspace } = await import("@moks/ledger")
+  const db = openSqlite(path.join(tmp.path, ".moks", "ledger.sqlite"))
+  migrateWorkspace(db)
+  const versions = db.prepare("SELECT version FROM schema_migrations").all()
+  db.close()
+  expect(versions.length).toBeGreaterThan(0)
+})
+
+test("scaffoldCompany rerun converges: everything skipped, nothing rewritten", async () => {
+  await using tmp = await tmpdir()
+  await ReqWorkspace.scaffoldCompany(tmp.path)
+  const key = await Bun.file(path.join(tmp.path, ".moks", "vault.key")).text()
+  const result = await ReqWorkspace.scaffoldCompany(tmp.path)
+  expect(result.created).toEqual([])
+  expect(result.skipped).toEqual([
+    "HIRING.md",
+    "SCORECARD.md",
+    path.join(".moks", "ledger.sqlite"),
+    path.join(".moks", "vault.key"),
+  ])
+  expect(await Bun.file(path.join(tmp.path, ".moks", "vault.key")).text()).toBe(key)
 })
 
 test("scaffoldCompany never creates a req dir, even after a title-shaped edit", async () => {

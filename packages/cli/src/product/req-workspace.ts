@@ -1,4 +1,4 @@
-import { mkdir, readdir } from "fs/promises"
+import { readdir } from "fs/promises"
 import path from "path"
 import { Filesystem } from "@/util/filesystem"
 import { CandidateCard, CANDIDATES_DIR } from "./candidate-card"
@@ -214,8 +214,6 @@ export async function scaffoldCompany(cwd: string) {
   const existing = Bun.file(hiring)
   const present = (await existing.exists()) && (await existing.text()).trim().length > 0
 
-  await mkdir(path.join(cwd, ".moks"), { recursive: true })
-
   if (present) {
     skipped.push(HIRING_FILE)
   } else {
@@ -223,6 +221,7 @@ export async function scaffoldCompany(cwd: string) {
     created.push(HIRING_FILE)
   }
   await ensureScorecard(cwd, SCORECARD_FILE, created, skipped)
+  await ensureLedger(cwd, created, skipped)
   const git = await gitInitIfNeeded(cwd, !present)
   return { created, skipped, relative: ".", git }
 }
@@ -266,6 +265,19 @@ export async function scaffoldReq(cwd: string, title?: string) {
     created.push(reqKeep)
   }
   return { created, skipped, title, relative: slug, git: company.git }
+}
+
+async function ensureLedger(cwd: string, created: string[], skipped: string[]) {
+  const { workspacePaths, openSqlite, migrateWorkspace, openVault } = await import("@moks/ledger")
+  const paths = workspacePaths(cwd)
+  const hadDb = await Bun.file(paths.workspaceDb).exists()
+  const hadKey = await Bun.file(paths.vaultKey).exists()
+  const db = openSqlite(paths.workspaceDb)
+  migrateWorkspace(db)
+  openVault(db, paths.vaultKey)
+  db.close()
+  ;(hadDb ? skipped : created).push(path.join(".moks", "ledger.sqlite"))
+  ;(hadKey ? skipped : created).push(path.join(".moks", "vault.key"))
 }
 
 async function ensureScorecard(dir: string, relative: string, created: string[], skipped: string[]) {

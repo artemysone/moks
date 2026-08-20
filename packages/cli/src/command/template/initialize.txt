@@ -2,7 +2,7 @@ Open company intake at `${path}`.
 
 This is the company dossier conversation, not req intake.
 
-Company `HIRING.md` is the company constitution: who the company is, how it hires, the bar, the outreach tone, and the approval policy. A stub was written if it was missing or empty. Do not overwrite non-empty user content. Do not create `candidates/` at the company root. Do not create a req directory here, even if the notes name a role. `/open-req <title>` opens roles.
+Company `HIRING.md` is the company constitution: who the company is, how it hires, the bar, the outreach tone, and the approval policy. The company workspace was already scaffolded before this turn: a `HIRING.md` stub if it was missing or empty, plus the `.moks/` ledger, so `moks commit` works from the first decision. Do not overwrite non-empty user content. Do not create `candidates/` at the company root. Do not create a req directory here, even if the notes name a role. `/open-req <title>` opens roles.
 
 If this root already has `HIRING.md` + `candidates/`, the folder is a single-req workspace; one `HIRING.md` is both company and req. Continue it in place.
 

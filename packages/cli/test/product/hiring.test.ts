@@ -55,6 +55,8 @@ it.effect("score-candidate writes a score file path; commit-disposition cites it
     expect(PROMPT_INITIALIZE).toContain("HIRING.md")
     expect(PROMPT_INITIALIZE).toContain("Do not overwrite non-empty user content")
     expect(PROMPT_INITIALIZE).toContain("Do not create a req directory here")
+    expect(PROMPT_INITIALIZE).toContain("The company workspace was already scaffolded")
+    expect(PROMPT_INITIALIZE).toContain("`.moks/` ledger")
     expect(PROMPT_INITIALIZE).toContain("/open-req")
     expect(PROMPT_INITIALIZE).toContain("The ledger is the audit log")
     expect(PROMPT_INITIALIZE).not.toContain("taking a req from a hiring manager")

@@ -1789,6 +1789,8 @@ it.instance(
       })
 
       expect(yield* Effect.promise(() => Bun.file(path.join(dir, "HIRING.md")).text())).toBe(ReqWorkspace.COMPANY_STUB)
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, ".moks", "ledger.sqlite")).exists())).toBe(true)
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, ".moks", "vault.key")).exists())).toBe(true)
       expect(yield* Effect.promise(() => Bun.file(path.join(dir, "senior-backend", "HIRING.md")).exists())).toBe(false)
       expect(yield* Effect.promise(() => Bun.file(path.join(dir, "candidates", ".gitkeep")).exists())).toBe(false)
       expect(yield* Effect.promise(() => ReqWorkspace.listReqs(dir))).toEqual([])
@@ -1818,6 +1820,7 @@ it.instance(
       expect(yield* Effect.promise(() => Bun.file(hiring).text())).toBe(
         "# Northline Analytics\n\n## About\n- analytics platform\n",
       )
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, ".moks", "ledger.sqlite")).exists())).toBe(true)
       expect(yield* Effect.promise(() => Bun.file(path.join(dir, "staff-platform", "HIRING.md")).exists())).toBe(false)
       expect(yield* Effect.promise(() => ReqWorkspace.listReqs(dir))).toEqual([])
     }),
