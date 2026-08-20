@@ -17,7 +17,7 @@ Intended path: `/init` (company dossier) → `/open-req` (role) → skills → a
 
 | Slash | Kind | Does |
 |---|---|---|
-| `/init` | Agent | Company dossier intake. Scaffolds the company workspace (company `HIRING.md` + `SCORECARD.md` if missing, `.moks/` ledger, git repo), then interviews for who they are, how they hire, bar, tone, policy. Never creates a req, even with a title. |
+| `/init` | Agent | Company dossier intake. Scaffolds the company workspace (`COMPANY.md` if missing, `.moks/` ledger, git repo), then interviews for who they are, how they hire, bar, tone, policy. Never creates a req, even with a title. |
 | `/open-req` | Agent | Creates or focuses `<slug>/` (`HIRING.md` + `candidates/`), writes `.moks/focus`, then HM role intake. |
 | `/commit` | UI | Stage a ledger changeset. Action + reason. Toast: **Staged**. No ATS write. |
 | `/status` | UI | List open changesets (staged / approved). Aliases: `/decisions`, `/commits`, `/receipts`. |
