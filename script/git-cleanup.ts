@@ -3,7 +3,7 @@
 import { $ } from "bun"
 import { parseArgs } from "util"
 
-const KEEP = new Set(["dev"])
+const KEEP = new Set(["main"])
 
 const { values } = parseArgs({
   args: Bun.argv.slice(2),
@@ -19,7 +19,7 @@ if (values.help) {
 Usage: bun script/git-cleanup.ts [options]
 
 Dry-run (default) lists leftover refs that are safe to delete.
-Only github/dev is kept.
+Only github/main is kept.
 
 Options:
       --execute   Delete listed refs on github (irreversible)
@@ -56,7 +56,7 @@ console.log(`${values.tags ? "tag" : "branch"} targets this run: ${targets.lengt
 if (!values.execute) {
   for (const name of targets.slice(0, 40)) console.log(`  ${name}`)
   if (targets.length > 40) console.log(`  … ${targets.length - 40} more`)
-  console.log("\nDry-run only. Re-run with --execute after protecting github/dev.")
+  console.log("\nDry-run only. Re-run with --execute after protecting github/main.")
   process.exit(0)
 }
 

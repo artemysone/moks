@@ -89,7 +89,7 @@ Hard fork of OpenCode (`anomalyco/opencode` → `artemysone/moks`). OpenCode is 
 |--------|-----------|------|
 | `github` | `artemysone/moks` | push |
 
-- Default branch: `dev`. Push to `github`.
+- Default branch: `main`. Push to `github`.
 - Do not add an OpenCode remote. Cherry-pick a provider/kernel fix only if needed.
 - Runtime is Bun (`bun install`, `bun dev`). Do not make pnpm/npm the primary workflow.
 - Do not edit `~/.config/opencode` or `~/.local/share/opencode` unless asked.

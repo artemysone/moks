@@ -1,8 +1,8 @@
 # Git cleanup
 
-Product work lives on `dev`. Inherited OpenCode branches and tags were deleted.
+Product work lives on `main`. Inherited OpenCode branches and tags were deleted.
 
-`script/git-cleanup.ts` keeps `github/dev`. Dry-run by default:
+`script/git-cleanup.ts` keeps `github/main`. Dry-run by default:
 
 ```bash
 bun script/git-cleanup.ts
