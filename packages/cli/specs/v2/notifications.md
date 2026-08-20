@@ -1,5 +1,7 @@
 # TUI Notifications Default
 
+Inherited OpenCode notes. Not a moks product plan. See `packages/cli/specs/v2/README.md`.
+
 Problem:
 
 - v1 defaults `attention.enabled` to `false`

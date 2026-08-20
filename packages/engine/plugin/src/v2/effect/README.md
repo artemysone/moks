@@ -1,4 +1,6 @@
-# OpenCode V2 Effect Plugin API
+# Effect plugin API
+
+The `/v2` import path is a leftover OpenCode name, not a second product.
 
 The Effect plugin API grants plugins two in-process capabilities:
 

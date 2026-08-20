@@ -9,14 +9,15 @@
 - A domain may keep a minimal public wire contract here when SDK generation needs it, but do not move the broader runtime model into Schema just because an event is public. `plugin.added` is the current example: Schema may own the minimum browser-safe event payload, while plugin runtime behavior stays outside Schema.
 - The root barrel exports canonical current domain contracts. Specialized event modules, manifests, infrastructure modules, and V1 contracts use direct entrypoints instead of becoming first-class root exports.
 
-## Current Versus V1
+## Current versus leftover names
+
+OpenCode started a Session rewrite and labeled it V2. That is not a moks product version. Current contracts are unversioned. The shipped TUI still uses the CLI loop and its `V1` contracts.
 
 - Current contracts are unversioned: use names like `Session`, `Permission`, `Question`, and identifiers like `Permission.Request`.
-- Legacy contracts retained for active compatibility, persistence, or migration are explicitly `V1`: use names like `SessionV1`, `PermissionV1`, and identifiers like `PermissionV1.Request`.
-- Do not preserve `V2` as the permanent name for the replacement architecture. Remove `V2` from current namespaces, brands, and identifiers as the contracts are normalized.
-- Retained V1 contracts should live under a dedicated `src/v1/` subtree once the V1 isolation PR runs. New/current code must not depend on that subtree.
-- V1 coexistence is temporary. Keep compatibility entrypoints only where migration requires them, and delete the V1 subtree when the legacy runtime is retired.
-- `@moks/protocol` and `@moks/sdk-next` are current `/api/...` surfaces.
+- CLI-loop contracts still in use are explicitly `V1`: use names like `SessionV1`, `PermissionV1`, and identifiers like `PermissionV1.Request`.
+- Do not keep `V2` as the name for current contracts. Remove `V2` from current namespaces, brands, and identifiers as you touch them.
+- Keep `V1` entrypoints only while the CLI loop needs them. Do not add new `V2` names.
+- `@moks/protocol` and `@moks/sdk-next` are current `/api/...` surfaces. The product prompt path is still `/session`, not `/api/session`.
 
 ## Events
 

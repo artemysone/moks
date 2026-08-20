@@ -21,6 +21,7 @@ Strategy: `docs/gtm.html`. Ontology: `AGENTS.md`. Ledger-first port: `docs/mox-p
 - Company folder is the workspace. Reqs are subdirectories you focus. Do not invent `.moks/reqs/` or a cloud req picker.
 - People are not files. Cards stay markdown working copies. Do not build a cloud ATS UI.
 - There is no coding agent. Do not re-add `build`, `/init-code`, LSP, or GitHub Action.
+- Do not describe work as v1 vs v2. There is one product (CLI/TUI). Engine `*V2` names are leftover OpenCode aliases. `specs/v2/` is inherited rewrite notes, not a moks wave.
 
 ### Analog map (do not break)
 
@@ -309,27 +310,29 @@ Structural. Do H33 → H34 before H26 / H29. H27 is deferred. Verify H33–H29 o
 
 ---
 
-## Wave 6 — don’t regress on the next runtime
+## Wave 6 — engine overlay is not a second product
 
-### H30 — Core V2 recruit overlay matches v1
+Skip unless you are already in engine agent/command code. CLI overlay is the spec. If you touch the engine copies, match CLI. Do not treat this as a v1/v2 port.
+
+### H30 — Engine recruit overlay matches CLI
 
 - **Status:** open
-- **Outcome:** If/when core Session V2 is the runtime, recruit still has path-scoped edit and bash policy. No LSP.
-- **Keep:** Dual stack until V2 is default. V1 overlay in `packages/cli/src/agent/agent.ts` as the spec.
-- **Change:** Port the recruit permission overlay (and plan/explore) onto `packages/engine/core/src/plugin/agent.ts`. Do not invent a new policy language. Do not port LSP.
-- **Don't:** Expand core builtins to apply_patch for recruit.
+- **Outcome:** Engine recruit still has path-scoped edit and bash policy. No LSP.
+- **Keep:** CLI overlay in `packages/cli/src/agent/agent.ts` as the spec.
+- **Change:** If you touch `packages/engine/core/src/plugin/agent.ts`, copy the recruit permission overlay (and plan/explore). Do not invent a new policy language. Do not port LSP.
+- **Don't:** Expand core builtins to apply_patch for recruit. Dual-write every hiring change into engine.
 - **Touch:** `packages/engine/core/src/plugin/agent.ts`, compare `packages/cli/src/agent/agent.ts`
 - **Verify:** Side-by-side permission tables match for recruit/plan/explore (minus deleted `lsp` / `plan_enter` / `build`).
 
-### H31 — Core V2 `/init` + recruit prompt stay in sync with v1
+### H31 — Engine `/init` + recruit prompt stay in sync with CLI
 
 - **Status:** open
-- **Outcome:** The 3-line V2 `RECRUIT_SYSTEM` cannot drift into a different product.
-- **Keep:** Long-form v1 `product/agents/recruit.txt` as source of truth for TUI/CLI.
-- **Change:** Either share the file or add a test that V2 still names HIRING.md, cards, `moks commit`/`push`, and never-send. Align `/init` templates.
+- **Outcome:** Engine `RECRUIT_SYSTEM` cannot drift into a different product.
+- **Keep:** Long-form CLI `product/agents/recruit.txt` as source of truth for TUI/CLI.
+- **Change:** Either share the file or add a test that engine still names HIRING.md, cards, `moks commit`/`push`, and never-send. Align `/init` templates.
 - **Don't:** Duplicate a second full recruit prompt that will rot.
 - **Touch:** `packages/engine/core/src/plugin/agent.ts`, `packages/engine/core/src/plugin/command.ts`
-- **Verify:** V2 recruit text cannot mention “coding agent.” `/init` still matches H33 (company + req dir, or single-req fixture).
+- **Verify:** Engine recruit text cannot mention “coding agent.” `/init` still matches H33 (company + req dir, or single-req fixture).
 
 ---
 

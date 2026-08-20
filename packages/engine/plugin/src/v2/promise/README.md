@@ -1,4 +1,6 @@
-# OpenCode V2 Promise Plugin API
+# Promise plugin API
+
+The `/v2` import path is a leftover OpenCode name, not a second product.
 
 The Promise plugin API is the async/await equivalent of `@moks/plugin/v2/effect`. It grants plugins the same two in-process capabilities:
 

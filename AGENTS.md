@@ -81,6 +81,14 @@ Do not bring back pruned company surfaces (desktop, console, web, app, SST). Do 
 
 Product identity is isolated: `moks.json` / `.moks/` / `MOKS_*` / `~/.config/moks`. Ignore `opencode.json`, `.opencode/`, and `OPENCODE_*`.
 
+Do not plan or document work as v1 vs v2. There is one product: the CLI/TUI.
+
+TUI and `moks run` prompt through `SessionPrompt.loop` in `packages/cli/src/session`. That is the shipped loop.
+
+`SessionV2` is a leftover OpenCode export name for an unfinished engine Session (`/api/session`). It is mounted. Recruit does not use it. Do not add new `V2` names. Do not port hiring work onto it.
+
+`specs/v2/` and `packages/cli/specs/v2/` are inherited OpenCode rewrite notes, not a moks roadmap.
+
 ## Repo
 
 Hard fork of OpenCode (`anomalyco/opencode` → `artemysone/moks`). OpenCode is lineage and the installed coding agent that edits this repo — not what we ship. No official affiliation.
@@ -244,11 +252,13 @@ const table = sqliteTable("session", {
 
 - Always run `bun typecheck` from package directories (e.g., `packages/cli`), never `tsc` directly.
 
-## V2 Session Core
+## Session runtime
+
+Product prompts use `SessionPrompt.loop`. The bullets below apply only when you are already editing engine Session code in `packages/engine/core/src/session`. `SessionV2` is a leftover export name. Treat it as Session. Do not introduce new `V2` names.
 
 - Keep durable prompt admission separate from model execution. `SessionV2.prompt(...)` admits one durable `session_input` row before scheduling advisory `SessionExecution.wake(sessionID)` unless `resume: false` requests admit-only behavior. The serialized runner promotes admitted inputs into visible user messages at safe boundaries.
 - Reusing a Session ID adopts the existing Session. Reusing a prompt message ID reconciles an exact retry only when Session, prompt, and delivery mode match; conflicting reuse fails. Historical projected prompts lazily synthesize promoted inbox records during exact retry.
-- Keep `SessionExecution` process-global and Session-ID based. Its local implementation owns the process-local Session coordinator and discovers placement through `SessionStore` plus `LocationServiceMap.get(session.location)` only when a drain starts; no layer should take a Session ID. V2 interruption targets the active process-local ownership chain for that Session; idle or missing interruption is a no-op.
+- Keep `SessionExecution` process-global and Session-ID based. Its local implementation owns the process-local Session coordinator and discovers placement through `SessionStore` plus `LocationServiceMap.get(session.location)` only when a drain starts; no layer should take a Session ID. Interruption targets the active process-local ownership chain for that Session; idle or missing interruption is a no-op.
 - Keep `SessionRunner`, model resolution, tool registry, permissions, and filesystem Location-scoped. Omitted `Location.workspaceID` means implicit-local placement; explicit workspace identity remains reserved for future placement semantics.
 - Preserve one explicit `llm.stream(request)` call per provider turn and reload projected history before durable continuation. Do not bridge through legacy `SessionPrompt.loop(...)` or delegate orchestration to an in-memory tool loop.
 - Keep local Session drains process-local until clustering is implemented. `SessionRunCoordinator` joins explicit same-Session resumes, coalesces prompt wakeups, and allows different Sessions to run concurrently. Advisory wakes drain eligible durable inbox rows only; post-crash continuation recovery requires a separate explicit design before it may retry provider work. A drain has no durable identity or transcript boundary.

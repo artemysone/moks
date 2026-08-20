@@ -1,5 +1,7 @@
 # TUI Command Shim Removal
 
+Inherited OpenCode notes. Not a moks product plan. See `packages/cli/specs/v2/README.md`.
+
 Problem:
 
 - v1 keeps a deprecated `api.command` TUI plugin shim so older plugins do not fail during initialization

@@ -1,5 +1,7 @@
 # V2 Tools
 
+Inherited OpenCode notes. Not a moks roadmap. See `specs/v2/README.md`.
+
 ## Design
 
 V2 has one opaque type for locally executable tools:

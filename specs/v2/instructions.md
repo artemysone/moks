@@ -1,6 +1,8 @@
 # V2 Core Instructions
 
-These notes describe how to work on `packages/engine/core` during the v2 port.
+Inherited OpenCode notes. Not a moks roadmap. See `specs/v2/README.md`.
+
+These notes describe how to work on `packages/engine/core` during OpenCode's unfinished Session rewrite.
 
 ## Direction
 

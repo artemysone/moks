@@ -1,5 +1,7 @@
 # Policy
 
+Inherited OpenCode notes. Not a moks roadmap. See `specs/v2/README.md`.
+
 ## Purpose
 
 Policies control whether an operation on a named resource is allowed. They may be authored in configuration files, but policy evaluation is its own runtime concern.

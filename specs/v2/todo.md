@@ -1,5 +1,7 @@
 # TODO
 
+Inherited OpenCode notes. Not a moks roadmap. The product does not ship this runner. See `specs/v2/README.md`.
+
 ok we need to work towards a launch of v2 so we can get out of this rebuild phase
 
 ## Post-Hono cleanup - Kit

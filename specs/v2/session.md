@@ -1,5 +1,7 @@
 # Session API
 
+Inherited OpenCode notes. Not a moks roadmap. The shipped product prompts through `SessionPrompt.loop`, not this runner. See `specs/v2/README.md`.
+
 ## Current V2 Core Slice
 
 The Effect-native core facade treats prompt recording and execution as separate responsibilities:

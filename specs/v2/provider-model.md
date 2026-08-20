@@ -1,5 +1,7 @@
 # Provider and Model Catalog
 
+Inherited OpenCode notes. Not a moks roadmap. See `specs/v2/README.md`.
+
 ## Provider Schema
 
 ```ts

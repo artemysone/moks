@@ -1,5 +1,7 @@
 # V2 Schema Changelog
 
+Inherited OpenCode notes. Not a moks roadmap. See `specs/v2/README.md`.
+
 ## 2026-06-26: Add Finite Session History
 
 - Add `GET /api/session/:sessionID/history` and generated Promise, Effect, and legacy JavaScript client methods.

@@ -4,7 +4,13 @@ moks sessions (forked from the OpenCode session runtime) preserve durable conver
 
 This glossary names harness concepts. The shipped product is moks: company folder, `HIRING.md`, `moks.json` / `.moks/` / `MOKS_*`. Do not treat “OpenCode Client” / “Embedded OpenCode” below as product install names.
 
+The product runs one session loop. An unfinished engine Session rewrite was inherited from OpenCode. It is not a second product. Do not call them v1 and v2.
+
 ## Language
+
+**Session**:
+The durable conversation and execution unit for one agent run.
+_Avoid_: Session V2, V2 Session, v1 session, v2 session
 
 **System Context**:
 The structured collection of contextual facts presented to the model as initial instructions and chronological updates.
@@ -210,9 +216,9 @@ Before stabilizing the client API:
 
 - Keep additional public schemas in Schema and additional network groups in Protocol; neither package may transitively load databases, Drizzle, Session execution, providers, watchers, native modules, or WASM.
 - Keep concrete Location middleware keys in Server while Protocol owns their placement. Client projections may supply transport-only keys, but must prove generated equivalence with Server's concrete API.
-- Project the existing list response envelope to the stable client **Page** shape and enforce separate initial-query and cursor-continuation inputs without changing the hosted V2 wire contract.
+- Project the existing list response envelope to the stable client **Page** shape and enforce separate initial-query and cursor-continuation inputs without changing the hosted wire contract.
 - Settle the stable consumer namespace (`session` versus the current beta `sessions`) and use an explicit codegen annotation if the consumer name should differ from the server group identifier.
-- Preserve V2 route paths, operation IDs, codecs, errors, middleware behavior, and OpenAPI output while making this change.
+- Preserve current route paths, operation IDs, codecs, errors, middleware behavior, and OpenAPI output while making this change.
 - Preserve browser-safe `@moks/client` and `@moks/client/effect` bundles through import-boundary tests.
 - Define embedded-host placement before supporting multiple hosts over one database. Hosts that share durable Session storage must also share process-local Session execution coordination, or each host must receive isolated storage explicitly.
 - Keep an embedded request scope alive until any streamed response body finishes. The initial non-streaming Session surface does not exercise this lifetime boundary; Session and instance event streams must do so before joining the embedded client.
@@ -224,4 +230,4 @@ Before stabilizing the client API:
 
 ## Flagged ambiguities
 
-- Legacy `experimental.chat.system.transform` can mutate the assembled baseline system prompt arbitrarily, but V2 plugins do not yet expose an equivalent hook. Decide separately whether to port it, replace dynamic uses with plugin-defined **Context Sources**, or narrow its semantics.
+- Legacy `experimental.chat.system.transform` can mutate the assembled baseline system prompt arbitrarily, but current plugins do not yet expose an equivalent hook. Decide separately whether to port it, replace dynamic uses with plugin-defined **Context Sources**, or narrow its semantics.

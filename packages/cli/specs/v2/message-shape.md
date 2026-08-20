@@ -1,5 +1,7 @@
 # Message Shape
 
+Inherited OpenCode notes. Not a moks product plan. See `packages/cli/specs/v2/README.md`.
+
 Problem:
 
 - stored messages need enough data to replay and resume a session later
