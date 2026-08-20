@@ -1,0 +1,18 @@
+{
+  "run_id": "20260820-150519-4654",
+  "req": "/tmp/moks-verify-djaWrx",
+  "changeset": "2c6006d3-ae7d-4e77-b082-c0d575509293",
+  "result": "pass",
+  "steps": [
+    "doctor-status",
+    "pull",
+    "commit",
+    "review",
+    "push-dry-run",
+    "status-after-dry-run",
+    "push-execute",
+    "log",
+    "log-compliance",
+    "projected-card"
+  ]
+}

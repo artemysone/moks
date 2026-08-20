@@ -1,0 +1,21 @@
+{
+  "entries": [
+    {
+      "id": "2c6006d3-ae7d-4e77-b082-c0d575509293",
+      "parent_id": null,
+      "hash": "69eb2745a0261dc0643f5f2b63733512e546fff7bdf423c8d740b9f7d7fb2462",
+      "status": "applied",
+      "author_kind": "human",
+      "author_id": "ubuntu",
+      "reviewed_by": "verifier",
+      "rationale": "verify-moks ledger loop",
+      "created_at": 1787238322982,
+      "applied_at": 1787238327248,
+      "audit": false
+    }
+  ],
+  "chain": {
+    "ok": true
+  },
+  "path": "/tmp/moks-verify-djaWrx"
+}

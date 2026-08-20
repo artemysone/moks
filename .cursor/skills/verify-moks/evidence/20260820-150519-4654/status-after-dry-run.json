@@ -1,0 +1,64 @@
+{
+  "report": {
+    "ats": "mock",
+    "syncedAt": 1787238321898,
+    "jobs": 1,
+    "candidates": 5,
+    "applications": 5,
+    "pipeline": {
+      "Contacted": 1,
+      "Interview": 1,
+      "Rejected": 1,
+      "Screen": 1,
+      "Sourced": 1
+    },
+    "changesets": {
+      "staged": 0,
+      "approved": 1,
+      "stale": 0,
+      "applied": 0,
+      "rejected": 0
+    }
+  },
+  "open": [
+    {
+      "id": "2c6006d3-ae7d-4e77-b082-c0d575509293",
+      "parent_id": null,
+      "hash": "69eb2745a0261dc0643f5f2b63733512e546fff7bdf423c8d740b9f7d7fb2462",
+      "author_kind": "human",
+      "author_id": "ubuntu",
+      "agent_meta": {
+        "source": "cli",
+        "req": "",
+        "action": "advance"
+      },
+      "rationale": "verify-moks ledger loop",
+      "status": "approved",
+      "created_at": 1787238322982,
+      "reviewed_by": "verifier",
+      "applied_at": null,
+      "audit": false
+    }
+  ],
+  "changesets": [
+    {
+      "id": "2c6006d3-ae7d-4e77-b082-c0d575509293",
+      "parent_id": null,
+      "hash": "69eb2745a0261dc0643f5f2b63733512e546fff7bdf423c8d740b9f7d7fb2462",
+      "author_kind": "human",
+      "author_id": "ubuntu",
+      "agent_meta": {
+        "source": "cli",
+        "req": "",
+        "action": "advance"
+      },
+      "rationale": "verify-moks ledger loop",
+      "status": "approved",
+      "created_at": 1787238322982,
+      "reviewed_by": "verifier",
+      "applied_at": null,
+      "audit": false
+    }
+  ],
+  "path": "/tmp/moks-verify-djaWrx"
+}

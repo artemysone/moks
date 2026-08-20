@@ -1,0 +1,11 @@
+{
+  "ats": "mock",
+  "seeded": true,
+  "upserted": {
+    "jobs": 1,
+    "candidates": 5,
+    "applications": 5
+  },
+  "syncedAt": 1787238321898,
+  "path": "/tmp/moks-verify-djaWrx"
+}

@@ -1,0 +1,20 @@
+{
+  "report": {
+    "ats": null,
+    "syncedAt": null,
+    "jobs": 0,
+    "candidates": 0,
+    "applications": 0,
+    "pipeline": {},
+    "changesets": {
+      "staged": 0,
+      "approved": 0,
+      "stale": 0,
+      "applied": 0,
+      "rejected": 0
+    }
+  },
+  "open": [],
+  "changesets": [],
+  "path": "/tmp/moks-verify-djaWrx"
+}
