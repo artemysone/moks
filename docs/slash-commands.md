@@ -89,7 +89,6 @@ Palette-only (no slash): Open docs, theme mode lock, debug overlay, console, hea
 1. **Two `/review`s.** Packet review (agent) vs changeset gate (human UI). Rename the UI one to `/approve` or `/gate`.
 2. **`/diff` vs `moks diff`.** Slash = files. CLI = ledger mutations.
 3. **`/status` vs statusline.** Slash lists changesets. Statusline already shows `2 staged · 1 approved`.
-4. **`/init` prompt is stale.** `command/template/initialize.txt` still says “Git is the audit log.”
-5. **No TUI slash for `pull`.** Cannot refresh the ATS mirror from `/` today.
+4. **No TUI slash for `pull`.** Cannot refresh the ATS mirror from `/` today.
 
 Likely next cut: rename UI `/review` → `/approve`, add `/pull`, and either rename TUI `/diff` or add `/plan` for the ledger diff so hiring verbs match the CLI.

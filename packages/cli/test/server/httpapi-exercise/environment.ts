@@ -19,11 +19,11 @@ export const exerciseDatabasePath =
   process.env.OPENCODE_HTTPAPI_EXERCISE_DB ??
   path.join(process.env.TMPDIR ?? "/tmp", `opencode-httpapi-exercise-${process.pid}.db`)
 process.env.MOKS_DB = exerciseDatabasePath
-Flag.OPENCODE_DB = exerciseDatabasePath
+Flag.MOKS_DB = exerciseDatabasePath
 
 export const original = {
-  MOKS_SERVER_PASSWORD: Flag.OPENCODE_SERVER_PASSWORD,
-  MOKS_SERVER_USERNAME: Flag.OPENCODE_SERVER_USERNAME,
+  MOKS_SERVER_PASSWORD: Flag.MOKS_SERVER_PASSWORD,
+  MOKS_SERVER_USERNAME: Flag.MOKS_SERVER_USERNAME,
 }
 
 export const cleanupExercisePaths = Effect.promise(async () => {

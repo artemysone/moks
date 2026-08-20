@@ -15,9 +15,9 @@ export async function generate() {
         {
           lang: "js",
           source: [
-            `import { createOpencodeClient } from "@moks/sdk`,
+            `import { createMoksClient } from "@moks/sdk`,
             ``,
-            `const client = createOpencodeClient()`,
+            `const client = createMoksClient()`,
             `await client.${operation.operationId}({`,
             `  ...`,
             `})`,

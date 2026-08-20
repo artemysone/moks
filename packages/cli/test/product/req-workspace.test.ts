@@ -119,7 +119,7 @@ test("git init happens when cwd is not a repo", async () => {
   const result = await ReqWorkspace.scaffold(tmp.path, "Senior Backend")
   expect(result.git).toBe("created")
   expect((await $`git rev-parse --is-inside-work-tree`.cwd(tmp.path).text()).trim()).toBe("true")
-  expect((await $`git log -1 --pretty=%s`.cwd(tmp.path).text()).trim()).toBe("moks: init")
+  expect((await $`git rev-parse --verify HEAD`.cwd(tmp.path).quiet().nothrow()).exitCode).not.toBe(0)
 })
 
 test("isReqMaterial includes HIRING.md and candidates/*.md", () => {

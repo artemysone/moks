@@ -2,9 +2,8 @@ import { LayerNode } from "@moks/core/effect/layer-node"
 import { httpClient } from "@moks/core/effect/app-node-platform"
 import type * as SDK from "@moks/sdk/v2"
 import { serviceUse } from "@moks/core/effect/service-use"
-import { Effect, Exit, Layer, Option, Schema, Scope, Context, Stream } from "effect"
+import { Effect, Exit, Layer, Schema, Scope, Context, Stream } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
-import { Account } from "@/account/account"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { InstanceState } from "@/effect/instance-state"
 import { Provider } from "@/provider/provider"
@@ -105,7 +104,6 @@ function api(resource: string): Api {
 }
 
 const legacyApi = api("share")
-const consoleApi = api("shares")
 
 function key(item: Data) {
   switch (item.type) {
@@ -125,7 +123,6 @@ function key(item: Data) {
 const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
-    const account = yield* Account.Service
     const events = yield* EventV2Bridge.Service
     const cfg = yield* Config.Service
     const { db } = yield* Database.Service
@@ -218,20 +215,8 @@ const layer = Layer.effect(
 
     const request = Effect.fn("ShareNext.request")(function* () {
       const headers: Record<string, string> = {}
-      const active = yield* account.active()
-      if (Option.isNone(active) || !active.value.active_org_id) {
-        const baseUrl = (yield* cfg.get()).enterprise?.url ?? "https://opncd.ai"
-        return { headers, api: legacyApi, baseUrl } satisfies Req
-      }
-
-      const token = yield* account.token(active.value.id)
-      if (Option.isNone(token)) {
-        throw new Error("No active account token available for sharing")
-      }
-
-      headers.authorization = `Bearer ${token.value}`
-      headers["x-org-id"] = active.value.active_org_id
-      return { headers, api: consoleApi, baseUrl: active.value.url } satisfies Req
+      const baseUrl = (yield* cfg.get()).enterprise?.url ?? "https://opncd.ai"
+      return { headers, api: legacyApi, baseUrl } satisfies Req
     })
 
     const get = Effect.fnUntraced(function* (sessionID: SessionID) {
@@ -380,7 +365,7 @@ const layer = Layer.effect(
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [Account.node, EventV2Bridge.node, Config.node, Database.node, httpClient, Provider.node, Session.node],
+  deps: [EventV2Bridge.node, Config.node, Database.node, httpClient, Provider.node, Session.node],
 })
 
 export * as ShareNext from "./share-next"

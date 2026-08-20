@@ -27,8 +27,9 @@ export function DialogHelp() {
       </box>
       <box paddingBottom={1}>
         <text fg={theme.textMuted}>
-          Press {commandShortcut()} to see all available actions and commands in any context.
+          /init a req · @ to focus · score onto the card · /review · /commit · /push
         </text>
+        <text fg={theme.textMuted}>Press {commandShortcut()} for every command.</text>
       </box>
       <box flexDirection="row" justifyContent="flex-end" paddingBottom={1}>
         <box paddingLeft={3} paddingRight={3} backgroundColor={theme.primary} onMouseUp={() => dialog.clear()}>

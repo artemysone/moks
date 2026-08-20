@@ -31,11 +31,6 @@ import type {
   EventTuiToastShow,
   ExperimentalCapabilitiesGetErrors,
   ExperimentalCapabilitiesGetResponses,
-  ExperimentalConsoleGetErrors,
-  ExperimentalConsoleGetResponses,
-  ExperimentalConsoleListOrgsErrors,
-  ExperimentalConsoleListOrgsResponses,
-  ExperimentalConsoleSwitchOrgResponses,
   ExperimentalControlPlaneMoveSessionErrors,
   ExperimentalControlPlaneMoveSessionResponses,
   ExperimentalProjectCopyGenerateNameErrors,
@@ -70,8 +65,6 @@ import type {
   FileStatusResponses,
   FindFilesErrors,
   FindFilesResponses,
-  FindSymbolsErrors,
-  FindSymbolsResponses,
   FindTextErrors,
   FindTextResponses,
   FormatterStatusErrors,
@@ -90,9 +83,6 @@ import type {
   GlobalUpgradeResponses,
   InstanceDisposeErrors,
   InstanceDisposeResponses,
-  LocationRef,
-  LspStatusErrors,
-  LspStatusResponses,
   McpAddErrors,
   McpAddResponses,
   McpAuthAuthenticateErrors,
@@ -111,7 +101,6 @@ import type {
   McpRemoteConfig,
   McpStatusErrors,
   McpStatusResponses,
-  ModelRef,
   MoveSessionDestination,
   OutputFormat,
   Part as Part2,
@@ -142,7 +131,6 @@ import type {
   ProjectListResponses,
   ProjectUpdateErrors,
   ProjectUpdateResponses,
-  PromptInput,
   ProviderAuthErrors,
   ProviderAuthResponses,
   ProviderListErrors,
@@ -333,28 +321,6 @@ import type {
   V2QuestionRequestListResponses,
   V2ReferenceListErrors,
   V2ReferenceListResponses,
-  V2SessionActiveErrors,
-  V2SessionActiveResponses,
-  V2SessionCompactErrors,
-  V2SessionCompactResponses,
-  V2SessionContextErrors,
-  V2SessionContextResponses,
-  V2SessionCreateErrors,
-  V2SessionCreateResponses,
-  V2SessionEventsErrors,
-  V2SessionEventsResponses,
-  V2SessionGetErrors,
-  V2SessionGetResponses,
-  V2SessionHistoryErrors,
-  V2SessionHistoryResponses,
-  V2SessionInterruptErrors,
-  V2SessionInterruptResponses,
-  V2SessionListErrors,
-  V2SessionListResponses,
-  V2SessionMessageErrors,
-  V2SessionMessageResponses,
-  V2SessionMessagesErrors,
-  V2SessionMessagesResponses,
   V2SessionPermissionCreateErrors,
   V2SessionPermissionCreateResponses,
   V2SessionPermissionGetErrors,
@@ -363,26 +329,12 @@ import type {
   V2SessionPermissionListResponses,
   V2SessionPermissionReplyErrors,
   V2SessionPermissionReplyResponses,
-  V2SessionPromptErrors,
-  V2SessionPromptResponses,
   V2SessionQuestionListErrors,
   V2SessionQuestionListResponses,
   V2SessionQuestionRejectErrors,
   V2SessionQuestionRejectResponses,
   V2SessionQuestionReplyErrors,
   V2SessionQuestionReplyResponses,
-  V2SessionRevertClearErrors,
-  V2SessionRevertClearResponses,
-  V2SessionRevertCommitErrors,
-  V2SessionRevertCommitResponses,
-  V2SessionRevertStageErrors,
-  V2SessionRevertStageResponses,
-  V2SessionSwitchAgentErrors,
-  V2SessionSwitchAgentResponses,
-  V2SessionSwitchModelErrors,
-  V2SessionSwitchModelResponses,
-  V2SessionWaitErrors,
-  V2SessionWaitResponses,
   V2SkillListErrors,
   V2SkillListResponses,
   VcsApplyErrors,
@@ -395,17 +347,6 @@ import type {
   VcsGetResponses,
   VcsStatusErrors,
   VcsStatusResponses,
-  WorktreeCreateErrors,
-  WorktreeCreateInput,
-  WorktreeCreateResponses,
-  WorktreeListErrors,
-  WorktreeListResponses,
-  WorktreeRemoveErrors,
-  WorktreeRemoveInput,
-  WorktreeRemoveResponses,
-  WorktreeResetErrors,
-  WorktreeResetInput,
-  WorktreeResetResponses,
 } from "./types.gen.js"
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<
@@ -441,7 +382,7 @@ class HeyApiRegistry<T> {
   get(key?: string): T {
     const instance = this.instances.get(key ?? this.defaultKey)
     if (!instance) {
-      throw new Error(`No SDK client found. Create one with "new OpencodeClient()" to fix this error.`)
+      throw new Error(`No SDK client found. Create one with "new MoksClient()" to fix this error.`)
     }
     return instance
   }
@@ -556,7 +497,7 @@ export class App extends HeyApiClient {
   /**
    * List agents
    *
-   * Get a list of all available AI agents in the OpenCode system.
+   * Get a list of all available AI agents in the moks system.
    */
   public agents<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -586,7 +527,7 @@ export class App extends HeyApiClient {
   /**
    * List skills
    *
-   * Get a list of all available skills in the OpenCode system.
+   * Get a list of all available skills in the moks system.
    */
   public skills<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -661,7 +602,7 @@ export class Capabilities extends HeyApiClient {
   /**
    * Get experimental capabilities
    *
-   * Get experimental features enabled on the OpenCode server.
+   * Get experimental features enabled on the moks server.
    */
   public get<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -693,120 +634,11 @@ export class Capabilities extends HeyApiClient {
   }
 }
 
-export class Console extends HeyApiClient {
-  /**
-   * Get active Console provider metadata
-   *
-   * Get the active Console org name and the set of provider IDs managed by that Console org.
-   */
-  public get<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      workspace?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<
-      ExperimentalConsoleGetResponses,
-      ExperimentalConsoleGetErrors,
-      ThrowOnError
-    >({
-      url: "/experimental/console",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * List switchable Console orgs
-   *
-   * Get the available Console orgs across logged-in accounts, including the current active org.
-   */
-  public listOrgs<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      workspace?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<
-      ExperimentalConsoleListOrgsResponses,
-      ExperimentalConsoleListOrgsErrors,
-      ThrowOnError
-    >({
-      url: "/experimental/console/orgs",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Switch active Console org
-   *
-   * Persist a new active Console account/org selection for the current local OpenCode state.
-   */
-  public switchOrg<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      workspace?: string
-      accountID?: string
-      orgID?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-            { in: "body", key: "accountID" },
-            { in: "body", key: "orgID" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<ExperimentalConsoleSwitchOrgResponses, unknown, ThrowOnError>({
-      url: "/experimental/console/switch",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-}
-
 export class Session extends HeyApiClient {
   /**
    * List sessions
    *
-   * Get a list of all OpenCode sessions across projects, sorted by most recently updated. Archived sessions are excluded by default.
+   * Get a list of all moks sessions across projects, sorted by most recently updated. Archived sessions are excluded by default.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -1251,11 +1083,6 @@ export class Experimental extends HeyApiClient {
     return (this._capabilities ??= new Capabilities({ client: this.client }))
   }
 
-  private _console?: Console
-  get console(): Console {
-    return (this._console ??= new Console({ client: this.client }))
-  }
-
   private _session?: Session
   get session(): Session {
     return (this._session ??= new Session({ client: this.client }))
@@ -1281,7 +1108,7 @@ export class Config extends HeyApiClient {
   /**
    * Get global configuration
    *
-   * Retrieve the current global OpenCode configuration settings and preferences.
+   * Retrieve the current global moks configuration settings and preferences.
    */
   public get<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).get<GlobalConfigGetResponses, GlobalConfigGetErrors, ThrowOnError>({
@@ -1293,7 +1120,7 @@ export class Config extends HeyApiClient {
   /**
    * Update global configuration
    *
-   * Update global OpenCode configuration settings and preferences.
+   * Update global moks configuration settings and preferences.
    */
   public update<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -1319,7 +1146,7 @@ export class Global extends HeyApiClient {
   /**
    * Get health
    *
-   * Get health information about the OpenCode server.
+   * Get health information about the moks server.
    */
   public health<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).get<GlobalHealthResponses, GlobalHealthErrors, ThrowOnError>({
@@ -1331,7 +1158,7 @@ export class Global extends HeyApiClient {
   /**
    * Get global events
    *
-   * Subscribe to global events from the OpenCode system using server-sent events.
+   * Subscribe to global events from the moks system using server-sent events.
    */
   public event<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).sse.get<GlobalEventResponses, GlobalEventErrors, ThrowOnError>({
@@ -1343,7 +1170,7 @@ export class Global extends HeyApiClient {
   /**
    * Dispose instance
    *
-   * Clean up and dispose all OpenCode instances, releasing all resources.
+   * Clean up and dispose all moks instances, releasing all resources.
    */
   public dispose<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).post<GlobalDisposeResponses, GlobalDisposeErrors, ThrowOnError>({
@@ -1353,9 +1180,9 @@ export class Global extends HeyApiClient {
   }
 
   /**
-   * Upgrade opencode
+   * Upgrade moks
    *
-   * Upgrade opencode to the specified version or latest if not specified.
+   * Upgrade moks to the specified version or latest if not specified.
    */
   public upgrade<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -1418,7 +1245,7 @@ export class Config2 extends HeyApiClient {
   /**
    * Get configuration
    *
-   * Retrieve the current OpenCode configuration settings and preferences.
+   * Retrieve the current moks configuration settings and preferences.
    */
   public get<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -1448,7 +1275,7 @@ export class Config2 extends HeyApiClient {
   /**
    * Update configuration
    *
-   * Update OpenCode configuration settings and preferences.
+   * Update moks configuration settings and preferences.
    */
   public update<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -1579,149 +1406,6 @@ export class Tool extends HeyApiClient {
   }
 }
 
-export class Worktree extends HeyApiClient {
-  /**
-   * Remove worktree
-   *
-   * Remove a git worktree and delete its branch.
-   */
-  public remove<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      workspace?: string
-      worktreeRemoveInput?: WorktreeRemoveInput
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-            { key: "worktreeRemoveInput", map: "body" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).delete<WorktreeRemoveResponses, WorktreeRemoveErrors, ThrowOnError>({
-      url: "/experimental/worktree",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-
-  /**
-   * List worktrees
-   *
-   * List all sandbox worktrees for the current project.
-   */
-  public list<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      workspace?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<WorktreeListResponses, WorktreeListErrors, ThrowOnError>({
-      url: "/experimental/worktree",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Create worktree
-   *
-   * Create a new git worktree for the current project and run any configured startup scripts.
-   */
-  public create<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      workspace?: string
-      worktreeCreateInput?: WorktreeCreateInput
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-            { key: "worktreeCreateInput", map: "body" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<WorktreeCreateResponses, WorktreeCreateErrors, ThrowOnError>({
-      url: "/experimental/worktree",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-
-  /**
-   * Reset worktree
-   *
-   * Reset a worktree branch to the primary default branch.
-   */
-  public reset<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      workspace?: string
-      worktreeResetInput?: WorktreeResetInput
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-            { key: "worktreeResetInput", map: "body" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<WorktreeResetResponses, WorktreeResetErrors, ThrowOnError>({
-      url: "/experimental/worktree/reset",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-}
-
 export class Find extends HeyApiClient {
   /**
    * Find text
@@ -1788,38 +1472,6 @@ export class Find extends HeyApiClient {
     )
     return (options?.client ?? this.client).get<FindFilesResponses, FindFilesErrors, ThrowOnError>({
       url: "/find/file",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Find symbols
-   *
-   * Search for workspace symbols like functions, classes, and variables using LSP.
-   */
-  public symbols<ThrowOnError extends boolean = false>(
-    parameters: {
-      directory?: string
-      workspace?: string
-      query: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-            { in: "query", key: "query" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<FindSymbolsResponses, FindSymbolsErrors, ThrowOnError>({
-      url: "/find/symbol",
       ...options,
       ...params,
     })
@@ -1926,7 +1578,7 @@ export class Instance extends HeyApiClient {
   /**
    * Dispose instance
    *
-   * Clean up and dispose the current OpenCode instance, releasing all resources.
+   * Clean up and dispose the current moks instance, releasing all resources.
    */
   public dispose<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -1958,7 +1610,7 @@ export class Path extends HeyApiClient {
   /**
    * Get paths
    *
-   * Retrieve the current working directory and related path information for the OpenCode instance.
+   * Retrieve the current working directory and related path information for the moks instance.
    */
   public get<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -2160,7 +1812,7 @@ export class Command extends HeyApiClient {
   /**
    * List commands
    *
-   * Get a list of all available commands in the OpenCode system.
+   * Get a list of all available commands in the moks system.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -2182,38 +1834,6 @@ export class Command extends HeyApiClient {
     )
     return (options?.client ?? this.client).get<CommandListResponses, CommandListErrors, ThrowOnError>({
       url: "/command",
-      ...options,
-      ...params,
-    })
-  }
-}
-
-export class Lsp extends HeyApiClient {
-  /**
-   * Get LSP status
-   *
-   * Get LSP server status
-   */
-  public status<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      workspace?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<LspStatusResponses, LspStatusErrors, ThrowOnError>({
-      url: "/lsp",
       ...options,
       ...params,
     })
@@ -2531,7 +2151,7 @@ export class Project extends HeyApiClient {
   /**
    * List all projects
    *
-   * Get a list of projects that have been opened with OpenCode.
+   * Get a list of projects that have been opened with moks.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -2561,7 +2181,7 @@ export class Project extends HeyApiClient {
   /**
    * Get current project
    *
-   * Retrieve the currently active project that OpenCode is working with.
+   * Retrieve the currently active project that moks is working with.
    */
   public current<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -2728,7 +2348,7 @@ export class Pty extends HeyApiClient {
   /**
    * List PTY sessions
    *
-   * Get a list of all active pseudo-terminal (PTY) sessions managed by OpenCode.
+   * Get a list of all active pseudo-terminal (PTY) sessions managed by moks.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -3363,7 +2983,7 @@ export class Session2 extends HeyApiClient {
   /**
    * List sessions
    *
-   * Get a list of all OpenCode sessions, sorted by most recently updated.
+   * Get a list of all moks sessions, sorted by most recently updated.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -3405,7 +3025,7 @@ export class Session2 extends HeyApiClient {
   /**
    * Create session
    *
-   * Create a new OpenCode session for interacting with AI assistants and managing conversations.
+   * Create a new moks session for interacting with AI assistants and managing conversations.
    */
   public create<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -3522,7 +3142,7 @@ export class Session2 extends HeyApiClient {
   /**
    * Get session
    *
-   * Retrieve detailed information about a specific OpenCode session.
+   * Retrieve detailed information about a specific moks session.
    */
   public get<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3940,7 +3560,7 @@ export class Session2 extends HeyApiClient {
   /**
    * Initialize session
    *
-   * Analyze the current application and create an AGENTS.md file with project-specific agent configurations.
+   * Scaffold a company or a req directory (HIRING.md + candidates/).
    */
   public init<ThrowOnError extends boolean = false>(
     parameters: {
@@ -5083,796 +4703,6 @@ export class Agent extends HeyApiClient {
   }
 }
 
-export class Revert extends HeyApiClient {
-  /**
-   * Stage session revert
-   *
-   * Stage or move a reversible session boundary and optionally apply its file changes.
-   */
-  public stage<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-      messageID?: string
-      files?: boolean
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "sessionID" },
-            { in: "body", key: "messageID" },
-            { in: "body", key: "files" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<
-      V2SessionRevertStageResponses,
-      V2SessionRevertStageErrors,
-      ThrowOnError
-    >({
-      url: "/api/session/{sessionID}/revert/stage",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-
-  /**
-   * Clear staged revert
-   */
-  public clear<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
-    return (options?.client ?? this.client).post<
-      V2SessionRevertClearResponses,
-      V2SessionRevertClearErrors,
-      ThrowOnError
-    >({
-      url: "/api/session/{sessionID}/revert/clear",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Commit staged revert
-   */
-  public commit<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
-    return (options?.client ?? this.client).post<
-      V2SessionRevertCommitResponses,
-      V2SessionRevertCommitErrors,
-      ThrowOnError
-    >({
-      url: "/api/session/{sessionID}/revert/commit",
-      ...options,
-      ...params,
-    })
-  }
-}
-
-export class Permission2 extends HeyApiClient {
-  /**
-   * List session permission requests
-   *
-   * Retrieve pending permission requests owned by a session.
-   */
-  public list<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
-    return (options?.client ?? this.client).get<
-      V2SessionPermissionListResponses,
-      V2SessionPermissionListErrors,
-      ThrowOnError
-    >({
-      url: "/api/session/{sessionID}/permission",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Create permission request
-   *
-   * Evaluate and, when approval is required, create a permission request for a session.
-   */
-  public create<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-      id?: string
-      action?: string
-      resources?: Array<string>
-      save?: Array<string>
-      metadata?: {
-        [key: string]: unknown
-      }
-      source?: PermissionV2Source
-      agent?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "sessionID" },
-            { in: "body", key: "id" },
-            { in: "body", key: "action" },
-            { in: "body", key: "resources" },
-            { in: "body", key: "save" },
-            { in: "body", key: "metadata" },
-            { in: "body", key: "source" },
-            { in: "body", key: "agent" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<
-      V2SessionPermissionCreateResponses,
-      V2SessionPermissionCreateErrors,
-      ThrowOnError
-    >({
-      url: "/api/session/{sessionID}/permission",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-
-  /**
-   * Get permission request
-   *
-   * Retrieve a pending permission request owned by a session.
-   */
-  public get<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-      requestID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "sessionID" },
-            { in: "path", key: "requestID" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<
-      V2SessionPermissionGetResponses,
-      V2SessionPermissionGetErrors,
-      ThrowOnError
-    >({
-      url: "/api/session/{sessionID}/permission/{requestID}",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Reply to pending permission request
-   *
-   * Respond to a pending permission request owned by a session.
-   */
-  public reply<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-      requestID: string
-      reply?: PermissionV2Reply
-      message?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "sessionID" },
-            { in: "path", key: "requestID" },
-            { in: "body", key: "reply" },
-            { in: "body", key: "message" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<
-      V2SessionPermissionReplyResponses,
-      V2SessionPermissionReplyErrors,
-      ThrowOnError
-    >({
-      url: "/api/session/{sessionID}/permission/{requestID}/reply",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-}
-
-export class Question2 extends HeyApiClient {
-  /**
-   * List session question requests
-   *
-   * Retrieve pending question requests owned by a session.
-   */
-  public list<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
-    return (options?.client ?? this.client).get<
-      V2SessionQuestionListResponses,
-      V2SessionQuestionListErrors,
-      ThrowOnError
-    >({
-      url: "/api/session/{sessionID}/question",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Reply to pending question request
-   *
-   * Answer a pending question request owned by a session.
-   */
-  public reply<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-      requestID: string
-      questionV2Reply: QuestionV2Reply
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "sessionID" },
-            { in: "path", key: "requestID" },
-            { key: "questionV2Reply", map: "body" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<
-      V2SessionQuestionReplyResponses,
-      V2SessionQuestionReplyErrors,
-      ThrowOnError
-    >({
-      url: "/api/session/{sessionID}/question/{requestID}/reply",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-
-  /**
-   * Reject pending question request
-   *
-   * Reject a pending question request owned by a session.
-   */
-  public reject<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-      requestID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "sessionID" },
-            { in: "path", key: "requestID" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<
-      V2SessionQuestionRejectResponses,
-      V2SessionQuestionRejectErrors,
-      ThrowOnError
-    >({
-      url: "/api/session/{sessionID}/question/{requestID}/reject",
-      ...options,
-      ...params,
-    })
-  }
-}
-
-export class Session3 extends HeyApiClient {
-  /**
-   * List sessions
-   *
-   * Retrieve sessions in the requested order. Items keep that order across pages; use cursor.next or cursor.previous to move through the ordered list.
-   */
-  public list<ThrowOnError extends boolean = false>(
-    parameters?: {
-      workspace?: string
-      limit?: number
-      order?: "asc" | "desc"
-      search?: string
-      directory?: string
-      project?: string
-      subpath?: string
-      cursor?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "workspace" },
-            { in: "query", key: "limit" },
-            { in: "query", key: "order" },
-            { in: "query", key: "search" },
-            { in: "query", key: "directory" },
-            { in: "query", key: "project" },
-            { in: "query", key: "subpath" },
-            { in: "query", key: "cursor" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<V2SessionListResponses, V2SessionListErrors, ThrowOnError>({
-      url: "/api/session",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Create session
-   *
-   * Create a session at the requested location.
-   */
-  public create<ThrowOnError extends boolean = false>(
-    parameters?: {
-      id?: string
-      agent?: string
-      model?: ModelRef
-      location?: LocationRef
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "body", key: "id" },
-            { in: "body", key: "agent" },
-            { in: "body", key: "model" },
-            { in: "body", key: "location" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<V2SessionCreateResponses, V2SessionCreateErrors, ThrowOnError>({
-      url: "/api/session",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-
-  /**
-   * List active sessions
-   *
-   * Retrieve foreground Session drains currently owned by this OpenCode process. Sessions absent from the result are inactive.
-   */
-  public active<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
-    return (options?.client ?? this.client).get<V2SessionActiveResponses, V2SessionActiveErrors, ThrowOnError>({
-      url: "/api/session/active",
-      ...options,
-    })
-  }
-
-  /**
-   * Get session
-   *
-   * Retrieve a session by ID.
-   */
-  public get<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
-    return (options?.client ?? this.client).get<V2SessionGetResponses, V2SessionGetErrors, ThrowOnError>({
-      url: "/api/session/{sessionID}",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Switch session agent
-   *
-   * Switch the agent used by subsequent provider turns.
-   */
-  public switchAgent<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-      agent?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "sessionID" },
-            { in: "body", key: "agent" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<
-      V2SessionSwitchAgentResponses,
-      V2SessionSwitchAgentErrors,
-      ThrowOnError
-    >({
-      url: "/api/session/{sessionID}/agent",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-
-  /**
-   * Switch session model
-   *
-   * Switch the model used by subsequent provider turns.
-   */
-  public switchModel<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-      model?: ModelRef
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "sessionID" },
-            { in: "body", key: "model" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<
-      V2SessionSwitchModelResponses,
-      V2SessionSwitchModelErrors,
-      ThrowOnError
-    >({
-      url: "/api/session/{sessionID}/model",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-
-  /**
-   * Send message
-   *
-   * Durably admit one session input and schedule agent-loop execution unless resume is false.
-   */
-  public prompt<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-      id?: string
-      prompt?: PromptInput
-      delivery?: "steer" | "queue"
-      resume?: boolean
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "sessionID" },
-            { in: "body", key: "id" },
-            { in: "body", key: "prompt" },
-            { in: "body", key: "delivery" },
-            { in: "body", key: "resume" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<V2SessionPromptResponses, V2SessionPromptErrors, ThrowOnError>({
-      url: "/api/session/{sessionID}/prompt",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-
-  /**
-   * Compact session
-   *
-   * Compact a session conversation.
-   */
-  public compact<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
-    return (options?.client ?? this.client).post<V2SessionCompactResponses, V2SessionCompactErrors, ThrowOnError>({
-      url: "/api/session/{sessionID}/compact",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Wait for session
-   *
-   * Wait for a session agent loop to become idle.
-   */
-  public wait<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
-    return (options?.client ?? this.client).post<V2SessionWaitResponses, V2SessionWaitErrors, ThrowOnError>({
-      url: "/api/session/{sessionID}/wait",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Get session context
-   *
-   * Retrieve the active context messages for a session (all messages after the last compaction).
-   */
-  public context<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
-    return (options?.client ?? this.client).get<V2SessionContextResponses, V2SessionContextErrors, ThrowOnError>({
-      url: "/api/session/{sessionID}/context",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Get session history
-   *
-   * Read one finite page of public durable Session events after an exclusive aggregate sequence. Newly committed events may appear on later pages.
-   */
-  public history<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-      limit?: number
-      after?: number
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "sessionID" },
-            { in: "query", key: "limit" },
-            { in: "query", key: "after" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<V2SessionHistoryResponses, V2SessionHistoryErrors, ThrowOnError>({
-      url: "/api/session/{sessionID}/history",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Subscribe to session events
-   *
-   * Replay durable events after an aggregate sequence, then continue with new durable events.
-   */
-  public events<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-      after?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "sessionID" },
-            { in: "query", key: "after" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).sse.get<V2SessionEventsResponses, V2SessionEventsErrors, ThrowOnError>({
-      url: "/api/session/{sessionID}/event",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Interrupt session execution
-   *
-   * Interrupt active execution owned by this OpenCode process. Idle interruption is a no-op.
-   */
-  public interrupt<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
-    return (options?.client ?? this.client).post<V2SessionInterruptResponses, V2SessionInterruptErrors, ThrowOnError>({
-      url: "/api/session/{sessionID}/interrupt",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Get session message
-   *
-   * Retrieve one projected message owned by the Session.
-   */
-  public message<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-      messageID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "sessionID" },
-            { in: "path", key: "messageID" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<V2SessionMessageResponses, V2SessionMessageErrors, ThrowOnError>({
-      url: "/api/session/{sessionID}/message/{messageID}",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Get session messages
-   *
-   * Retrieve projected messages for a session. Items keep the requested order across pages; use cursor.next or cursor.previous to move through the ordered timeline.
-   */
-  public messages<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-      limit?: number
-      order?: "asc" | "desc"
-      cursor?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "sessionID" },
-            { in: "query", key: "limit" },
-            { in: "query", key: "order" },
-            { in: "query", key: "cursor" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<V2SessionMessagesResponses, V2SessionMessagesErrors, ThrowOnError>({
-      url: "/api/session/{sessionID}/message",
-      ...options,
-      ...params,
-    })
-  }
-
-  private _revert?: Revert
-  get revert(): Revert {
-    return (this._revert ??= new Revert({ client: this.client }))
-  }
-
-  private _permission?: Permission2
-  get permission(): Permission2 {
-    return (this._permission ??= new Permission2({ client: this.client }))
-  }
-
-  private _question?: Question2
-  get question(): Question2 {
-    return (this._question ??= new Question2({ client: this.client }))
-  }
-}
-
 export class Model extends HeyApiClient {
   /**
    * List models
@@ -6392,7 +5222,7 @@ export class Saved extends HeyApiClient {
   }
 }
 
-export class Permission3 extends HeyApiClient {
+export class Permission2 extends HeyApiClient {
   private _request?: Request
   get request(): Request {
     return (this._request ??= new Request({ client: this.client }))
@@ -6401,6 +5231,273 @@ export class Permission3 extends HeyApiClient {
   private _saved?: Saved
   get saved(): Saved {
     return (this._saved ??= new Saved({ client: this.client }))
+  }
+}
+
+export class Permission3 extends HeyApiClient {
+  /**
+   * List session permission requests
+   *
+   * Retrieve pending permission requests owned by a session.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
+    return (options?.client ?? this.client).get<
+      V2SessionPermissionListResponses,
+      V2SessionPermissionListErrors,
+      ThrowOnError
+    >({
+      url: "/api/session/{sessionID}/permission",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Create permission request
+   *
+   * Evaluate and, when approval is required, create a permission request for a session.
+   */
+  public create<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      id?: string
+      action?: string
+      resources?: Array<string>
+      save?: Array<string>
+      metadata?: {
+        [key: string]: unknown
+      }
+      source?: PermissionV2Source
+      agent?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "body", key: "id" },
+            { in: "body", key: "action" },
+            { in: "body", key: "resources" },
+            { in: "body", key: "save" },
+            { in: "body", key: "metadata" },
+            { in: "body", key: "source" },
+            { in: "body", key: "agent" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2SessionPermissionCreateResponses,
+      V2SessionPermissionCreateErrors,
+      ThrowOnError
+    >({
+      url: "/api/session/{sessionID}/permission",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Get permission request
+   *
+   * Retrieve a pending permission request owned by a session.
+   */
+  public get<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      requestID: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "path", key: "requestID" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      V2SessionPermissionGetResponses,
+      V2SessionPermissionGetErrors,
+      ThrowOnError
+    >({
+      url: "/api/session/{sessionID}/permission/{requestID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Reply to pending permission request
+   *
+   * Respond to a pending permission request owned by a session.
+   */
+  public reply<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      requestID: string
+      reply?: PermissionV2Reply
+      message?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "path", key: "requestID" },
+            { in: "body", key: "reply" },
+            { in: "body", key: "message" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2SessionPermissionReplyResponses,
+      V2SessionPermissionReplyErrors,
+      ThrowOnError
+    >({
+      url: "/api/session/{sessionID}/permission/{requestID}/reply",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
+export class Question2 extends HeyApiClient {
+  /**
+   * List session question requests
+   *
+   * Retrieve pending question requests owned by a session.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
+    return (options?.client ?? this.client).get<
+      V2SessionQuestionListResponses,
+      V2SessionQuestionListErrors,
+      ThrowOnError
+    >({
+      url: "/api/session/{sessionID}/question",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Reply to pending question request
+   *
+   * Answer a pending question request owned by a session.
+   */
+  public reply<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      requestID: string
+      questionV2Reply: QuestionV2Reply
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "path", key: "requestID" },
+            { key: "questionV2Reply", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2SessionQuestionReplyResponses,
+      V2SessionQuestionReplyErrors,
+      ThrowOnError
+    >({
+      url: "/api/session/{sessionID}/question/{requestID}/reply",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Reject pending question request
+   *
+   * Reject a pending question request owned by a session.
+   */
+  public reject<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      requestID: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "path", key: "requestID" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2SessionQuestionRejectResponses,
+      V2SessionQuestionRejectErrors,
+      ThrowOnError
+    >({
+      url: "/api/session/{sessionID}/question/{requestID}/reject",
+      ...options,
+      ...params,
+    })
+  }
+}
+
+export class Session3 extends HeyApiClient {
+  private _permission?: Permission3
+  get permission(): Permission3 {
+    return (this._permission ??= new Permission3({ client: this.client }))
+  }
+
+  private _question?: Question2
+  get question(): Question2 {
+    return (this._question ??= new Question2({ client: this.client }))
   }
 }
 
@@ -7003,11 +6100,6 @@ export class V2 extends HeyApiClient {
     return (this._agent ??= new Agent({ client: this.client }))
   }
 
-  private _session?: Session3
-  get session(): Session3 {
-    return (this._session ??= new Session3({ client: this.client }))
-  }
-
   private _model?: Model
   get model(): Model {
     return (this._model ??= new Model({ client: this.client }))
@@ -7028,9 +6120,14 @@ export class V2 extends HeyApiClient {
     return (this._credential ??= new Credential({ client: this.client }))
   }
 
-  private _permission?: Permission3
-  get permission(): Permission3 {
-    return (this._permission ??= new Permission3({ client: this.client }))
+  private _permission?: Permission2
+  get permission(): Permission2 {
+    return (this._permission ??= new Permission2({ client: this.client }))
+  }
+
+  private _session?: Session3
+  get session(): Session3 {
+    return (this._session ??= new Session3({ client: this.client }))
   }
 
   private _fs?: Fs
@@ -7074,12 +6171,12 @@ export class V2 extends HeyApiClient {
   }
 }
 
-export class OpencodeClient extends HeyApiClient {
-  public static readonly __registry = new HeyApiRegistry<OpencodeClient>()
+export class MoksClient extends HeyApiClient {
+  public static readonly __registry = new HeyApiRegistry<MoksClient>()
 
   constructor(args?: { client?: Client; key?: string }) {
     super(args)
-    OpencodeClient.__registry.set(this, args?.key)
+    MoksClient.__registry.set(this, args?.key)
   }
 
   private _auth?: Auth
@@ -7117,11 +6214,6 @@ export class OpencodeClient extends HeyApiClient {
     return (this._tool ??= new Tool({ client: this.client }))
   }
 
-  private _worktree?: Worktree
-  get worktree(): Worktree {
-    return (this._worktree ??= new Worktree({ client: this.client }))
-  }
-
   private _find?: Find
   get find(): Find {
     return (this._find ??= new Find({ client: this.client }))
@@ -7150,11 +6242,6 @@ export class OpencodeClient extends HeyApiClient {
   private _command?: Command
   get command(): Command {
     return (this._command ??= new Command({ client: this.client }))
-  }
-
-  private _lsp?: Lsp
-  get lsp(): Lsp {
-    return (this._lsp ??= new Lsp({ client: this.client }))
   }
 
   private _formatter?: Formatter

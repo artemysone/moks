@@ -17,7 +17,6 @@ export class Service extends ConfigService.Service<Service>()("@moks/RuntimeFlag
   autoShare: bool("MOKS_AUTO_SHARE"),
   pure: bool("MOKS_PURE"),
   disableDefaultPlugins: bool("MOKS_DISABLE_DEFAULT_PLUGINS"),
-  disableEmbeddedWebUi: bool("MOKS_DISABLE_EMBEDDED_WEB_UI"),
   disableExternalSkills: bool("MOKS_DISABLE_EXTERNAL_SKILLS"),
   disableClaudeCodePrompt: Config.all({
     broad: bool("MOKS_DISABLE_CLAUDE_CODE"),

@@ -16,9 +16,9 @@ The Promise root remains structural and has no Core or Effect runtime dependency
 Effect consumers construct canonical decoded inputs:
 
 ```ts
-import { AbsolutePath, Location, OpenCode, Prompt } from "@moks/client/effect"
+import { AbsolutePath, Location, Moks, Prompt } from "@moks/client/effect"
 
-const client = yield * OpenCode.make({ baseUrl: "https://moks.example" })
+const client = yield * Moks.make({ baseUrl: "https://moks.example" })
 yield *
   client.sessions.create({
     location: Location.Ref.make({ directory: AbsolutePath.make("/workspace") }),

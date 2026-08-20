@@ -1,4 +1,4 @@
-import { createOpencodeClient } from "@moks/sdk/v2"
+import { createMoksClient } from "@moks/sdk/v2"
 import { RGBA, type CliRenderer } from "@opentui/core"
 import type { HostPluginApi } from "@moks/tui/plugin/slots"
 import { createTuiResolvedConfig } from "./tui-runtime"
@@ -126,7 +126,7 @@ export function createTuiPluginApi(opts: Opts = {}): HostPluginApi {
   const kv: Record<string, unknown> = {}
   const count = opts.count
   const ctrl = new AbortController()
-  const own = createOpencodeClient({
+  const own = createMoksClient({
     baseUrl: "http://localhost:4096",
   })
   const fallback = () => own

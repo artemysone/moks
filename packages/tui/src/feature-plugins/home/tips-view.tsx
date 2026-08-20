@@ -183,7 +183,7 @@ const TIPS: Tip[] = [
   "Run {highlight}/connect{/highlight} to add API keys for LLM providers",
   (shortcuts) => press(shortcuts.sessionSidebarToggle(), "in a session to show or hide the sidebar panel"),
   (shortcuts) => press(shortcuts.commandList(), "to see all available actions and commands"),
-  (shortcuts) => `Use ${commandText("/system", shortcuts.statusView())} to see MCP and formatters`,
+  (shortcuts) => `Use ${commandText("/system", shortcuts.statusView())} to see MCP servers`,
   (shortcuts) => `Use ${commandText("/help", shortcuts.helpShow())} to show the help dialog`,
 ]
 

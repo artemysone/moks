@@ -34,10 +34,10 @@ export function authorized(credentials: DecodedCredentials, config: Info) {
 }
 
 export function header(credentials?: Credentials) {
-  const password = credentials?.password ?? Flag.OPENCODE_SERVER_PASSWORD
+  const password = credentials?.password ?? Flag.MOKS_SERVER_PASSWORD
   if (!password) return undefined
 
-  const username = credentials?.username ?? Flag.OPENCODE_SERVER_USERNAME ?? "moks"
+  const username = credentials?.username ?? Flag.MOKS_SERVER_USERNAME ?? "moks"
   return `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`
 }
 

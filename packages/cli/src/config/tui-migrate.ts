@@ -161,7 +161,7 @@ async function projectConfigFiles(input: { directories: string[]; cwd: string })
   for (const dir of unique(input.directories)) {
     files.push(...ConfigPaths.configFilesInDirectory(dir))
   }
-  if (Flag.OPENCODE_CONFIG) files.push(Flag.OPENCODE_CONFIG)
+  if (Flag.MOKS_CONFIG) files.push(Flag.MOKS_CONFIG)
 
   const existing = await Promise.all(
     unique(files).map(async (file) => {

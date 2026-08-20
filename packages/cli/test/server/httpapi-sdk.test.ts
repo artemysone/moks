@@ -10,7 +10,7 @@ import { LayerNode } from "@moks/core/effect/layer-node"
 import { FSUtil } from "@moks/core/fs-util"
 import { CrossSpawnSpawner } from "@moks/core/cross-spawn-spawner"
 import { Flag } from "@moks/core/flag/flag"
-import { createOpencodeClient } from "@moks/sdk/v2"
+import { createMoksClient } from "@moks/sdk/v2"
 import { validateSession } from "../../src/cli/tui/validate-session"
 import { InstanceBootstrap } from "../../src/project/bootstrap"
 import { InstanceStore } from "../../src/project/instance-store"
@@ -39,12 +39,12 @@ const appLayer = AppNodeBuilder.build(
 const it = testEffect(Layer.mergeAll(appLayer, httpApiLayer))
 
 const original = {
-  MOKS_SERVER_PASSWORD: Flag.OPENCODE_SERVER_PASSWORD,
-  MOKS_SERVER_USERNAME: Flag.OPENCODE_SERVER_USERNAME,
+  MOKS_SERVER_PASSWORD: Flag.MOKS_SERVER_PASSWORD,
+  MOKS_SERVER_USERNAME: Flag.MOKS_SERVER_USERNAME,
 }
 
 type ServerPath = "default" | "raw"
-type Sdk = ReturnType<typeof createOpencodeClient>
+type Sdk = ReturnType<typeof createMoksClient>
 type SdkResult = { response: Response; data?: unknown; error?: unknown }
 type Captured = { status: number; data?: unknown; error?: unknown }
 type ProjectFixture = { sdk: Sdk; directory: string }
@@ -70,7 +70,7 @@ function client(
 ) {
   return serverFetch(serverPath, input).pipe(
     Effect.map((fetch) =>
-      createOpencodeClient({
+      createMoksClient({
         baseUrl: "http://localhost",
         directory,
         experimental_workspaceID: input?.workspaceID,
@@ -88,8 +88,8 @@ function serverFetch(
   return HttpServer.HttpServer.use((server) =>
     Effect.sync(() => {
       void serverPath
-      Flag.OPENCODE_SERVER_PASSWORD = input?.password
-      Flag.OPENCODE_SERVER_USERNAME = input?.username
+      Flag.MOKS_SERVER_PASSWORD = input?.password
+      Flag.MOKS_SERVER_USERNAME = input?.username
       const baseUrl = HttpServer.formatAddress(server.address)
       return Object.assign(
         async (request: RequestInfo | URL, init?: RequestInit) => {
@@ -328,8 +328,8 @@ function seedMessage(directory: string, sessionID: string) {
 }
 
 afterEach(async () => {
-  Flag.OPENCODE_SERVER_PASSWORD = original.MOKS_SERVER_PASSWORD
-  Flag.OPENCODE_SERVER_USERNAME = original.MOKS_SERVER_USERNAME
+  Flag.MOKS_SERVER_PASSWORD = original.MOKS_SERVER_PASSWORD
+  Flag.MOKS_SERVER_USERNAME = original.MOKS_SERVER_USERNAME
   await disposeAllInstances()
   await resetDatabase()
 })
@@ -402,8 +402,8 @@ describe("HttpApi SDK", () => {
         expect(url.searchParams.get("workspace")).toBe(workspaceID)
         expect(url.searchParams.get("location[directory]")).toBe(directory)
         expect(url.searchParams.get("location[workspace]")).toBe(workspaceID)
-        expect(request!.headers.has("x-opencode-directory")).toBe(false)
-        expect(request!.headers.has("x-opencode-workspace")).toBe(false)
+        expect(request!.headers.has("x-moks-directory")).toBe(false)
+        expect(request!.headers.has("x-moks-workspace")).toBe(false)
       }),
     ),
   )

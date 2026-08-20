@@ -65,7 +65,7 @@ export const directories = Effect.fn("ConfigPaths.directories")(function* (direc
   const afs = yield* FSUtil.Service
   return unique([
     Global.Path.config,
-    ...(!Flag.OPENCODE_DISABLE_PROJECT_CONFIG
+    ...(!Flag.MOKS_DISABLE_PROJECT_CONFIG
       ? yield* afs.up({
           targets: [...PROJECT_DIR_NAMES],
           start: directory,
@@ -77,7 +77,7 @@ export const directories = Effect.fn("ConfigPaths.directories")(function* (direc
       start: Global.Path.home,
       stop: Global.Path.home,
     })),
-    ...(Flag.OPENCODE_CONFIG_DIR ? [Flag.OPENCODE_CONFIG_DIR] : []),
+    ...(Flag.MOKS_CONFIG_DIR ? [Flag.MOKS_CONFIG_DIR] : []),
   ])
 })
 

@@ -41,9 +41,9 @@ export function layerFromPath(filename: string) {
 }
 
 export function path() {
-  if (Flag.OPENCODE_DB) {
-    if (Flag.OPENCODE_DB === ":memory:" || isAbsolute(Flag.OPENCODE_DB)) return Flag.OPENCODE_DB
-    return join(Global.Path.data, Flag.OPENCODE_DB)
+  if (Flag.MOKS_DB) {
+    if (Flag.MOKS_DB === ":memory:" || isAbsolute(Flag.MOKS_DB)) return Flag.MOKS_DB
+    return join(Global.Path.data, Flag.MOKS_DB)
   }
   if (
     ["latest", "beta", "prod"].includes(InstallationChannel) ||

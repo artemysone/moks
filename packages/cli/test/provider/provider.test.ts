@@ -78,7 +78,7 @@ const list = Provider.use.list()
 
 const paid = (providers: Record<string, { models: Record<string, { cost: { input: number } }> }>) => {
   const item = providers[ProviderV2.ID.make("opencode")]
-  expect(item).toBeDefined()
+  if (!item) return 0
   return Object.values(item.models).filter((model) => model.cost.input > 0).length
 }
 
@@ -2024,10 +2024,10 @@ it.effect("opencode loader keeps paid models when config apiKey is present", () 
         .pipe(provideInstanceEffect(directory))
         .pipe(Effect.provide(instanceStoreLayer), Effect.provide(AppNodeBuilder.build(CrossSpawnSpawner.node)))
 
-    const none = paid(yield* listIn(noneDir))
+    const none = yield* listIn(noneDir)
     const keyedCount = paid(yield* listIn(keyedDir))
 
-    expect(none).toBe(0)
+    expect(none[ProviderV2.ID.make("opencode")]).toBeUndefined()
     expect(keyedCount).toBeGreaterThan(0)
   }).pipe(provideMultiInstance),
 )
@@ -2043,7 +2043,7 @@ it.effect("opencode loader keeps paid models when auth exists", () =>
         .pipe(provideInstanceEffect(directory))
         .pipe(Effect.provide(instanceStoreLayer), Effect.provide(AppNodeBuilder.build(CrossSpawnSpawner.node)))
 
-    const none = paid(yield* listIn(noneDir))
+    const none = yield* listIn(noneDir)
 
     const authPath = path.join(Global.Path.data, "auth.json")
     const original = yield* Effect.promise(() => Filesystem.readText(authPath).catch(() => undefined))
@@ -2059,7 +2059,7 @@ it.effect("opencode loader keeps paid models when auth exists", () =>
 
     const keyedCount = paid(yield* listIn(keyedDir))
 
-    expect(none).toBe(0)
+    expect(none[ProviderV2.ID.make("opencode")]).toBeUndefined()
     expect(keyedCount).toBeGreaterThan(0)
   }).pipe(provideMultiInstance),
 )

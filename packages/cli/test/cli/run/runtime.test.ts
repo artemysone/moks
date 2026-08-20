@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test"
-import { OpencodeClient } from "@moks/sdk/v2"
+import { MoksClient } from "@moks/sdk/v2"
 import { runInteractiveMode } from "@/cli/cmd/run/runtime"
 import type { FooterApi, RunProvider } from "@/cli/cmd/run/types"
 
-type SessionMessage = NonNullable<Awaited<ReturnType<OpencodeClient["session"]["messages"]>>["data"]>[number]
+type SessionMessage = NonNullable<Awaited<ReturnType<MoksClient["session"]["messages"]>>["data"]>[number]
 
 const provider: RunProvider = {
   id: "openai",
@@ -140,7 +140,7 @@ describe("run interactive runtime", () => {
     const providersStarted = defer<void>()
     const providers = defer<void>()
 
-    const sdk = new OpencodeClient()
+    const sdk = new MoksClient()
     spyOn(sdk.config, "providers").mockImplementation(async () => {
       providersStarted.resolve()
       await providers.promise

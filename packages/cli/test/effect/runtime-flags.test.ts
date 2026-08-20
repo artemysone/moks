@@ -26,7 +26,6 @@ describe("RuntimeFlags", () => {
             MOKS_PURE: "true",
             MOKS_DISABLE_DEFAULT_PLUGINS: "true",
             MOKS_AUTO_SHARE: "true",
-            MOKS_DISABLE_EMBEDDED_WEB_UI: "true",
             MOKS_DISABLE_EXTERNAL_SKILLS: "true",
             MOKS_EXPERIMENTAL: "true",
             MOKS_ENABLE_EXA: "true",
@@ -41,7 +40,6 @@ describe("RuntimeFlags", () => {
       expect(flags.pure).toBe(true)
       expect(flags.autoShare).toBe(true)
       expect(flags.disableDefaultPlugins).toBe(true)
-      expect(flags.disableEmbeddedWebUi).toBe(true)
       expect(flags.disableExternalSkills).toBe(true)
       expect(flags.disableClaudeCodePrompt).toBe(false)
       expect(flags.enableExa).toBe(true)
@@ -90,7 +88,6 @@ describe("RuntimeFlags", () => {
       expect(flags.pure).toBe(false)
       expect(flags.autoShare).toBe(false)
       expect(flags.disableDefaultPlugins).toBe(true)
-      expect(flags.disableEmbeddedWebUi).toBe(false)
       expect(flags.disableExternalSkills).toBe(false)
       expect(flags.disableClaudeCodePrompt).toBe(false)
       expect(flags.disableClaudeCodeSkills).toBe(false)
@@ -298,7 +295,6 @@ describe("RuntimeFlags", () => {
 
       expect(flags.pure).toBe(false)
       expect(flags.disableDefaultPlugins).toBe(false)
-      expect(flags.disableEmbeddedWebUi).toBe(false)
       expect(flags.disableExternalSkills).toBe(false)
       expect(flags.disableClaudeCodePrompt).toBe(false)
       expect(flags.disableClaudeCodeSkills).toBe(false)

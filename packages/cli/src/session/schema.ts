@@ -1,10 +1,10 @@
 import { Schema } from "effect"
 
 import { Identifier } from "@/id/id"
-import { SessionV2 } from "@moks/core/session"
+import { Session } from "@moks/schema/session"
 import { statics } from "@moks/core/schema"
 
-export const SessionID = SessionV2.ID
+export const SessionID = Session.ID
 export type SessionID = Schema.Schema.Type<typeof SessionID>
 
 export const MessageID = Schema.String.check(Schema.isStartsWith("msg")).pipe(

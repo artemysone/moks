@@ -213,7 +213,7 @@ export async function scaffold(cwd: string, title?: string) {
     await Bun.write(hiring, COMPANY_STUB)
     created.push(HIRING_FILE)
     await ensureScorecard(cwd, SCORECARD_FILE, created, skipped)
-    const git = await gitInitIfNeeded(cwd, [HIRING_FILE, SCORECARD_FILE])
+    const git = await gitInitIfNeeded(cwd)
     return { created, skipped, title, relative: ".", git }
   }
 
@@ -222,7 +222,7 @@ export async function scaffold(cwd: string, title?: string) {
     if (!slug) {
       skipped.push(HIRING_FILE)
       await ensureScorecard(cwd, SCORECARD_FILE, created, skipped)
-      const git = await gitInitIfNeeded(cwd, [HIRING_FILE, SCORECARD_FILE], false)
+      const git = await gitInitIfNeeded(cwd, false)
       return { created, skipped, title, relative: ".", git }
     }
     const reqDir = path.join(cwd, slug)
@@ -242,7 +242,7 @@ export async function scaffold(cwd: string, title?: string) {
       await Bun.write(path.join(cwd, reqKeep), "")
       created.push(reqKeep)
     }
-    const git = await gitInitIfNeeded(cwd, [slug], false)
+    const git = await gitInitIfNeeded(cwd, false)
     return { created, skipped, title, relative: slug, git }
   }
 
@@ -255,7 +255,7 @@ export async function scaffold(cwd: string, title?: string) {
     await Bun.write(path.join(cwd, gitkeep), "")
     created.push(gitkeep)
   }
-  const git = await gitInitIfNeeded(cwd, [HIRING_FILE, CANDIDATES_DIR], false)
+  const git = await gitInitIfNeeded(cwd, false)
   return { created, skipped, title, relative: ".", git }
 }
 
@@ -288,38 +288,14 @@ async function gitToplevel(dir: string) {
   return Filesystem.resolve(root)
 }
 
-async function gitInitIfNeeded(cwd: string, add: string[], create = true) {
-  const paths: string[] = []
-  for (const rel of add) {
-    if (await Filesystem.exists(path.join(cwd, rel))) paths.push(rel)
-  }
-
+async function gitInitIfNeeded(cwd: string, create = true) {
   const root = await gitToplevel(cwd)
-  if (root && root === path.resolve(cwd)) {
-    if (paths.length > 0) {
-      const staged = Bun.spawn(["git", "add", ...paths], { cwd, stdout: "pipe", stderr: "pipe" })
-      await staged.exited
-    }
-    return "existing"
-  }
+  if (root && root === path.resolve(cwd)) return "existing"
   if (!create) return "existing"
 
   const init = Bun.spawn(["git", "init"], { cwd, stdout: "pipe", stderr: "pipe" })
   await init.exited
   if (init.exitCode !== 0) return "failed"
-
-  if (paths.length > 0) {
-    const staged = Bun.spawn(["git", "add", ...paths], { cwd, stdout: "pipe", stderr: "pipe" })
-    await staged.exited
-    if (staged.exitCode !== 0) return "failed"
-  }
-
-  const commit = Bun.spawn(
-    ["git", "-c", "user.name=moks", "-c", "user.email=moks@local", "commit", "-m", "moks: init"],
-    { cwd, stdout: "pipe", stderr: "pipe" },
-  )
-  await commit.exited
-  if (commit.exitCode !== 0) return "failed"
   return "created"
 }
 

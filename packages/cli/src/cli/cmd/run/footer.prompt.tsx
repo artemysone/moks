@@ -23,7 +23,7 @@ import {
   movePromptHistory,
   pushPromptHistory,
 } from "./prompt.shared"
-import { OPENCODE_BASE_MODE, useBindings } from "@moks/tui/keymap"
+import { MOKS_BASE_MODE, useBindings } from "@moks/tui/keymap"
 import { realignEditorPromptParts, resolveEditorSlashValue } from "./prompt.editor"
 import { FOOTER_MENU_ROWS, createFooterMenuState, type RunFooterMenuItem } from "./footer.menu"
 import type { RunFooterTheme } from "./theme"
@@ -1049,7 +1049,7 @@ export function createPromptState(input: PromptInput): PromptState {
   }
 
   useBindings(() => ({
-    mode: OPENCODE_BASE_MODE,
+    mode: MOKS_BASE_MODE,
     enabled: baseBindingsEnabled(),
     commands: [
       {
@@ -1066,7 +1066,7 @@ export function createPromptState(input: PromptInput): PromptState {
   }))
 
   useBindings(() => ({
-    mode: OPENCODE_BASE_MODE,
+    mode: MOKS_BASE_MODE,
     enabled: input.prompt(),
     commands: [
       {
@@ -1083,7 +1083,7 @@ export function createPromptState(input: PromptInput): PromptState {
   }))
 
   useBindings(() => ({
-    mode: OPENCODE_BASE_MODE,
+    mode: MOKS_BASE_MODE,
     enabled: input.prompt() && !visible(),
     commands: [
       {
@@ -1099,7 +1099,7 @@ export function createPromptState(input: PromptInput): PromptState {
   }))
 
   useBindings(() => ({
-    mode: OPENCODE_BASE_MODE,
+    mode: MOKS_BASE_MODE,
     enabled: input.prompt() && !visible(),
     commands: [
       {
@@ -1126,7 +1126,7 @@ export function createPromptState(input: PromptInput): PromptState {
   }))
 
   useBindings(() => ({
-    mode: OPENCODE_BASE_MODE,
+    mode: MOKS_BASE_MODE,
     enabled: input.prompt() && !visible(),
     bindings: [
       {
@@ -1144,7 +1144,7 @@ export function createPromptState(input: PromptInput): PromptState {
   }))
 
   useBindings(() => ({
-    mode: OPENCODE_BASE_MODE,
+    mode: MOKS_BASE_MODE,
     enabled: input.prompt() && shell() && !visible(),
     bindings: [
       {
@@ -1167,7 +1167,7 @@ export function createPromptState(input: PromptInput): PromptState {
   }))
 
   useBindings(() => ({
-    mode: OPENCODE_BASE_MODE,
+    mode: MOKS_BASE_MODE,
     enabled: input.prompt() && visible(),
     commands: [
       {

@@ -10,8 +10,8 @@ import { resetDatabase } from "../fixture/db"
 import { disposeAllInstances, tmpdir } from "../fixture/fixture"
 
 const original = {
-  MOKS_SERVER_PASSWORD: Flag.OPENCODE_SERVER_PASSWORD,
-  MOKS_SERVER_USERNAME: Flag.OPENCODE_SERVER_USERNAME,
+  MOKS_SERVER_PASSWORD: Flag.MOKS_SERVER_PASSWORD,
+  MOKS_SERVER_USERNAME: Flag.MOKS_SERVER_USERNAME,
   envPassword: process.env.MOKS_SERVER_PASSWORD,
   envUsername: process.env.MOKS_SERVER_USERNAME,
 }
@@ -19,8 +19,8 @@ const auth = { username: "opencode", password: "listen-secret" }
 const testPty = process.platform === "win32" ? test.skip : test
 
 afterEach(async () => {
-  Flag.OPENCODE_SERVER_PASSWORD = original.MOKS_SERVER_PASSWORD
-  Flag.OPENCODE_SERVER_USERNAME = original.MOKS_SERVER_USERNAME
+  Flag.MOKS_SERVER_PASSWORD = original.MOKS_SERVER_PASSWORD
+  Flag.MOKS_SERVER_USERNAME = original.MOKS_SERVER_USERNAME
   if (original.envPassword === undefined) delete process.env.MOKS_SERVER_PASSWORD
   else process.env.MOKS_SERVER_PASSWORD = original.envPassword
   if (original.envUsername === undefined) delete process.env.MOKS_SERVER_USERNAME
@@ -30,16 +30,16 @@ afterEach(async () => {
 })
 
 async function startListener() {
-  Flag.OPENCODE_SERVER_PASSWORD = auth.password
-  Flag.OPENCODE_SERVER_USERNAME = auth.username
+  Flag.MOKS_SERVER_PASSWORD = auth.password
+  Flag.MOKS_SERVER_USERNAME = auth.username
   process.env.MOKS_SERVER_PASSWORD = auth.password
   process.env.MOKS_SERVER_USERNAME = auth.username
   return Server.listen({ hostname: "127.0.0.1", port: 0 })
 }
 
 async function startNoAuthListener() {
-  Flag.OPENCODE_SERVER_PASSWORD = undefined
-  Flag.OPENCODE_SERVER_USERNAME = auth.username
+  Flag.MOKS_SERVER_PASSWORD = undefined
+  Flag.MOKS_SERVER_USERNAME = auth.username
   delete process.env.MOKS_SERVER_PASSWORD
   process.env.MOKS_SERVER_USERNAME = auth.username
   return Server.listen({ hostname: "127.0.0.1", port: 0 })
@@ -68,8 +68,8 @@ async function requestTicket(
     method: "POST",
     headers: {
       authorization: authorization(),
-      "x-opencode-directory": dir,
-      ...(options?.ticketHeader === false ? {} : { "x-opencode-ticket": "1" }),
+      "x-moks-directory": dir,
+      ...(options?.ticketHeader === false ? {} : { "x-moks-ticket": "1" }),
       ...(options?.origin ? { origin: options.origin } : {}),
     },
   })
@@ -88,7 +88,7 @@ async function createCat(listener: Awaited<ReturnType<typeof startListener>>, di
     method: "POST",
     headers: {
       authorization: authorization(),
-      "x-opencode-directory": dir,
+      "x-moks-directory": dir,
       "content-type": "application/json",
     },
     body: JSON.stringify({ command: "/bin/cat", title: "listen-smoke" }),
@@ -173,7 +173,7 @@ describe("HttpApi Server.listen", () => {
     let stopped = false
     try {
       const response = await fetch(new URL(PtyPaths.shells, listener.url), {
-        headers: { authorization: authorization(), "x-opencode-directory": tmp.path },
+        headers: { authorization: authorization(), "x-moks-directory": tmp.path },
       })
       expect(response.status).toBe(200)
       expect(await response.json()).toEqual(
@@ -293,7 +293,7 @@ describe("HttpApi Server.listen", () => {
       return true
     }) as typeof process.stderr.write
     try {
-      const response = await Server.Default().app.request("/status")
+      const response = await Server.Default().app.request("/global/health")
       expect(response.status).toBe(200)
     } finally {
       process.stderr.write = original
@@ -335,7 +335,7 @@ describe("HttpApi Server.listen", () => {
     try {
       listener = await startListener()
       const response = await fetch(new URL("/config", listener.url), {
-        headers: { authorization: authorization(), "x-opencode-directory": tmp.path },
+        headers: { authorization: authorization(), "x-moks-directory": tmp.path },
       })
       expect(response.status).toBe(200)
       await withTimeout(
@@ -392,7 +392,7 @@ describe("HttpApi Server.listen", () => {
       // and cannot find a PTY registered in a project directory.
       const ambiguous = await fetch(new URL(PtyPaths.connectToken.replace(":ptyID", info.id), listener.url), {
         method: "POST",
-        headers: { authorization: authorization(), "x-opencode-ticket": "1" },
+        headers: { authorization: authorization(), "x-moks-ticket": "1" },
       })
       expect(ambiguous.status).toBe(404)
 
@@ -403,7 +403,7 @@ describe("HttpApi Server.listen", () => {
         ),
         {
           method: "POST",
-          headers: { authorization: authorization(), "x-opencode-ticket": "1" },
+          headers: { authorization: authorization(), "x-moks-ticket": "1" },
         },
       )
       expect(directoryScoped.status).toBe(200)

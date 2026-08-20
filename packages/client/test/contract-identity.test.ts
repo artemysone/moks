@@ -29,7 +29,7 @@ test("Core and Server reuse the authoritative Schema and Protocol values", () =>
   expect(CoreSessionInput.Admitted).toBe(SessionInput.Admitted)
   expect(CoreSessionMessage.Message).toBe(SessionMessage.Message)
   expect(CorePrompt).toBe(Prompt)
-  expect(Api.groups["server.session"].identifier).toBe("server.session")
+  expect(Api.groups["server.health"].identifier).toBe("server.health")
   expect(Object.keys(ClientApi.groups)).toEqual(Object.keys(Api.groups))
   expect(Session.ID.create()).toStartWith("ses_")
   expect(Project.ID.global).toBe("global")

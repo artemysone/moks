@@ -1,13 +1,11 @@
 import { beforeEach, describe, expect } from "bun:test"
-import { Effect, Exit, Layer, Option } from "effect"
+import { Effect, Exit, Layer } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
 import { LayerNode } from "@moks/core/effect/layer-node"
 import { httpClient } from "@moks/core/effect/app-node-platform"
 import { CrossSpawnSpawner } from "@moks/core/cross-spawn-spawner"
 import { SessionProjector } from "@moks/core/session/projector"
 
-import { AccessToken, AccountID, OrgID, RefreshToken } from "../../src/account/schema"
-import { AccountRepo } from "../../src/account/repo"
 import { EventV2Bridge } from "../../src/event-v2-bridge"
 import { Session } from "@/session/session"
 import type { SessionID } from "../../src/session/schema"
@@ -35,7 +33,7 @@ const none = HttpClient.make(() => Effect.die("unexpected http call"))
 
 function requestLayer(client: HttpClient.HttpClient) {
   const replacement = [httpClient, Layer.succeed(HttpClient.HttpClient, client)] as const
-  return LayerNode.compile(LayerNode.group([ShareNext.node, AccountRepo.node]), [replacement])
+  return LayerNode.compile(LayerNode.group([ShareNext.node]), [replacement])
 }
 
 function integrationLayer(client: HttpClient.HttpClient) {
@@ -46,7 +44,6 @@ function integrationLayer(client: HttpClient.HttpClient) {
       EventV2Bridge.node,
       Session.node,
       SessionProjector.node,
-      AccountRepo.node,
       Database.node,
     ]),
     [replacement],
@@ -63,19 +60,6 @@ const share = (id: SessionID) =>
       .get()
       .pipe(Effect.orDie)
   })
-
-const seed = (url: string, org?: string) =>
-  AccountRepo.Service.use((repo) =>
-    repo.persistAccount({
-      id: AccountID.make("account-1"),
-      email: "user@example.com",
-      url,
-      accessToken: AccessToken.make("st_test_token"),
-      refreshToken: RefreshToken.make("rt_test_token"),
-      expiry: Date.now() + 10 * 60_000,
-      orgID: org ? Option.some(OrgID.make(org)) : Option.none(),
-    }),
-  )
 
 beforeEach(async () => {
   await resetDatabase()
@@ -112,26 +96,6 @@ describe("ShareNext", () => {
           expect(req.headers).toEqual({})
         }),
       ).pipe(Effect.provide(requestLayer(none))),
-    ),
-  )
-
-  it.live("request uses org share API with auth headers when account is active", () =>
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        yield* seed("https://control.example.com", "org-1")
-
-        const req = yield* ShareNext.use.request()
-
-        expect(req.api.create).toBe("/api/shares")
-        expect(req.api.sync("shr_123")).toBe("/api/shares/shr_123/sync")
-        expect(req.api.remove("shr_123")).toBe("/api/shares/shr_123")
-        expect(req.api.data("shr_123")).toBe("/api/shares/shr_123/data")
-        expect(req.baseUrl).toBe("https://control.example.com")
-        expect(req.headers).toEqual({
-          authorization: "Bearer st_test_token",
-          "x-org-id": "org-1",
-        })
-      }).pipe(Effect.provide(requestLayer(none))),
     ),
   )
 

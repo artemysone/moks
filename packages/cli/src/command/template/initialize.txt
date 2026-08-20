@@ -9,7 +9,7 @@ Slug: `${slug}`
 - Company `HIRING.md` present, no root `candidates/`: `/init [title]` created or will create `<slug>/HIRING.md` + `<slug>/candidates/`. Intake updates the **req** `HIRING.md`.
 - Root already has `HIRING.md` + `candidates/`: this directory is the req. Do not nest a second req.
 
-Constitution is `HIRING.md`. Candidate files are `candidates/<id>.md` (YAML frontmatter). Git is the audit log.
+Constitution is `HIRING.md`. Candidate files are `candidates/<id>.md` (YAML frontmatter). The ledger is the audit log (`moks commit`), not git.
 
 User notes (honor these; they are not a finished JD):
 $ARGUMENTS

@@ -1,4 +1,4 @@
-export * as OpenCode from "./opencode"
+export * as Moks from "./opencode"
 export * as Tool from "./tool"
 
 export { ClientError } from "@moks/client/effect"

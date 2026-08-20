@@ -48,7 +48,7 @@ const layer = Layer.effectDiscard(
       const fromProject = relative(projectRoot, start)
       const insideProject =
         fromProject === "" || (fromProject !== ".." && !fromProject.startsWith(`..${sep}`) && !isAbsolute(fromProject))
-      const scanProject = !Flag.OPENCODE_DISABLE_PROJECT_CONFIG && insideProject
+      const scanProject = !Flag.MOKS_DISABLE_PROJECT_CONFIG && insideProject
       let stop = projectRoot
       let company: string | undefined
       if (scanProject) {

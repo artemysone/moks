@@ -21,8 +21,6 @@ export function DialogStatus() {
   const { theme } = useTheme()
   const dialog = useDialog()
 
-  const enabledFormatters = createMemo(() => sync.data.formatter.filter((f) => f.enabled))
-
   const usage = createMemo(() => {
     if (route.data.type !== "session") return
     const session = sync.session.get(route.data.sessionID)
@@ -129,30 +127,6 @@ export function DialogStatus() {
             )}
           </For>
         </box>
-      </Show>
-      <Show when={sync.data.config.formatter}>
-        <Show when={enabledFormatters().length > 0} fallback={<text fg={theme.text}>No Formatters</text>}>
-          <box>
-            <text fg={theme.text}>{enabledFormatters().length} Formatters</text>
-            <For each={enabledFormatters()}>
-              {(item) => (
-                <box flexDirection="row" gap={1}>
-                  <text
-                    flexShrink={0}
-                    style={{
-                      fg: theme.success,
-                    }}
-                  >
-                    •
-                  </text>
-                  <text wrapMode="word" fg={theme.text}>
-                    <b>{item.name}</b>
-                  </text>
-                </box>
-              )}
-            </For>
-          </box>
-        </Show>
       </Show>
       <Show when={plugins().length > 0} fallback={<text fg={theme.text}>No Plugins</text>}>
         <box>

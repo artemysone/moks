@@ -1,10 +1,8 @@
 import { Context } from "effect"
 import { HttpApi, HttpApiGroup, HttpApiMiddleware, OpenApi } from "effect/unstable/httpapi"
 import { SchemaErrorMiddleware } from "./middleware/schema-error"
-import { MessageGroup } from "./groups/message"
 import { ModelGroup } from "./groups/model"
 import { ProviderGroup } from "./groups/provider"
-import { makeSessionGroup } from "./groups/session"
 import { makePermissionGroup } from "./groups/permission"
 import { FileSystemGroup } from "./groups/fs"
 import { CommandGroup } from "./groups/command"
@@ -38,8 +36,6 @@ const makeApiFromGroup = <
     .add(HealthGroup)
     .add(LocationGroup.middleware(locationMiddleware))
     .add(AgentGroup.middleware(locationMiddleware))
-    .add(makeSessionGroup(sessionLocationMiddleware))
-    .add(MessageGroup.middleware(sessionLocationMiddleware))
     .add(ModelGroup.middleware(locationMiddleware))
     .add(ProviderGroup.middleware(locationMiddleware))
     .add(IntegrationGroup.middleware(locationMiddleware))

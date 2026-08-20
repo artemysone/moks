@@ -1,11 +1,12 @@
 import { expect, test } from "bun:test"
+import { realpathSync } from "node:fs"
 import { mkdtemp, rm } from "node:fs/promises"
 import { join, resolve, sep } from "node:path"
 
 const directory = resolve(import.meta.dir, "..")
-const client = resolve(import.meta.dir, "../../client")
-const core = resolve(import.meta.dir, "../../core")
-const server = resolve(import.meta.dir, "../../server")
+const client = realpathSync(resolve(directory, "node_modules/@moks/client"))
+const core = realpathSync(resolve(directory, "node_modules/@moks/core"))
+const server = realpathSync(resolve(directory, "node_modules/@moks/server"))
 
 test("bundles the client and in-memory host", async () => {
   const inputs = await bundleInputs()

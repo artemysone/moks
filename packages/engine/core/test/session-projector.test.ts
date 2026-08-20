@@ -17,14 +17,12 @@ import { SessionMessage } from "@moks/core/session/message"
 import { Prompt } from "@moks/core/session/prompt"
 import { SessionMessageUpdater } from "@moks/core/session/message-updater"
 import { SessionProjector } from "@moks/core/session/projector"
-import { SessionExecution } from "@moks/core/session/execution"
 import { SessionInput } from "@moks/core/session/input"
 import { SessionInputTable, SessionMessageTable, SessionTable } from "@moks/core/session/sql"
 import { testEffect } from "./lib/effect"
 import { Snapshot } from "@moks/core/snapshot"
 
 const it = testEffect(AppNodeBuilder.build(LayerNode.group([Database.node, EventV2.node, SessionProjector.node])))
-const sessionsLayer = AppNodeBuilder.build(SessionV2.node, [[SessionExecution.node, SessionExecution.noopLayer]])
 const sessionID = SessionV2.ID.make("ses_projector_test")
 const created = DateTime.makeUnsafe(0)
 const model = { id: ModelV2.ID.make("model"), providerID: ProviderV2.ID.make("provider") }
@@ -94,75 +92,6 @@ describe("SessionProjector", () => {
         (yield* db.select({ id: SessionMessageTable.id }).from(SessionMessageTable).all()).map((row) => row.id),
       ).toEqual([boundary])
     }),
-  )
-
-  it.effect("orders projected messages and context by durable aggregate sequence", () =>
-    Effect.gen(function* () {
-      const { db } = yield* Database.Service
-      yield* db
-        .insert(ProjectTable)
-        .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
-        .run()
-        .pipe(Effect.orDie)
-      yield* db
-        .insert(SessionTable)
-        .values({
-          id: sessionID,
-          project_id: Project.ID.global,
-          slug: "test",
-          directory: "/project",
-          title: "test",
-          version: "test",
-        })
-        .run()
-        .pipe(Effect.orDie)
-      const events = yield* EventV2.Service
-
-      yield* events.publish(
-        SessionEvent.Prompted,
-        {
-          sessionID,
-          messageID: SessionMessage.ID.make("msg_first"),
-          timestamp: created,
-          prompt: Prompt.make({ text: "first" }),
-          delivery: "steer",
-        },
-        { id: EventV2.ID.make("evt_z") },
-      )
-      yield* events.publish(
-        SessionEvent.Prompted,
-        {
-          sessionID,
-          messageID: SessionMessage.ID.make("msg_second"),
-          timestamp: created,
-          prompt: Prompt.make({ text: "second" }),
-          delivery: "steer",
-        },
-        { id: EventV2.ID.make("evt_a") },
-      )
-
-      const sessions = yield* SessionV2.Service
-      const firstPage = yield* sessions.messages({ sessionID, limit: 1, order: "asc" })
-      expect(firstPage.map((message) => (message.type === "user" ? message.text : message.type))).toEqual(["first"])
-      const secondPage = yield* sessions.messages({
-        sessionID,
-        limit: 1,
-        order: "asc",
-        cursor: { id: firstPage[0]!.id, direction: "next" },
-      })
-      expect(secondPage.map((message) => (message.type === "user" ? message.text : message.type))).toEqual(["second"])
-      expect(
-        (yield* sessions.messages({
-          sessionID,
-          limit: 1,
-          order: "asc",
-          cursor: { id: secondPage[0]!.id, direction: "previous" },
-        })).map((message) => (message.type === "user" ? message.text : message.type)),
-      ).toEqual(["first"])
-      expect(
-        (yield* sessions.context(sessionID)).map((message) => (message.type === "user" ? message.text : message.type)),
-      ).toEqual(["first", "second"])
-    }).pipe(Effect.provide(sessionsLayer)),
   )
 
   it.effect("marks an inbox row promoted with the Prompted event sequence", () =>

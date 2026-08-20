@@ -6,10 +6,7 @@ import { EventV2 } from "@moks/core/event"
 import { Credential } from "@moks/core/credential"
 import { PermissionSaved } from "@moks/core/permission/saved"
 import { PtyTicket } from "@moks/core/pty/ticket"
-import { SessionV2 } from "@moks/core/session"
-import { SessionExecution } from "@moks/core/session/execution"
 import { LocationServiceMap } from "@moks/core/location-service-map"
-import { SessionExecutionLocal } from "@moks/core/session/execution/local"
 import { ToolOutputStore } from "@moks/core/tool-output-store"
 import { HttpRouter, HttpServer } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
@@ -28,7 +25,6 @@ const applicationServices = LayerNode.group([
   EventV2.node,
   httpClient,
   ToolOutputStore.cleanupNode,
-  SessionV2.node,
   PermissionSaved.node,
   PtyTicket.node,
   Credential.node,
@@ -49,7 +45,7 @@ export function createEmbeddedRoutes() {
 }
 
 function makeRoutes<AuthError, AuthServices>(auth: Layer.Layer<ServerAuth.Config, AuthError, AuthServices>) {
-  const serviceLayer = AppNodeBuilder.build(applicationServices, [[SessionExecution.node, SessionExecutionLocal.node]])
+  const serviceLayer = AppNodeBuilder.build(applicationServices)
 
   return HttpApiBuilder.layer(Api, { openapiPath: "/openapi.json" }).pipe(
     Layer.provide(handlers),

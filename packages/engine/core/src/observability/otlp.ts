@@ -40,7 +40,7 @@ export function resource(): { serviceName: string; serviceVersion: string; attri
     attributes: {
       ...resourceAttributes(),
       "deployment.environment.name": InstallationChannel,
-      "moks.client": Flag.OPENCODE_CLIENT,
+      "moks.client": Flag.MOKS_CLIENT,
       "moks.run": runID,
       "service.instance.id": runID,
     },

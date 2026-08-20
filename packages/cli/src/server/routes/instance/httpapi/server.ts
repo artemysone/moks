@@ -4,7 +4,6 @@ import { HttpMiddleware, HttpRouter, HttpServer, HttpServerResponse } from "effe
 import * as Socket from "effect/unstable/socket/Socket"
 import { FSUtil } from "@moks/core/fs-util"
 import * as Observability from "@moks/core/observability"
-import { Account } from "@/account/account"
 import { Agent } from "@/agent/agent"
 import { Auth } from "@/auth"
 import { BackgroundJob } from "@/background/job"
@@ -62,12 +61,8 @@ import { ProjectCopy } from "@moks/core/project/copy"
 import { PtyTicket } from "@moks/core/pty/ticket"
 import { Ripgrep } from "@moks/core/ripgrep"
 import { SessionProjector } from "@moks/core/session/projector"
-import { SessionV2 } from "@moks/core/session"
-import { SessionExecution } from "@moks/core/session/execution"
-import * as SessionExecutionLocal from "@moks/core/session/execution/local"
 import { lazy } from "@/util/lazy"
 import { CorsConfig, isAllowedCorsOrigin, type CorsOptions } from "@moks/server/cors"
-import { serveUIEffect } from "@/server/shared/ui"
 import { ServerAuth } from "@/server/auth"
 import { InstanceHttpApi, RootHttpApi } from "./api"
 import { Api } from "@moks/server/api"
@@ -131,7 +126,6 @@ const cors = (corsOptions?: CorsOptions) =>
 // - eventApiRoutes: typed SSE route with instance routing context and its existing API contract.
 // - ptyConnectApiRoutes: typed WebSocket upgrade route with ticket-aware auth.
 // - instanceApiRoutes: remaining typed instance routes.
-// - uiRoute: raw catch-all fallback; auth is router middleware so public static assets can bypass it.
 const authOnlyRouterLayer = authorizationRouterMiddleware.layer.pipe(Layer.provide(ServerAuth.Config.layer))
 const httpApiAuthLayer = authorizationLayer.pipe(Layer.provide(ServerAuth.Config.layer))
 const ptyConnectHttpApiAuthLayer = ptyConnectAuthorizationLayer.pipe(Layer.provide(ServerAuth.Config.layer))
@@ -190,16 +184,6 @@ const docRoute = HttpRouter.use((router) => router.add("GET", "/doc", () => Effe
   Layer.provide(authOnlyRouterLayer),
 )
 
-const uiRoute = HttpRouter.use((router) =>
-  Effect.gen(function* () {
-    const fs = yield* FSUtil.Service
-    const flags = yield* RuntimeFlags.Service
-    yield* router.add("*", "/*", (request) =>
-      serveUIEffect(request, { fs, disableEmbeddedWebUi: flags.disableEmbeddedWebUi }),
-    )
-  }),
-).pipe(Layer.provide(authOnlyRouterLayer))
-
 type RouteRequirements =
   | HttpRouter.HttpRouter
   | HttpRouter.Request<"Error", unknown>
@@ -212,7 +196,6 @@ const app = LayerNode.group([
   FSUtil.node,
   Database.node,
   Auth.node,
-  Account.node,
   Config.node,
   Env.node,
   Git.node,
@@ -276,7 +259,6 @@ export function createRoutes(
     instanceRoutes,
     serverRoutes,
     docRoute,
-    uiRoute,
   ).pipe(
     Layer.provide([
       errorLayer,
@@ -291,12 +273,6 @@ export function createRoutes(
     Layer.provide(sessionLocationLayer),
     Layer.provide(locationLayer),
     Layer.provide(PtyEnvironment.layer),
-    Layer.provide(
-      AppNodeBuilderV1.build(SessionV2.node, [
-        [LocationServiceMap.node, locationServiceMapV2],
-        [SessionExecution.node, SessionExecutionLocal.node],
-      ]),
-    ),
     Layer.provide(locationServiceMapV2),
 
     Layer.provide(AppNodeBuilderV1.build(app)),

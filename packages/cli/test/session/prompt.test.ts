@@ -3,7 +3,6 @@ import { SessionV1 } from "@moks/core/v1/session"
 import { Database } from "@moks/core/database/database"
 import { LayerNode } from "@moks/core/effect/layer-node"
 import { SessionProjector } from "@moks/core/session/projector"
-import { eq } from "drizzle-orm"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { expect } from "bun:test"
 import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer } from "effect"
@@ -25,7 +24,6 @@ import { Image } from "../../src/image/image"
 import { Question } from "../../src/question"
 import { Todo } from "../../src/session/todo"
 import { Session } from "@/session/session"
-import { SessionMessageTable } from "@moks/core/session/sql"
 import { LLM } from "../../src/session/llm"
 import { MessageV2 } from "../../src/session/message-v2"
 import { FSUtil } from "@moks/core/fs-util"
@@ -38,8 +36,6 @@ import { SessionRevert } from "../../src/session/revert"
 import { SessionRunState } from "../../src/session/run-state"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { SessionStatus } from "../../src/session/status"
-import { SessionV2 } from "@moks/core/session"
-import { SessionExecution } from "@moks/core/session/execution"
 import { Skill } from "../../src/skill"
 import { SystemPrompt } from "../../src/session/system"
 import { Shell } from "@moks/core/shell"
@@ -55,7 +51,6 @@ import { reply, TestLLMServer } from "../lib/llm-server"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderV2 } from "@moks/core/provider"
 import { ModelV2 } from "@moks/core/model"
-import { LocationServiceMap, locationServiceMapLayer } from "@moks/core/location-services"
 
 const summary = Layer.succeed(
   SessionSummary.Service,
@@ -678,56 +673,6 @@ it.instance("loop stops provider overflow instead of auto-compacting when disabl
     }
     expect(messages.some((message) => message.parts.some((part) => part.type === "compaction"))).toBe(false)
   }),
-)
-
-noLLMServer.instance.skip(
-  "prompt emits v2 prompted and synthetic events (v2 projector disabled)",
-  () =>
-    Effect.gen(function* () {
-      const prompt = yield* SessionPrompt.Service
-      const sessions = yield* Session.Service
-      const chat = yield* sessions.create({ title: "Pinned" })
-
-      yield* prompt.prompt({
-        sessionID: chat.id,
-        agent: "recruit",
-        noReply: true,
-        parts: [
-          { type: "text", text: "hello v2" },
-          {
-            type: "file",
-            mime: "text/plain",
-            filename: "note.txt",
-            url: "data:text/plain;base64,bm90ZSBjb250ZW50",
-          },
-        ],
-      })
-
-      const messages = yield* SessionV2.Service.use((session) => session.messages({ sessionID: chat.id })).pipe(
-        Effect.provide(
-          LayerNode.compile(SessionV2.node, [
-            [SessionExecution.node, SessionExecution.noopLayer],
-            [LocationServiceMap.node, locationServiceMapLayer],
-          ]),
-        ),
-      )
-      const { db } = yield* Database.Service
-      const row = yield* db
-        .select()
-        .from(SessionMessageTable)
-        .where(eq(SessionMessageTable.session_id, chat.id))
-        .get()
-        .pipe(Effect.orDie)
-      expect(messages.find((message) => message.type === "user")).toMatchObject({ type: "user", text: "hello v2" })
-      expect(typeof row?.data.time.created).toBe("number")
-      expect(messages).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ type: "synthetic", text: expect.stringContaining("Called the Read tool") }),
-          expect.objectContaining({ type: "synthetic", text: "note content" }),
-        ]),
-      )
-    }),
-  { config: cfg },
 )
 
 it.instance("static loop returns assistant text through local provider", () =>

@@ -4,11 +4,11 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { join, resolve, sep } from "node:path"
 
 const directory = resolve(import.meta.dir, "..")
-const effect = realpathSync(resolve(import.meta.dir, "../node_modules/effect"))
-const schema = resolve(import.meta.dir, "../../schema")
-const protocol = resolve(import.meta.dir, "../../protocol")
-const core = resolve(import.meta.dir, "../../core")
-const server = resolve(import.meta.dir, "../../server")
+const effect = realpathSync(resolve(directory, "node_modules/effect"))
+const schema = realpathSync(resolve(directory, "node_modules/@moks/schema"))
+const protocol = realpathSync(resolve(directory, "node_modules/@moks/protocol"))
+const core = realpathSync(resolve(directory, "node_modules/@moks/core"))
+const server = realpathSync(resolve(directory, "node_modules/@moks/server"))
 
 describe("public import boundaries", () => {
   test("isolates each public entrypoint", async () => {

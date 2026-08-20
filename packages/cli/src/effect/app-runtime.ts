@@ -5,7 +5,7 @@ import * as Observability from "@moks/core/observability"
 import { FSUtil } from "@moks/core/fs-util"
 import { Database } from "@moks/core/database/database"
 import { Auth } from "@/auth"
-import { Account } from "@/account/account"
+
 import { Config } from "@/config/config"
 import { Git } from "@/git"
 import { Ripgrep } from "@moks/core/ripgrep"
@@ -59,7 +59,6 @@ export const AppLayer = AppNodeBuilderV1.build(
     FSUtil.node,
     Database.node,
     Auth.node,
-    Account.node,
     Config.node,
     Git.node,
     Storage.node,

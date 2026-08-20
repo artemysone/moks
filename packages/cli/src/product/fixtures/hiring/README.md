@@ -2,7 +2,7 @@
 
 Fake eng-TA sample so moks can run req → score → outreach → disposition without a live ATS. Remote/ATS later.
 
-cwd is the requisition. `HIRING.md` is the constitution. `candidates/*.md` are working copies (frontmatter: `stage` / `score` / `source` / `ats_id`). **git commit** is the audit. **`moks push`** is the ATS write (local/mock).
+cwd is the requisition. `HIRING.md` is the constitution. `candidates/*.md` are working copies (frontmatter: `stage` / `score` / `source` / `ats_id`). **`moks commit`** stages the ledger. **`moks push`** is the ATS write (local/mock).
 
 | File | Contents |
 |------|----------|
@@ -47,7 +47,7 @@ Path constant for tests/tools: `HiringFixtures` in `packages/cli/src/product/fix
 Mock-LLM E2E (no paid API): from `packages/cli`,  
 `bun test test/product/hiring-e2e.test.ts`.
 
-Disposition: edit the candidate card, then `moks commit` (git audit) and `moks push` (ATS write, local/mock):
+Disposition: edit the candidate card, then `moks commit` (ledger) and `moks push` (ATS write, local/mock):
 
 ```bash
 moks commit --action advance --target-id jordan-lee --reason "strong event + postgres"

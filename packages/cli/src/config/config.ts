@@ -11,12 +11,10 @@ import { Auth } from "../auth"
 import { applyEdits, modify } from "jsonc-parser"
 import { InstallationLocal, InstallationVersion } from "@moks/core/installation/version"
 import { existsSync } from "fs"
-import { Account } from "@/account/account"
 import { isRecord } from "@/util/record"
-import type { ConsoleState } from "@moks/core/v1/config/console-state"
 import { FSUtil } from "@moks/core/fs-util"
 import { InstanceState } from "@/effect/instance-state"
-import { Context, Duration, Effect, Exit, Fiber, Layer, Option, Schema } from "effect"
+import { Context, Duration, Effect, Exit, Fiber, Layer, Schema } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http"
 import { EffectFlock } from "@moks/core/util/effect-flock"
 import { containsPath, type InstanceContext } from "../project/instance-context"
@@ -116,13 +114,11 @@ type State = {
   config: Info
   directories: string[]
   deps: Fiber.Fiber<void>[]
-  consoleState: ConsoleState
 }
 
 export interface Interface {
   readonly get: () => Effect.Effect<Info>
   readonly getGlobal: () => Effect.Effect<Info>
-  readonly getConsoleState: () => Effect.Effect<ConsoleState>
   readonly update: (config: Info) => Effect.Effect<void>
   readonly updateGlobal: (config: Info) => Effect.Effect<{ info: Info; changed: boolean }>
   readonly invalidate: () => Effect.Effect<void>
@@ -173,7 +169,6 @@ const layer = Layer.effect(
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
     const authSvc = yield* Auth.Service
-    const accountSvc = yield* Account.Service
     const npmSvc = yield* Npm.Service
     const http = yield* HttpClient.HttpClient
 
@@ -237,7 +232,7 @@ const layer = Layer.effect(
       let result: Info = {}
       // Seed a missing default global config, but avoid writing when the user
       // explicitly routes config through env-provided paths or content.
-      if (!Flag.OPENCODE_CONFIG && !Flag.OPENCODE_CONFIG_DIR && !Flag.OPENCODE_CONFIG_CONTENT) {
+      if (!Flag.MOKS_CONFIG && !Flag.MOKS_CONFIG_DIR && !Flag.MOKS_CONFIG_CONTENT) {
         const file = globalConfigFile()
         if (!existsSync(file)) {
           yield* fs.writeWithDirs(file, "{}\n").pipe(Effect.catch(() => Effect.void))
@@ -288,8 +283,6 @@ const layer = Layer.effect(
 
         let result: Info = {}
         const authEnv: Record<string, string> = {}
-        const consoleManagedProviders = new Set<string>()
-        let activeOrgName: string | undefined
 
         const pluginScopeForSource = Effect.fnUntraced(function* (source: string) {
           if (source.startsWith("http://") || source.startsWith("https://")) return "global"
@@ -368,12 +361,12 @@ const layer = Layer.effect(
         const global = Object.keys(authEnv).length ? yield* loadGlobal(authEnv) : yield* getGlobal()
         yield* merge(Global.Path.config, global, "global")
 
-        if (Flag.OPENCODE_CONFIG) {
-          yield* merge(Flag.OPENCODE_CONFIG, yield* loadFile(Flag.OPENCODE_CONFIG, authEnv))
-          yield* Effect.logDebug("loaded custom config", { path: Flag.OPENCODE_CONFIG })
+        if (Flag.MOKS_CONFIG) {
+          yield* merge(Flag.MOKS_CONFIG, yield* loadFile(Flag.MOKS_CONFIG, authEnv))
+          yield* Effect.logDebug("loaded custom config", { path: Flag.MOKS_CONFIG })
         }
 
-        if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
+        if (!Flag.MOKS_DISABLE_PROJECT_CONFIG) {
           for (const file of yield* ConfigPaths.projectConfigFiles(ctx.directory, ctx.worktree).pipe(Effect.orDie)) {
             yield* merge(file, yield* loadFile(file, authEnv), "local")
           }
@@ -385,14 +378,14 @@ const layer = Layer.effect(
 
         const directories = yield* ConfigPaths.directories(ctx.directory, ctx.worktree)
 
-        if (Flag.OPENCODE_CONFIG_DIR) {
-          yield* Effect.logDebug("loading config from OPENCODE_CONFIG_DIR", { path: Flag.OPENCODE_CONFIG_DIR })
+        if (Flag.MOKS_CONFIG_DIR) {
+          yield* Effect.logDebug("loading config from OPENCODE_CONFIG_DIR", { path: Flag.MOKS_CONFIG_DIR })
         }
 
         const deps: Fiber.Fiber<void>[] = []
 
         for (const dir of directories) {
-          if (ConfigPaths.isProjectConfigDir(dir) || dir === Flag.OPENCODE_CONFIG_DIR) {
+          if (ConfigPaths.isProjectConfigDir(dir) || dir === Flag.MOKS_CONFIG_DIR) {
             for (const file of ConfigPaths.CONFIG_FILE_NAMES) {
               const source = path.join(dir, file)
               yield* Effect.logDebug(`loading config from ${source}`)
@@ -436,7 +429,7 @@ const layer = Layer.effect(
         }
 
         // Read env at access time (tests/SDK set this after Flag module load).
-        const configContent = Flag.OPENCODE_CONFIG_CONTENT
+        const configContent = Flag.MOKS_CONFIG_CONTENT
         if (configContent) {
           const source = "MOKS_CONFIG_CONTENT"
           const next = yield* loadConfig(configContent, {
@@ -445,37 +438,6 @@ const layer = Layer.effect(
           })
           yield* merge(source, next, "local")
           yield* Effect.logDebug("loaded custom config from MOKS_CONFIG_CONTENT")
-        }
-
-        const activeAccount = Option.getOrUndefined(
-          yield* accountSvc.active().pipe(Effect.catch(() => Effect.succeed(Option.none()))),
-        )
-        if (activeAccount?.active_org_id) {
-          const accountID = activeAccount.id
-          const orgID = activeAccount.active_org_id
-          const url = activeAccount.url
-          yield* Effect.gen(function* () {
-            const configOpt = yield* accountSvc.config(accountID, orgID)
-
-            if (Option.isSome(configOpt)) {
-              const source = `${url}/api/config`
-              const next = yield* loadConfig(JSON.stringify(configOpt.value), {
-                dir: path.dirname(source),
-                source,
-              })
-              for (const providerID of Object.keys(next.provider ?? {})) {
-                consoleManagedProviders.add(providerID)
-              }
-              yield* merge(source, next, "global")
-            }
-          }).pipe(
-            Effect.withSpan("Config.loadActiveOrgConfig"),
-            Effect.catch((err) =>
-              Effect.logDebug("failed to fetch remote account config", {
-                error: err instanceof Error ? err.message : String(err),
-              }),
-            ),
-          )
         }
 
         const managedDir = ConfigManaged.managedConfigDir()
@@ -507,9 +469,9 @@ const layer = Layer.effect(
           })
         }
 
-        if (Flag.OPENCODE_PERMISSION) {
+        if (Flag.MOKS_PERMISSION) {
           try {
-            result.permission = mergeDeep(result.permission ?? {}, JSON.parse(Flag.OPENCODE_PERMISSION))
+            result.permission = mergeDeep(result.permission ?? {}, JSON.parse(Flag.MOKS_PERMISSION))
           } catch (err) {
             yield* Effect.logWarning("OPENCODE_PERMISSION contains invalid JSON, skipping", { err })
           }
@@ -541,10 +503,10 @@ const layer = Layer.effect(
           result.share = "auto"
         }
 
-        if (Flag.OPENCODE_DISABLE_AUTOCOMPACT) {
+        if (Flag.MOKS_DISABLE_AUTOCOMPACT) {
           result.compaction = { ...result.compaction, auto: false }
         }
-        if (Flag.OPENCODE_DISABLE_PRUNE) {
+        if (Flag.MOKS_DISABLE_PRUNE) {
           result.compaction = { ...result.compaction, prune: false }
         }
 
@@ -552,11 +514,6 @@ const layer = Layer.effect(
           config: result,
           directories,
           deps,
-          consoleState: {
-            consoleManagedProviders: Array.from(consoleManagedProviders),
-            activeOrgName,
-            switchableOrgCount: 0,
-          },
         }
       },
       Effect.provideService(FSUtil.Service, fs),
@@ -574,10 +531,6 @@ const layer = Layer.effect(
 
     const directories = Effect.fn("Config.directories")(function* () {
       return yield* InstanceState.use(state, (s) => s.directories)
-    })
-
-    const getConsoleState = Effect.fn("Config.getConsoleState")(function* () {
-      return yield* InstanceState.use(state, (s) => s.consoleState)
     })
 
     const waitForDependencies = Effect.fn("Config.waitForDependencies")(function* () {
@@ -627,7 +580,6 @@ const layer = Layer.effect(
     return Service.of({
       get,
       getGlobal,
-      getConsoleState,
       update,
       updateGlobal,
       invalidate,
@@ -640,7 +592,7 @@ const layer = Layer.effect(
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [FSUtil.node, Auth.node, Account.node, Npm.node, httpClient],
+  deps: [FSUtil.node, Auth.node, Npm.node, httpClient],
 })
 
 export * as Config from "./config"

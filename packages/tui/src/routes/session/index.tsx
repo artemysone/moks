@@ -79,7 +79,7 @@ import { collapseToolOutput } from "../../util/collapse-tool-output"
 import { usePluginRuntime } from "../../plugin/runtime"
 import { DialogRetryAction } from "../../component/dialog-retry-action"
 import { getRevertDiffFiles } from "../../util/revert-diff"
-import { OPENCODE_BASE_MODE, useBindings, useCommandShortcut, useOpencodeKeymap } from "../../keymap"
+import { MOKS_BASE_MODE, useBindings, useCommandShortcut, useOpencodeKeymap } from "../../keymap"
 import { usePathFormatter } from "../../context/path-format"
 import { LocationProvider } from "../../context/location"
 
@@ -498,9 +498,7 @@ export function Session() {
       title: "Fork session",
       value: "session.fork",
       category: "Session",
-      slash: {
-        name: "fork",
-      },
+      hidden: true,
       run: () => {
         dialog.replace(() => (
           <DialogForkFromTimeline
@@ -520,10 +518,7 @@ export function Session() {
       title: "Compact session",
       value: "session.compact",
       category: "Session",
-      slash: {
-        name: "compact",
-        aliases: ["summarize"],
-      },
+      hidden: true,
       run: () => {
         const selectedModel = local.model.current()
         if (!selectedModel) {
@@ -546,9 +541,7 @@ export function Session() {
       title: "Undo previous message",
       value: "session.undo",
       category: "Session",
-      slash: {
-        name: "undo",
-      },
+      hidden: true,
       run: async () => {
         const status = sync.data.session_status?.[route.sessionID]
         if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {})
@@ -582,10 +575,8 @@ export function Session() {
       title: "Redo",
       value: "session.redo",
       category: "Session",
+      hidden: true,
       enabled: !!session()?.revert?.messageID,
-      slash: {
-        name: "redo",
-      },
       run: () => {
         dialog.clear()
         const messageID = session()?.revert?.messageID
@@ -1043,12 +1034,12 @@ export function Session() {
   }))
 
   useBindings(() => ({
-    mode: OPENCODE_BASE_MODE,
+    mode: MOKS_BASE_MODE,
     bindings: tuiConfig.keybinds.gather("session", sessionBindingCommands),
   }))
 
   useBindings(() => ({
-    mode: OPENCODE_BASE_MODE,
+    mode: MOKS_BASE_MODE,
     enabled: foregroundTasks().length > 0,
     priority: 1,
     bindings: tuiConfig.keybinds.get("session.background"),
@@ -1170,7 +1161,7 @@ export function Session() {
                               >
                                 <text fg={theme.textMuted}>{revert()!.reverted.length} message reverted</text>
                                 <text fg={theme.textMuted}>
-                                  <span style={{ fg: theme.text }}>{redoShortcut()}</span> or /redo to restore
+                                  <span style={{ fg: theme.text }}>{redoShortcut()}</span> to restore
                                 </text>
                                 <Show when={revert()!.diffFiles?.length}>
                                   <box marginTop={1}>

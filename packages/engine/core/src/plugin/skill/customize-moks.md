@@ -17,9 +17,9 @@ authority. Prefer the shapes and paths here over guessing.
 | ------- | ------------ |
 | Primary doer | **`recruit`** agent (not a coding agent) |
 | Local working tree | **cwd** — `HIRING.md` + `candidates/<id>.md` |
-| Commit intent | **`moks commit`** — git commit of hiring files |
-| Inspect | **`moks status`** — unpushed hiring commits |
-| Push authority | **`moks push`** — local/mock write (`.moks/ats.json`); `--execute` writes; adverse `--confirm`. Remote later. |
+| Commit intent | **`moks commit`** — stage a ledger changeset |
+| Inspect | **`moks status`** — staged / approved changesets |
+| Push authority | **`moks push`** — apply via the ATS adapter (mock); `--execute` writes; adverse `--confirm`. Live ATS later. |
 | ATS edge | MCP **read** tools (e.g. Ashby); agent writes denied — only `moks push` |
 
 Never teach silent ATS stage moves. Dispositions go through commit → status → push.
@@ -61,7 +61,7 @@ moks is a separate product. It does **not** read OpenCode files or `OPENCODE_*` 
 | ------- | --------------- |
 | Req materials | `HIRING.md` + `candidates/<id>.md` in cwd |
 | Hiring plans | `.moks/plans/*.md` |
-| Audit | git log (`moks: …` commits); ATS cache `.moks/ats.json` |
+| Audit | `.moks/ledger.sqlite` (hash-chained changesets). Mock ATS is not a hiring book. |
 | Built-in hiring skills | registered in-process (see below); disk skills can override by name |
 
 Do not read or write `opencode.json` / `.opencode/` / `~/.config/opencode` — those belong to installed OpenCode.
@@ -171,15 +171,17 @@ Scaffold with `/init` (product command) or create by hand:
 HIRING.md
 candidates/
   <id>.md
-.moks/                 # cache only — gitignore this
-  ats.json             # mock ATS after moks push --execute
+.moks/                 # ledger + cache — gitignore this
+  ledger.sqlite
+  vault.key
+  focus
   plans/
   agent/
   skill/
   command/
 ```
 
-`recruit` may edit `HIRING.md`, `candidates/*`, and `.moks/*` except `ats.json`.
+`recruit` may edit `HIRING.md`, `candidates/*`, and `.moks/*` except ledger/vault DBs.
 Do not gitignore the hiring files.
 
 ## Built-in agents
@@ -264,17 +266,17 @@ Register non-default locations via `skills.paths` (recursive `**/SKILL.md`) and
 These are CLI authority, not silent tool side-effects:
 
 ```bash
-# Git commit of hiring files (audit)
+# Stage a ledger changeset
 moks commit --action <action> --target-kind candidate --target-id <id> --reason "..."
 moks commit --action note --json
 
-# Unpushed commits
+# Inspect staged / approved changesets
 moks status
 moks status --json
 
-# Write mock ATS (.moks/ats.json); adverse needs --confirm
-moks push --commit-id <id> --execute
-moks push --commit-id <id> --confirm --execute --json
+# Apply via the ATS adapter (mock); adverse needs --confirm
+moks push --execute
+moks push --confirm --execute --json
 ```
 
 Exit codes: `0` success, `1` error, `2` push needs `--confirm` (`needs_confirm`).

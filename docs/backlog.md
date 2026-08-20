@@ -71,7 +71,7 @@ Strategy: `docs/gtm.html`. Ontology: `AGENTS.md`. Ledger-first port: `docs/mox-p
 - **H10** — promptless agents get `SystemPrompt.fallback()` (`default.txt`), not provider coding prompts
 - **H12** — `moks run` footer defaults to Recruit
 - LSP subsystem deleted (not parked). Formatters still exist, off unless configured.
-- TUI `/share` hidden. `moks web` / `acp` / `generate` unregistered from the product CLI.
+- TUI `/share` hidden. `moks web` / `generate` unregistered. ACP deleted.
 
 ---
 

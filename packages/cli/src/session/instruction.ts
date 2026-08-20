@@ -80,7 +80,7 @@ const layer: Layer.Layer<
 
     const relative = Effect.fnUntraced(function* (instruction: string) {
       const ctx = yield* InstanceState.context
-      if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
+      if (!Flag.MOKS_DISABLE_PROJECT_CONFIG) {
         return yield* fs
           .globUp(instruction, ctx.directory, ctx.worktree)
           .pipe(Effect.catch(() => Effect.succeed([] as string[])))
@@ -121,7 +121,7 @@ const layer: Layer.Layer<
         }
       }
 
-      if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
+      if (!Flag.MOKS_DISABLE_PROJECT_CONFIG) {
         const company = yield* Effect.promise(() => ReqWorkspace.companyRoot(ctx.directory))
         if (!company) {
           for (const file of instructionFiles) {

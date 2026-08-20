@@ -17,8 +17,6 @@ import { MessageV2 } from "../../src/session/message-v2"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { SessionStatus } from "../../src/session/status"
 import { SessionSummary } from "../../src/session/summary"
-import { SessionV2 } from "@moks/core/session"
-import { SessionExecution } from "@moks/core/session/execution"
 import { SessionProjector } from "@moks/core/session/projector"
 
 import { Provider } from "@/provider/provider"
@@ -580,33 +578,6 @@ describe("session.compaction.create", () => {
     ),
   )
 
-  it.live.skip(
-    "projects a compaction message to v2 (v2 projector disabled)",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const ssn = yield* SessionNs.Service
-        const info = yield* ssn.create({})
-
-        yield* compact.create({
-          sessionID: info.id,
-          agent: "recruit",
-          model: ref,
-          auto: true,
-          overflow: true,
-        })
-
-        const v2 = yield* SessionV2.Service.use((svc) => svc.messages({ sessionID: info.id })).pipe(
-          Effect.provide(AppNodeBuilder.build(SessionV2.node, [[SessionExecution.node, SessionExecution.noopLayer]])),
-        )
-        expect(v2.at(-1)).toMatchObject({
-          type: "compaction",
-          reason: "auto",
-          summary: "",
-        })
-      }),
-    ),
-  )
 })
 
 describe("session.compaction.prune", () => {

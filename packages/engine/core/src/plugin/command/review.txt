@@ -31,11 +31,11 @@ Read the full files you will cite. Use skills to deepen analysis when needed:
 
 ## Decision verbs
 
-- Inspect: `moks status`
+- Inspect: `moks status` / `moks diff`
 - Record intent: `moks commit`
-- Push: `moks push` (adverse reject/offer/hire need confirm)
+- Human only: `moks review` then `moks push` (adverse reject/offer/hire need confirm)
 
-`moks push` is the ATS write (mock). Prefer the native `commit` / `status` / `push` tools when checking readiness. Do not use raw `git commit`.
+Prefer the native `commit` / `status` / `diff` tools when checking readiness. Do not use raw `git commit`. Do not call push or review from the agent.
 
 ## Output
 

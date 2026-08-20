@@ -24,7 +24,7 @@ import { InstancePaths } from "../../src/server/routes/instance/httpapi/groups/i
 import { testEffect } from "../lib/effect"
 import { httpApiLayer, requestInDirectory } from "./httpapi-layer"
 
-const originalWorkspaces = Flag.OPENCODE_EXPERIMENTAL_WORKSPACES
+const originalWorkspaces = Flag.MOKS_EXPERIMENTAL_WORKSPACES
 const appLayer = AppNodeBuilder.build(
   LayerNode.group([Project.node, Session.node, Workspace.node, InstanceStore.node, Database.node, Ripgrep.node]),
   [[InstanceStore.bootstrapNode, InstanceBootstrap.node]],
@@ -41,7 +41,7 @@ function requestDefault(path: string, directory: string, init: RequestInit = {})
 
 function requestServer(path: string, directory: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers)
-  headers.set("x-opencode-directory", directory)
+  headers.set("x-moks-directory", directory)
   return Effect.promise(() => Promise.resolve(Server.Default().app.request(path, { ...init, headers })))
 }
 
@@ -169,7 +169,7 @@ function eventStreamResponse() {
 
 afterEach(async () => {
   mock.restore()
-  Flag.OPENCODE_EXPERIMENTAL_WORKSPACES = originalWorkspaces
+  Flag.MOKS_EXPERIMENTAL_WORKSPACES = originalWorkspaces
   await disposeAllInstances()
   await resetDatabase()
 })
@@ -198,7 +198,7 @@ describe("workspace HttpApi", () => {
 
   it.live("serves mutation endpoints", () =>
     Effect.gen(function* () {
-      Flag.OPENCODE_EXPERIMENTAL_WORKSPACES = true
+      Flag.MOKS_EXPERIMENTAL_WORKSPACES = true
       const dir = yield* tmpdirScoped({ git: true })
       const project = yield* Project.use.fromDirectory(dir)
       registerAdapter(project.project.id, "local-test", localAdapter(path.join(dir, ".workspace")))
@@ -232,7 +232,7 @@ describe("workspace HttpApi", () => {
 
   it.live("serves list sync endpoint", () =>
     Effect.gen(function* () {
-      Flag.OPENCODE_EXPERIMENTAL_WORKSPACES = true
+      Flag.MOKS_EXPERIMENTAL_WORKSPACES = true
       const dir = yield* tmpdirScoped({ git: true })
       const project = yield* Project.use.fromDirectory(dir)
       const type = `listed-${Math.random().toString(36).slice(2)}`
@@ -276,7 +276,7 @@ describe("workspace HttpApi", () => {
 
   it.live("creates workspace with the TUI payload shape", () =>
     Effect.gen(function* () {
-      Flag.OPENCODE_EXPERIMENTAL_WORKSPACES = true
+      Flag.MOKS_EXPERIMENTAL_WORKSPACES = true
       const dir = yield* tmpdirScoped({ git: true })
       const project = yield* Project.use.fromDirectory(dir)
       registerAdapter(project.project.id, "local-test", localAdapter(path.join(dir, ".workspace")))
@@ -297,7 +297,7 @@ describe("workspace HttpApi", () => {
 
   it.live("creates a real git worktree workspace via the builtin adapter", () =>
     Effect.gen(function* () {
-      Flag.OPENCODE_EXPERIMENTAL_WORKSPACES = true
+      Flag.MOKS_EXPERIMENTAL_WORKSPACES = true
       const dir = yield* tmpdirScoped({ git: true })
 
       const created = yield* requestServer(WorkspacePaths.list, dir, {
@@ -315,7 +315,7 @@ describe("workspace HttpApi", () => {
 
   it.live("routes local workspace requests through the workspace target directory", () =>
     Effect.gen(function* () {
-      Flag.OPENCODE_EXPERIMENTAL_WORKSPACES = true
+      Flag.MOKS_EXPERIMENTAL_WORKSPACES = true
       const dir = yield* tmpdirScoped({ git: true })
       const workspaceDir = path.join(dir, ".workspace-local")
       const project = yield* Project.use.fromDirectory(dir)
@@ -340,7 +340,7 @@ describe("workspace HttpApi", () => {
 
   it.live("proxies remote workspace HTTP requests with sanitized forwarding", () =>
     Effect.gen(function* () {
-      Flag.OPENCODE_EXPERIMENTAL_WORKSPACES = true
+      Flag.MOKS_EXPERIMENTAL_WORKSPACES = true
       const dir = yield* tmpdirScoped({ git: true })
       const proxied: ProxiedRequest[] = []
       const remote = listenRemoteHttp((request) => {
@@ -393,7 +393,7 @@ describe("workspace HttpApi", () => {
           headers: {
             "accept-encoding": "br",
             "content-type": "application/json",
-            "x-opencode-workspace": "internal",
+            "x-moks-workspace": "internal",
           },
           body: JSON.stringify({ $schema: "https://opencode.ai/config.json" }),
         })
@@ -415,8 +415,8 @@ describe("workspace HttpApi", () => {
             body: JSON.stringify({ $schema: "https://opencode.ai/config.json" }),
           },
         ])
-        expect(forwarded[0]?.headers).not.toHaveProperty("x-opencode-directory")
-        expect(forwarded[0]?.headers).not.toHaveProperty("x-opencode-workspace")
+        expect(forwarded[0]?.headers).not.toHaveProperty("x-moks-directory")
+        expect(forwarded[0]?.headers).not.toHaveProperty("x-moks-workspace")
 
         const eventURL = new URL(`http://localhost${EventPaths.event}`)
         eventURL.searchParams.set("workspace", workspace.id)
@@ -435,7 +435,7 @@ describe("workspace HttpApi", () => {
 
   it.live("proxies remote workspace requests selected from session ownership", () =>
     Effect.gen(function* () {
-      Flag.OPENCODE_EXPERIMENTAL_WORKSPACES = true
+      Flag.MOKS_EXPERIMENTAL_WORKSPACES = true
       const dir = yield* tmpdirScoped({ git: true })
       const proxied: ProxiedRequest[] = []
       const remote = listenRemoteHttp((request) => {
