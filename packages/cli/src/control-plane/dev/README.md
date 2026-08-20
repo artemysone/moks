@@ -1,13 +1,13 @@
 This is a plugin to simulate a remote environment locally. Add this to the **monorepo** coding-agent config (`.opencode/`), not product `moks.json`:
 
 ```json
-  "plugin": ["../packages/moks/src/control-plane/dev/debug-workspace-plugin.ts"]
+  "plugin": ["../packages/cli/src/control-plane/dev/debug-workspace-plugin.ts"]
 ```
 
 In a separate terminal, run a second moks server. This acts like a remote server and the local instance proxies requests to it:
 
 ```
-./packages/moks/script/run-workspace-server
+./packages/cli/script/run-workspace-server
 ```
 
 With the plugin installed, you can run moks and create a `debug` workspace type. This creates a "remote" workspace that talks to the second workspace server started above.

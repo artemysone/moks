@@ -8,7 +8,7 @@ import { $ } from "bun"
 import path from "path"
 
 import { createClient } from "@hey-api/openapi-ts"
-import { generate } from "../../../opencode/src/cli/cmd/generate"
+import { generate } from "../../../../cli/src/cli/cmd/generate"
 
 await Bun.write("./openapi.json", await generate())
 

@@ -5,6 +5,6 @@ export default defineConfig({
   schema: ["./src/**/*.sql.ts", "./src/**/sql.ts"],
   out: "./migration",
   dbCredentials: {
-    url: "/home/thdxr/.local/share/opencode/opencode.db",
+    url: process.env.MOKS_DB ?? `${process.env.HOME}/.local/share/moks/moks.db`,
   },
 })
