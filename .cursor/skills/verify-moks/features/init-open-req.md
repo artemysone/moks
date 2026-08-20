@@ -1,10 +1,10 @@
 # Company /init and /open-req intake
 
-`/init` is company-only: in any folder it writes or continues the company `HIRING.md` dossier and never creates a req directory, even when a title is typed after it. `/open-req [title]` creates or focuses a req subdirectory (`<slug>/HIRING.md` + `<slug>/candidates/`), writes `.moks/focus`, and starts role intake.
+`/init` is company-only: in any folder it stands up the company workspace (company `HIRING.md` dossier, `SCORECARD.md`, the `.moks/` ledger, a git repo) and never creates a req directory, even when a title is typed after it. `/open-req [title]` creates or focuses a req subdirectory (`<slug>/HIRING.md` + `<slug>/candidates/`), writes `.moks/focus`, and starts role intake.
 
 ## Sub-features
 
-- `init-empty` — `/init` in an empty folder writes company `HIRING.md` (dossier stub), no `candidates/`, no req dir.
+- `init-empty` — `/init` in an empty folder stands up the full company workspace: `HIRING.md` (dossier stub), `SCORECARD.md`, `.moks/ledger.sqlite`, `.moks/vault.key`, `.git/`; no `candidates/` at the root, no req dir.
 - `init-no-req` — `/init <title>` on an inited company leaves `HIRING.md` alone and creates no req dir.
 - `open-req-create` — `/open-req <title>` creates `<slug>/HIRING.md` + `<slug>/candidates/.gitkeep` and writes `<slug>` to `.moks/focus`.
 - `open-req-focus` — `/open-req <title>` on an existing req focuses it without overwriting its `HIRING.md`.
@@ -19,7 +19,7 @@
 
 Preconditions: isolated workspace from `workspace.sh`; for `init-empty` and `open-req-create` make a fresh empty dir under `$WORK` (for example `$WORK/empty-co`) and start the TUI there in a tmux session this run owns.
 
-- `init-empty`: start the TUI in the empty dir, send `/init` + Enter. Observe `HIRING.md` appears at the root with the `# Company` dossier stub, and neither `candidates/` nor any req subdirectory exists.
+- `init-empty`: start the TUI in the empty dir, send `/init` + Enter. Observe the full workspace tree at the root: `HIRING.md` with the `# Company` dossier stub, `SCORECARD.md`, `.moks/ledger.sqlite`, `.moks/vault.key`, and `.git/`; neither `candidates/` nor any req subdirectory exists.
 - `init-no-req`: in the same dir send `/init Senior Backend` + Enter. Observe `HIRING.md` unchanged and no `senior-backend/` dir.
 - `open-req-create`: send `/open-req Senior Backend` + Enter. Observe `senior-backend/HIRING.md` (role stub titled `# Senior Backend`), `senior-backend/candidates/.gitkeep`, and `.moks/focus` containing `senior-backend`.
 - `open-req-single`: start the TUI in `$COMPANY` (fixture single-req root), send `/open-req Other` + Enter. Observe no `other/` dir and the fixture `HIRING.md` unchanged.
