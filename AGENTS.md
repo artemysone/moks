@@ -252,6 +252,15 @@ const table = sqliteTable("session", {
 
 - Always run `bun typecheck` from package directories (e.g., `packages/cli`), never `tsc` directly.
 
+## Cursor Cloud specific instructions
+
+Cloud Agents use the repository-managed environment in `.cursor/environment.json`. `install` runs `.cursor/install.sh`, which installs the Bun version pinned in `package.json` `packageManager` and then `bun install --frozen-lockfile`. There is no product server and no `start` command.
+
+- `bun` is on PATH after install (`/usr/local/bin/bun`). Do not use npm or pnpm as the primary workflow.
+- Do not run tests from the repo root (guarded). From a package directory: `cd packages/cli && bun test` or `cd packages/cli && bun typecheck`.
+- Product proof uses the `verify-moks` skill. Create an isolated fixture company with `.cursor/skills/verify-moks/scripts/workspace.sh` and drive `moks` through `.cursor/skills/verify-moks/scripts/moks.sh`. Do not treat this git checkout as a company folder.
+- `moks push` applies through the mock ATS adapter. Live Ashby is not available in Cloud Agents.
+
 ## Session runtime
 
 Product prompts use `SessionPrompt.loop`. The bullets below apply only when you are already editing engine Session code in `packages/engine/core/src/session`. `SessionV2` is a leftover export name. Treat it as Session. Do not introduce new `V2` names.
