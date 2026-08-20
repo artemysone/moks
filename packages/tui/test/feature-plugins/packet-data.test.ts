@@ -4,7 +4,7 @@ import path from "node:path"
 import { describe, expect, test } from "bun:test"
 import { loadPacket } from "../../src/feature-plugins/sidebar/packet-data"
 
-const hiringFixture = path.resolve(import.meta.dir, "../../../moks/src/product/fixtures/hiring")
+const hiringFixture = path.resolve(import.meta.dir, "../../../cli/src/product/fixtures/hiring")
 
 describe("loadPacket", () => {
   test("lists both reqs at a company root", async () => {
