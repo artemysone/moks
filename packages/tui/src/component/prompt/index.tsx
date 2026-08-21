@@ -56,7 +56,7 @@ import { useTuiConfig } from "../../config"
 import { usePromptWorkspace } from "./workspace"
 import { usePromptMove } from "./move"
 import { readLocalAttachment } from "./local-attachment"
-import { DEFAULT_PLACEHOLDERS } from "./placeholders"
+import { DEFAULT_PLACEHOLDERS, placeholdersFor } from "./placeholders"
 import { countCards, countChangesets, formatReqStatus, ledgerStamp, readReqTitle } from "./req-status"
 
 registerOpencodeSpinner()
@@ -211,7 +211,7 @@ export function Prompt(props: PromptProps) {
     })
   })
 
-  const list = createMemo(() => props.placeholders?.normal ?? DEFAULT_PLACEHOLDERS.normal)
+  const list = createMemo(() => props.placeholders?.normal ?? placeholdersFor({ cards: reqMeta()?.cards }))
   const shell = createMemo(() => props.placeholders?.shell ?? DEFAULT_PLACEHOLDERS.shell)
   const fileContextEnabled = createMemo(() => kv.get("file_context_enabled", true))
   const [dismissedEditorSelectionKey, setDismissedEditorSelectionKey] = createSignal<string>()
