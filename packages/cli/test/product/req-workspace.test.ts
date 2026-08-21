@@ -93,19 +93,38 @@ test("scaffoldReq does not overwrite non-empty COMPANY.md", async () => {
   expect(await Bun.file(path.join(tmp.path, "other-title", "HIRING.md")).exists()).toBe(true)
 })
 
-test("does not add .moks/ to .gitignore", async () => {
+test("scaffoldCompany creates .gitignore with .moks/ when absent", async () => {
   await using tmp = await tmpdir()
   const gi = path.join(tmp.path, ".gitignore")
-  await Bun.write(gi, "node_modules/\n")
   await ReqWorkspace.scaffoldCompany(tmp.path)
-  expect(await Bun.file(gi).text()).toBe("node_modules/\n")
-  expect(await Bun.file(path.join(tmp.path, ".gitignore")).text()).not.toContain(".moks/")
+  expect(await Bun.file(gi).text()).toBe(".moks/\n")
 })
 
-test("does not create a gitignore when none exists", async () => {
+test("scaffoldCompany appends .moks/ to an existing .gitignore without a newline at EOF", async () => {
   await using tmp = await tmpdir()
+  const gi = path.join(tmp.path, ".gitignore")
+  await Bun.write(gi, "node_modules/")
   await ReqWorkspace.scaffoldCompany(tmp.path)
-  expect(await Bun.file(path.join(tmp.path, ".gitignore")).exists()).toBe(false)
+  expect(await Bun.file(gi).text()).toBe("node_modules/\n.moks/\n")
+})
+
+test("scaffoldCompany rerun is idempotent: no duplicate .moks/ entries", async () => {
+  await using tmp = await tmpdir()
+  const gi = path.join(tmp.path, ".gitignore")
+  await ReqWorkspace.scaffoldCompany(tmp.path)
+  const before = await Bun.file(gi).text()
+  await ReqWorkspace.scaffoldCompany(tmp.path)
+  expect(await Bun.file(gi).text()).toBe(before)
+})
+
+test("scaffoldCompany treats whitespace and slash variants of .moks as already ignored", async () => {
+  await using tmp = await tmpdir()
+  const gi = path.join(tmp.path, ".gitignore")
+  for (const entry of ["  .moks ", "\t.moks/\n"]) {
+    await Bun.write(gi, `node_modules/\n${entry}`)
+    await ReqWorkspace.scaffoldCompany(tmp.path)
+    expect(await Bun.file(gi).text()).toBe(`node_modules/\n${entry}`)
+  }
 })
 
 test("resolve walks up to the company constitution", async () => {
