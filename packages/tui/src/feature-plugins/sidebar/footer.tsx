@@ -49,7 +49,7 @@ function View(props: { api: TuiPluginApi; sessionID: string }) {
             </box>
             <text fg={theme().textMuted}>Connect a provider to send prompts.</text>
             <text fg={theme().textMuted}>
-              OpenCode is one option if you have a subscription. Claude, GPT, Gemini, and others work too.
+              Claude, GPT, Gemini, and others work with a subscription or an API key. Any provider works.
             </text>
             <box flexDirection="row" gap={1} justifyContent="space-between">
               <text fg={theme().text}>Connect provider</text>

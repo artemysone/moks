@@ -24,12 +24,12 @@ export const COMMAND_PALETTE_COMMAND = "command.palette.show"
 const MOKS_MODE_KEY = "moks.mode"
 
 export const MoksKeymapProvider = KeymapProvider
-export const useOpencodeKeymap = useKeymap
+export const useMoksKeymap = useKeymap
 
 export { useBindings, useKeymapSelector }
 
 export type OpenTuiKeymap = ReturnType<typeof useKeymap>
-type OpencodeModeStack = ReturnType<typeof createMoksModeStack>
+type MoksModeStack = ReturnType<typeof createMoksModeStack>
 type CommandSlashEntry = {
   display: string
   description?: string
@@ -44,7 +44,7 @@ type BindingLookup = {
 type FormatConfig = { keybinds: BindingLookup }
 type ResolvedKeymapConfig = FormatConfig & { leader_timeout: number }
 
-const modeStacks = new WeakMap<OpenTuiKeymap, OpencodeModeStack>()
+const modeStacks = new WeakMap<OpenTuiKeymap, MoksModeStack>()
 
 function isVisiblePaletteCommand(command: Command) {
   return command.hidden !== true && command.name !== COMMAND_PALETTE_COMMAND
@@ -100,12 +100,12 @@ export function createMoksModeStack(keymap: OpenTuiKeymap) {
 }
 
 export function useMoksModeStack() {
-  return getOpencodeModeStack(useOpencodeKeymap())
+  return getMoksModeStack(useMoksKeymap())
 }
 
-export function getOpencodeModeStack(keymap: OpenTuiKeymap) {
+export function getMoksModeStack(keymap: OpenTuiKeymap) {
   const value = modeStacks.get(keymap)
-  if (!value) throw new Error("Opencode mode stack is not registered for this keymap")
+  if (!value) throw new Error("Moks mode stack is not registered for this keymap")
   return value
 }
 
@@ -258,7 +258,7 @@ export function useCommandShortcut(command: string): Accessor<string> {
 }
 
 export function useCommandSlashes(): Accessor<readonly CommandSlashEntry[]> {
-  const keymap = useOpencodeKeymap()
+  const keymap = useMoksKeymap()
   const entries = useKeymapSelector((keymap: OpenTuiKeymap) =>
     keymap.getCommandEntries({
       visibility: "reachable",

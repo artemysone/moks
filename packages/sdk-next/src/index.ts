@@ -14,4 +14,4 @@ export {
   SessionInput,
   SessionMessage,
 } from "@moks/client/effect"
-export type { OpenCodeEvent } from "@moks/client/effect"
+export type { MoksEvent } from "@moks/client/effect"

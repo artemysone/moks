@@ -13,8 +13,8 @@ await Effect.runPromise(
         emitPromise(contract, {
           outputTypes: {
             "events.subscribe": {
-              name: "OpenCodeEventEncoded",
-              import: 'import type { OpenCodeEventEncoded } from "@moks/protocol/groups/event"',
+              name: "MoksEventEncoded",
+              import: 'import type { MoksEventEncoded } from "@moks/protocol/groups/event"',
             },
           },
         }),

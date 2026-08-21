@@ -5,7 +5,7 @@ import { testRender, useRenderer } from "@opentui/solid"
 import { expect, test } from "bun:test"
 import { onCleanup } from "solid-js"
 import { TuiKeybind } from "../src/config/keybind"
-import { getOpencodeModeStack, MOKS_BASE_MODE, MoksKeymapProvider, registerMoksKeymap } from "../src/keymap"
+import { getMoksModeStack, MOKS_BASE_MODE, MoksKeymapProvider, registerMoksKeymap } from "../src/keymap"
 
 function createResolvedKeymapConfig(input: TuiKeybind.KeybindOverrides = {}) {
   const keybinds = TuiKeybind.parse(input)
@@ -63,7 +63,7 @@ test("legacy page key aliases compile as page keys", async () => {
   }
 })
 
-test("mode-less bindings stay active when opencode mode changes", async () => {
+test("mode-less bindings stay active when mode stack mode changes", async () => {
   const counts: Record<string, Record<string, number>> = {}
 
   function Harness() {
@@ -102,10 +102,10 @@ test("mode-less bindings stay active when opencode mode changes", async () => {
       )
 
     counts.base = activeCounts()
-    const popQuestion = getOpencodeModeStack(keymap).push("question")
+    const popQuestion = getMoksModeStack(keymap).push("question")
     counts.question = activeCounts()
     popQuestion()
-    const popAutocomplete = getOpencodeModeStack(keymap).push("autocomplete")
+    const popAutocomplete = getMoksModeStack(keymap).push("autocomplete")
     counts.autocomplete = activeCounts()
     popAutocomplete()
 

@@ -1,4 +1,4 @@
-import type { OpenCodeEventEncoded } from "@moks/protocol/groups/event"
+import type { MoksEventEncoded } from "@moks/protocol/groups/event"
 
 export type JsonValue =
   | null
@@ -730,7 +730,7 @@ export type SkillsListOutput = {
   }>
 }
 
-export type EventsSubscribeOutput = OpenCodeEventEncoded
+export type EventsSubscribeOutput = MoksEventEncoded
 
 export type PtysListInput = {
   readonly location?: {
