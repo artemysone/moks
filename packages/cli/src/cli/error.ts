@@ -78,7 +78,7 @@ export function FormatError(input: unknown): string | undefined {
   // ProviderNoProvidersError: no OAuth/ACP (or real API key) connected
   if (isTaggedError(input, "ProviderNoProvidersError") || NamedError.hasName(input, "ProviderNoProvidersError")) {
     return (
-      stringField(input, "message") ||
+      (isRecord(input) ? stringField(input, "message") : undefined) ||
       "No inference provider is connected. Sign in / connect OAuth or ACP (`moks auth`). A dummy API key is not enough."
     )
   }
