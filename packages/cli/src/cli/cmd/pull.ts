@@ -28,6 +28,11 @@ export const PullCommand = effectCmd({
     UI.println(
       `${UI.Style.TEXT_SUCCESS_BOLD}pulled${UI.Style.TEXT_NORMAL} ${result.ats}${seed}: ${result.upserted.jobs} jobs, ${result.upserted.candidates} candidates, ${result.upserted.applications} applications`,
     )
+    if (result.cards.dir) {
+      UI.println(
+        `${UI.Style.TEXT_DIM}cards: ${result.cards.created.length} new, ${result.cards.updated.length} updated → ${result.cards.dir}${UI.Style.TEXT_NORMAL}`,
+      )
+    }
     UI.println(`${UI.Style.TEXT_DIM}${result.path}${UI.Style.TEXT_NORMAL}`)
   }),
 })
