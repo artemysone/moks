@@ -286,6 +286,20 @@ async function ensureLedger(cwd: string, created: string[], skipped: string[]) {
   db.close()
   ;(hadDb ? skipped : created).push(path.join(".moks", "ledger.sqlite"))
   ;(hadKey ? skipped : created).push(path.join(".moks", "vault.key"))
+  await ignoreMoksDir(cwd)
+}
+
+// vault.key is a plaintext AES master key for candidate PII; it must never be committable.
+async function ignoreMoksDir(cwd: string) {
+  const file = Bun.file(path.join(cwd, ".gitignore"))
+  const text = await file.text().catch(() => "")
+  const ignored = text.split("\n").some((line) => {
+    const trimmed = line.trim()
+    return trimmed === ".moks" || trimmed === ".moks/"
+  })
+  if (ignored) return
+  const separator = text.length > 0 && !text.endsWith("\n") ? "\n" : ""
+  await Bun.write(file, `${text}${separator}.moks/\n`)
 }
 
 async function gitToplevel(dir: string) {
