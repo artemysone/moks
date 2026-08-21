@@ -2,39 +2,11 @@ import { isMutation, requiredEffectClass, type Mutation } from "./domain.ts";
 
 export type Gate = "auto" | "batch" | "always";
 
-export const AGENT_TOOL_NAMES = [
-  "workspace_read",
-  "list_applications",
-  "ledger_status",
-  "ledger_list",
-  "ledger_diff",
-  "ledger_commit",
-  "sync_pull",
-  "source_search",
-] as const;
-
-export type AgentToolName = (typeof AGENT_TOOL_NAMES)[number];
-
-export const PERMISSION_DECISIONS = ["allow", "ask", "deny"] as const;
-
-export type PermissionDecision = (typeof PERMISSION_DECISIONS)[number];
-
-/**
- * One entry from the `permissions:` block. `mutation` is null for a bare tool key
- * (the wildcard fallback) and set for a `ledger_commit(Mutation)` pattern.
- */
-export type PermissionRule = {
-  tool: AgentToolName;
-  mutation: Mutation | null;
-  decision: PermissionDecision;
-};
-
 export type Policy = {
   autoApprove: Mutation[];
   batchReview: Mutation[];
   alwaysGate: Mutation[];
   rejectSampling: number;
-  permissions: PermissionRule[];
 };
 
 export type HiringDoc = {
@@ -51,7 +23,6 @@ const emptyPolicy = (): Policy => ({
   batchReview: [],
   alwaysGate: [],
   rejectSampling: 0,
-  permissions: [],
 });
 
 /** Missing hiring.md fails closed: every mutation is `always`, sampling is off. */
@@ -95,98 +66,6 @@ export function sampleReject(policy: Policy, rng: () => number): boolean {
   return rng() < policy.rejectSampling;
 }
 
-export function isAgentToolName(value: string): value is AgentToolName {
-  return (AGENT_TOOL_NAMES as readonly string[]).includes(value);
-}
-
-export function isPermissionDecision(value: string): value is PermissionDecision {
-  return (PERMISSION_DECISIONS as readonly string[]).includes(value);
-}
-
-/** Bare-key rule for a tool (`ledger_commit: ask`). Later duplicates override earlier ones. */
-export function permissionFor(tool: string, policy: Policy): PermissionDecision | null {
-  let found: PermissionDecision | null = null;
-  for (const rule of policy.permissions) {
-    if (rule.tool === tool && rule.mutation === null) {
-      found = rule.decision;
-    }
-  }
-  return found;
-}
-
-/** Most specific wins: `ledger_commit(Mutation)` beats the bare `ledger_commit` fallback. */
-export function commitPermissionFor(mutation: Mutation, policy: Policy): PermissionDecision | null {
-  let specific: PermissionDecision | null = null;
-  for (const rule of policy.permissions) {
-    if (rule.tool === "ledger_commit" && rule.mutation === mutation) {
-      specific = rule.decision;
-    }
-  }
-  return specific ?? permissionFor("ledger_commit", policy);
-}
-
-/**
- * Effect classes are the floor: `allow` only takes effect for reversible mutations
- * (the same hard gate as `auto_approve`); on compensable/irreversible mutations it
- * degrades to `ask`. `deny` and `ask` pass through untouched.
- */
-export function effectiveCommitPermission(mutation: Mutation, policy: Policy): PermissionDecision | null {
-  const decision = commitPermissionFor(mutation, policy);
-  if (decision === "allow" && !isReversibleAutoApprove(mutation)) {
-    return "ask";
-  }
-  return decision;
-}
-
-export type ToolPermission =
-  | { action: "proceed" }
-  | { action: "allow" }
-  | { action: "ask" }
-  | { action: "deny"; denied: string[] };
-
-/**
- * Combined decision for one agent tool call. `mutations` is only meaningful for
- * `ledger_commit` (the mutation names of the staged changes).
- *
- * - `deny` on any matched key wins outright.
- * - `proceed` (no rule matched, or a commit with an unmatched mutation) keeps the
- *   existing effect-class + policy-list behavior untouched.
- * - `allow` is only returned for commits when every mutation resolves to an
- *   effective `allow` (i.e. all reversible); otherwise the call must `ask`.
- * - Mutation names that are not valid mutations fall back to the bare
- *   `ledger_commit` rule, with `allow` degraded to `ask` since reversibility
- *   cannot be verified.
- */
-export function toolPermission(toolName: string, mutations: string[], policy: Policy): ToolPermission {
-  if (toolName !== "ledger_commit") {
-    const decision = permissionFor(toolName, policy);
-    if (decision === null) return { action: "proceed" };
-    if (decision === "deny") return { action: "deny", denied: [toolName] };
-    return { action: decision };
-  }
-  const names = mutations.length > 0 ? mutations : [""];
-  const decisions = names.map((name) => commitDecisionForName(name, policy));
-  const denied = names.filter((_, index) => decisions[index] === "deny");
-  if (denied.length > 0) {
-    return { action: "deny", denied };
-  }
-  if (decisions.some((decision) => decision === null)) {
-    return { action: "proceed" };
-  }
-  if (decisions.every((decision) => decision === "allow")) {
-    return { action: "allow" };
-  }
-  return { action: "ask" };
-}
-
-function commitDecisionForName(name: string, policy: Policy): PermissionDecision | null {
-  if (isMutation(name)) {
-    return effectiveCommitPermission(name, policy);
-  }
-  const bare = permissionFor("ledger_commit", policy);
-  return bare === "allow" ? "ask" : bare;
-}
-
 function parseSections(text: string): Map<string, string> {
   const sections = new Map<string, string>();
   let current: string | null = null;
@@ -220,29 +99,13 @@ function findTone(sections: Map<string, string>): string {
 
 function parsePolicy(body: string, warnings: string[]): Policy {
   const policy = emptyPolicy();
-  let inPermissions = false;
   for (const rawLine of body.split(/\r?\n/)) {
-    const stripped = stripComment(rawLine);
-    const line = stripped.trim();
+    const line = stripComment(rawLine).trim();
     if (!line) continue;
-    // Indented lines under `permissions:` are block entries; the first
-    // non-indented line closes the block.
-    if (inPermissions && /^[ \t]/.test(stripped)) {
-      parsePermissionEntry(line, policy.permissions, warnings);
-      continue;
-    }
-    inPermissions = false;
     const match = line.match(/^([a-z_]+)\s*:\s*(.*)$/i);
     if (!match) continue;
     const key = match[1]!.toLowerCase();
     const value = match[2]!.trim();
-    if (key === "permissions") {
-      if (value) {
-        warnings.push(`permissions must be an indented block, ignored inline value: ${value}`);
-      }
-      inPermissions = true;
-      continue;
-    }
     if (key === "reject_sampling") {
       policy.rejectSampling = parseRejectSampling(value);
       continue;
@@ -260,39 +123,6 @@ function parsePolicy(body: string, warnings: string[]): Policy {
     }
   }
   return policy;
-}
-
-/** `tool: decision` or `ledger_commit(Mutation): decision`. Invalid entries warn and drop. */
-function parsePermissionEntry(line: string, rules: PermissionRule[], warnings: string[]): void {
-  const match = line.match(/^([a-z_]+)\s*(?:\(\s*([^)]*?)\s*\))?\s*:\s*(.+)$/i);
-  if (!match) {
-    warnings.push(`invalid permissions entry: ${line}`);
-    return;
-  }
-  const tool = match[1]!.toLowerCase();
-  const arg = match[2]?.trim() ?? null;
-  const value = match[3]!.trim().toLowerCase();
-  if (!isAgentToolName(tool)) {
-    warnings.push(`unknown tool in permissions: ${tool}`);
-    return;
-  }
-  if (!isPermissionDecision(value)) {
-    warnings.push(`invalid decision in permissions: ${tool}: ${value}`);
-    return;
-  }
-  let mutation: Mutation | null = null;
-  if (arg !== null && arg !== "" && arg !== "*") {
-    if (tool !== "ledger_commit") {
-      warnings.push(`argument pattern only supported on ledger_commit in permissions: ${line}`);
-      return;
-    }
-    if (!isMutation(arg)) {
-      warnings.push(`unknown mutation in permissions: ${arg}`);
-      return;
-    }
-    mutation = arg;
-  }
-  rules.push({ tool, mutation, decision: value });
 }
 
 function parseMutationList(raw: string, field: string, warnings: string[]): Mutation[] {
