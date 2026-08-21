@@ -5,9 +5,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 FIXTURES="$REPO/packages/cli/src/product/fixtures/hiring"
 CLI="$REPO/packages/cli/src/index.ts"
+MODELS="$REPO/.cursor/skills/verify-moks/fixtures/models.json"
 
-if [[ ! -f "$FIXTURES/HIRING.md" || ! -f "$CLI" ]]; then
-  echo "verify-moks: expected hiring fixtures and CLI entry under $REPO" >&2
+if [[ ! -f "$FIXTURES/HIRING.md" || ! -f "$CLI" || ! -f "$MODELS" ]]; then
+  echo "verify-moks: expected hiring fixtures, models stub, and CLI entry under $REPO" >&2
   exit 1
 fi
 
@@ -38,6 +39,11 @@ export XDG_CACHE_HOME=$(printf '%q' "$VERIFY_HOME/.cache")
 export MOKS_DISABLE_AUTOUPDATE=1
 export MOKS_DISABLE_AUTOCOMPACT=1
 export MOKS_DISABLE_MODELS_FETCH=1
+# Stub provider so the TUI accepts submits (slash commands scaffold before the
+# model turn). The dummy key fails at the provider boundary; export a real
+# ANTHROPIC_API_KEY before sourcing env.sh to drive live model turns.
+export MOKS_MODELS_PATH=$(printf '%q' "$MODELS")
+export ANTHROPIC_API_KEY="\${ANTHROPIC_API_KEY:-moks-verify-dummy-key}"
 EOF
 
 echo "$WORK"
