@@ -601,7 +601,20 @@ export function readLog(db: SqliteDb): AuditEntry[] {
   }));
 }
 
+const CHANGES_LIFECYCLE: Record<ChangesetStatus, ChangesetStatus[]> = {
+  staged: ["approved", "rejected", "stale"],
+  approved: ["applied", "stale"],
+  applied: [],
+  rejected: [],
+  stale: [],
+};
+
 export function markChangesetStatus(db: SqliteDb, id: string, status: ChangesetStatus, appliedAt?: number): void {
+  const row = loadChangesetRow(db, id);
+  const allowed = CHANGES_LIFECYCLE[row.status];
+  if (!allowed?.includes(status)) {
+    throw new LedgerError(`illegal_lifecycle: ${row.status} → ${status}`);
+  }
   if (appliedAt !== undefined) {
     db.prepare("UPDATE changesets SET status = ?, applied_at = ? WHERE id = ?").run(status, appliedAt, id);
     return;

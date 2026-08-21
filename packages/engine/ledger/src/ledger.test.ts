@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openSqlite } from "./db.ts";
 import { openWorkspace, type Workspace } from "./temp-ledger.ts";
+import { markChangesetStatus } from "./ledger.ts";
 
 function tempCwd(): string {
   return mkdtempSync(join(tmpdir(), "mox-ledger-"));
@@ -539,6 +540,38 @@ describe("ledger", () => {
     const offers = after.prepare("SELECT entity_ref, terms FROM offers").all();
     expect(offers).toEqual([{ entity_ref: "app_marcus_142", terms: "185k + equity" }]);
     after.close();
+    ws.close();
+  });
+
+  test("lifecycle: skipping and backwards status transitions rejected", () => {
+    const ws = openTemp();
+    ws.pull();
+    const staged = advancePriya(ws);
+
+    const db = openSqlite(ws.paths.workspaceDb);
+    expect(() => markChangesetStatus(db, staged.id, "applied")).toThrow("illegal_lifecycle: staged → applied");
+    expect(() => markChangesetStatus(db, staged.id, "staged")).toThrow("illegal_lifecycle: staged → staged");
+    expect(() => markChangesetStatus(db, "missing", "stale")).toThrow("changeset_not_found");
+
+    markChangesetStatus(db, staged.id, "stale");
+    expect(ws.getChangeset(staged.id).status).toBe("stale");
+    expect(() => markChangesetStatus(db, staged.id, "staged")).toThrow("illegal_lifecycle: stale → staged");
+
+    const approved = advancePriya(ws);
+    ws.review(approved.id, { action: "approve", reviewer_id: "hm" });
+    expect(ws.push(approved.id).pushed).toEqual([{ id: approved.id, status: "applied" }]);
+    expect(() => markChangesetStatus(db, approved.id, "stale")).toThrow("illegal_lifecycle: applied → stale");
+    db.close();
+    ws.close();
+  });
+
+  test("review rejects empty and whitespace reviewer_id", () => {
+    const ws = openTemp();
+    ws.pull();
+    const staged = advancePriya(ws);
+    expect(() => ws.review(staged.id, { action: "approve", reviewer_id: "" })).toThrow("reviewer_id_required");
+    expect(() => ws.review(staged.id, { action: "approve", reviewer_id: "   " })).toThrow("reviewer_id_required");
+    expect(ws.getChangeset(staged.id).status).toBe("staged");
     ws.close();
   });
 
