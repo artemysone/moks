@@ -1,4 +1,4 @@
-import { readdir } from "node:fs/promises"
+import { readdir, stat } from "node:fs/promises"
 import path from "node:path"
 import { ledgerCounts, runDecision, type LedgerCounts } from "../../util/decision-cli"
 
@@ -44,6 +44,25 @@ export async function countChangesets(dir: string): Promise<LedgerCounts | undef
   const result = await runDecision(["status", "--json"], { cwd: dir }).catch(() => undefined)
   if (!result || result.code !== 0) return
   return ledgerCounts(result.json)
+}
+
+// Cheap change detector for the company ledger so the footer only re-runs the
+// CLI (`moks status --json` costs ~1s of CPU) when the ledger actually moved.
+export async function ledgerStamp(dir: string) {
+  let current = dir
+  for (const _ of [0, 1, 2, 3, 4]) {
+    const ledger = path.join(current, ".moks", "ledger.sqlite")
+    if (await Bun.file(ledger).exists()) {
+      const stats = await Promise.all(
+        [ledger, `${ledger}-wal`].map((file) => stat(file).catch(() => undefined)),
+      )
+      return stats.map((item) => (item ? `${item.mtimeMs}:${item.size}` : "")).join("|")
+    }
+    const parent = path.dirname(current)
+    if (parent === current) return
+    current = parent
+  }
+  return
 }
 
 export function formatReqStatus(input: {

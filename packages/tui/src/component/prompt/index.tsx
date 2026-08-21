@@ -56,8 +56,8 @@ import { useTuiConfig } from "../../config"
 import { usePromptWorkspace } from "./workspace"
 import { usePromptMove } from "./move"
 import { readLocalAttachment } from "./local-attachment"
-import { DEFAULT_PLACEHOLDERS } from "./placeholders"
-import { countCards, countChangesets, formatReqStatus, readReqTitle } from "./req-status"
+import { DEFAULT_PLACEHOLDERS, placeholdersFor } from "./placeholders"
+import { countCards, countChangesets, formatReqStatus, ledgerStamp, readReqTitle } from "./req-status"
 
 registerOpencodeSpinner()
 
@@ -172,7 +172,46 @@ export function Prompt(props: PromptProps) {
   const { theme, syntax } = useTheme()
   const kv = useKV()
   const animationsEnabled = createMemo(() => kv.get("animations_enabled", true))
-  const list = createMemo(() => props.placeholders?.normal ?? DEFAULT_PLACEHOLDERS.normal)
+
+  const reqDir = createMemo(() => project.instance.path().directory || paths.cwd)
+  const [reqMeta, reqMetaControl] = createResource(reqDir, async (dir) => {
+    const [title, cards] = await Promise.all([readReqTitle(dir), countCards(dir)])
+    return { title, cards }
+  })
+  const [ledger, ledgerControl] = createResource(reqDir, countChangesets)
+  // The req packet mutates outside this process (moks pull/commit in another
+  // terminal, agent edits), so poll like the sidebar packet does. Card and
+  // title reads are cheap fs calls; the ledger read spawns the CLI, so it is
+  // gated on a stat stamp of the ledger files.
+  let ledgerSeen: string | undefined
+  onMount(() => {
+    const timer = setInterval(() => {
+      const dir = reqDir()
+      if (!dir) return
+      void reqMetaControl.refetch()
+      void ledgerStamp(dir).then((stamp) => {
+        if (stamp === ledgerSeen) return
+        ledgerSeen = stamp
+        void ledgerControl.refetch()
+      })
+    }, 2000)
+    onCleanup(() => clearInterval(timer))
+  })
+  const reqStatus = createMemo(() => {
+    const dir = reqDir()
+    if (!dir) return
+    const meta = reqMeta()
+    const counts = ledger()
+    return formatReqStatus({
+      title: meta?.title ?? path.basename(dir),
+      cards: meta?.cards,
+      staged: counts?.staged,
+      approved: counts?.approved,
+      agent: local.agent.current()?.name ?? "recruit",
+    })
+  })
+
+  const list = createMemo(() => props.placeholders?.normal ?? placeholdersFor({ cards: reqMeta()?.cards }))
   const shell = createMemo(() => props.placeholders?.shell ?? DEFAULT_PLACEHOLDERS.shell)
   const fileContextEnabled = createMemo(() => kv.get("file_context_enabled", true))
   const [dismissedEditorSelectionKey, setDismissedEditorSelectionKey] = createSignal<string>()
@@ -279,29 +318,6 @@ export function Prompt(props: PromptProps) {
       context: pct ? `${Locale.number(tokens)} (${pct})` : Locale.number(tokens),
       cost: cost > 0 ? money.format(cost) : undefined,
     }
-  })
-
-  const reqDir = createMemo(() => {
-    if (!props.sessionID) return
-    return project.instance.path().directory || paths.cwd
-  })
-  const [reqMeta] = createResource(reqDir, async (dir) => {
-    const [title, cards] = await Promise.all([readReqTitle(dir), countCards(dir)])
-    return { title, cards }
-  })
-  const [ledger] = createResource(reqDir, countChangesets)
-  const reqStatus = createMemo(() => {
-    const dir = reqDir()
-    if (!dir) return
-    const meta = reqMeta()
-    const counts = ledger()
-    return formatReqStatus({
-      title: meta?.title ?? path.basename(dir),
-      cards: meta?.cards,
-      staged: counts?.staged,
-      approved: counts?.approved,
-      agent: local.agent.current()?.name ?? "recruit",
-    })
   })
 
   const [store, setStore] = createStore<{
