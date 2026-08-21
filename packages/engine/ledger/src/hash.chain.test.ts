@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 function tempWorkspace(): { dir: string; db: SqliteDb } {
-  const dir = mkdtempSync(join(tmpdir(), "mox-hash-chain-"));
+  const dir = mkdtempSync(join(tmpdir(), "moks-hash-chain-"));
   tempDirs.push(dir);
   const db = openSqlite(join(dir, "ledger.sqlite"));
   migrateWorkspace(db);

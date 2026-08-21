@@ -3,6 +3,7 @@ import type { ApplyChange, AtsAdapter } from "./adapters/types.ts";
 import type { SqliteDb } from "./db.ts";
 import type { AtsSnapshot, EntityType, Mutation } from "./domain.ts";
 import { LedgerError, VaultError } from "./errors.ts";
+import { canonicalJson } from "./hash.ts";
 import {
   listChangesets,
   loadChangeRows,
@@ -194,20 +195,6 @@ function applyOne(vault: Vault, change: ReturnType<typeof loadChangeRows>[number
     precondition: JSON.parse(change.precondition) as unknown,
     payload,
   };
-}
-
-/** JSON with deterministically ordered object keys, for hashing. */
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
-  }
-  if (value && typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .filter(([, item]) => item !== undefined)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(",")}}`;
-  }
-  return JSON.stringify(value) ?? "null";
 }
 
 const REBASED_FROM = /Rebased from ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):/;

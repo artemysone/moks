@@ -85,7 +85,7 @@ function toolErrorText(result: Record<string, unknown>): string {
 export async function connectMcp(config: McpServerConfig): Promise<McpConnection> {
   assertMcpServerConfig(config);
   const timeoutMs = config.timeoutMs ?? MCP_DEFAULT_TIMEOUT_MS;
-  const client = new Client({ name: "mox", version: "0.1.0" });
+  const client = new Client({ name: "moks", version: "0.1.0" });
   const transport = createTransport(config);
   try {
     await client.connect(transport, { timeout: timeoutMs });

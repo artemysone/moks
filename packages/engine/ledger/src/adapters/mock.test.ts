@@ -38,7 +38,7 @@ const validFixture = {
 };
 
 function writeFixture(body: unknown): string {
-  const dir = mkdtempSync(join(tmpdir(), "mox-fixture-"));
+  const dir = mkdtempSync(join(tmpdir(), "moks-fixture-"));
   const path = join(dir, "mock-ats.json");
   writeFileSync(path, JSON.stringify(body));
   return path;

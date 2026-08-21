@@ -28,7 +28,7 @@ import {
 } from "./sync.ts";
 import { openVault } from "./vault.ts";
 
-/** Test-only stand-in for Mox's workspace facade. Not exported from the package. */
+/** Test-only stand-in for the moks workspace facade. Not exported from the package. */
 export type SourceSearchResult = {
   source: SourcingId;
   candidates: SourcedCandidate[];
