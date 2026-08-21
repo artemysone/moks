@@ -1,5 +1,4 @@
-import { readdir } from "node:fs/promises"
-import path from "node:path"
+import { loadPacket, type PacketCandidate } from "../feature-plugins/sidebar/packet-data"
 import type { DialogContext } from "./dialog"
 import { DialogAlert } from "./dialog-alert"
 import { DialogConfirm } from "./dialog-confirm"
@@ -51,7 +50,15 @@ export async function runCommitFlow(input: { dialog: DialogContext; toast: Toast
     return
   }
 
-  const inferred = input.cwd ? await singleCandidate(input.cwd) : undefined
+  const packet = input.cwd ? await loadPacket(input.cwd) : undefined
+  const cards = packet?.packet?.candidates ?? []
+  const resolved = await resolveCommitTarget(input.dialog, cards)
+  if (!resolved) {
+    input.toast.show({ message: "Commit cancelled", variant: "info" })
+    input.dialog.clear()
+    return
+  }
+  const inferred = resolved.target
   const args = ["commit", "--json", "--action", trimmedAction, "--reason", reason]
   if (inferred) {
     args.push("--target-kind", "candidate", "--target-id", inferred.id)
@@ -210,18 +217,32 @@ async function pickChangeset(dialog: DialogContext, title: string, open: Changes
   )
 }
 
-async function singleCandidate(cwd: string) {
-  const names = await readdir(path.join(cwd, "candidates"), { withFileTypes: true })
-    .then((entries) =>
-      entries.flatMap((entry) =>
-        entry.isFile() && entry.name.endsWith(".md") && entry.name !== ".gitkeep" ? [entry.name] : [],
-      ),
+async function resolveCommitTarget(dialog: DialogContext, cards: PacketCandidate[]) {
+  if (cards.length === 1) return { target: commitTarget(cards[0].id) }
+  if (cards.length === 0) {
+    const ok = await DialogConfirm.show(
+      dialog,
+      "No candidate target",
+      "No candidate card in the focused req. Record this disposition without a target?",
     )
-    .catch(() => [] as string[])
-  if (names.length !== 1) return
-  const name = names[0]
-  return {
-    id: path.basename(name, ".md"),
-    card: `candidates/${name}`,
+    if (!ok) return
+    return {}
   }
+  const picked = await DialogSelect.show(
+    dialog,
+    "Pick candidate",
+    cards.map((card) => ({
+      title: card.id,
+      value: card.id,
+      description: [card.stage, card.score !== undefined ? `score ${card.score}` : undefined]
+        .filter((part) => part !== undefined)
+        .join(" · "),
+    })),
+  )
+  if (picked === null) return
+  return { target: commitTarget(picked) }
+}
+
+function commitTarget(id: string) {
+  return { id, card: `candidates/${id}.md` }
 }
