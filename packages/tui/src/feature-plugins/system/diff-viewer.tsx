@@ -84,8 +84,8 @@ function storedView(value: unknown): DiffView | undefined {
 
 function diffSourceLabel(mode: DiffMode) {
   if (mode === "last-turn") return "last turn"
-  if (mode === "branch") return "main branch"
-  return "working tree"
+  if (mode === "branch") return "branch baseline"
+  return "local drafts"
 }
 
 function DiffViewer(props: { api: TuiPluginApi }) {
@@ -685,16 +685,16 @@ function DiffViewer(props: { api: TuiPluginApi }) {
     const vcs = props.api.state.vcs
     return [
       {
-        title: "Working tree",
+        title: "Local drafts",
         value: "git" as const,
-        description: "Show current local changes",
+        description: "Show current uncommitted changes",
       },
       ...(vcs?.branch && vcs.default_branch && vcs.branch !== vcs.default_branch
         ? [
             {
-              title: "Main branch",
+              title: "Branch baseline",
               value: "branch" as const,
-              description: "Show changes compared to main",
+              description: "Show changes compared to the default branch",
             },
           ]
         : []),
@@ -989,7 +989,7 @@ function DiffViewerHelpDialog() {
     {
       shortcut: useCommandShortcut("diff.switch_source"),
       action: "Switch source",
-      description: "Choose working tree, main branch, or last-turn changes",
+      description: "Choose local drafts, branch baseline, or last-turn changes",
     },
     {
       shortcut: useCommandShortcut("diff.toggle_view"),
