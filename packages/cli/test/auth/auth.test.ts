@@ -1,7 +1,7 @@
-import { describe, expect } from "bun:test"
+import { describe, expect, test } from "bun:test"
 import { LayerNode } from "@moks/core/effect/layer-node"
 import { Effect } from "effect"
-import { Auth } from "../../src/auth"
+import { Auth, isPlaceholderApiKey, OAUTH_DUMMY_KEY } from "../../src/auth"
 import { testEffect } from "../lib/effect"
 
 const it = testEffect(LayerNode.compile(Auth.node))
@@ -72,4 +72,20 @@ describe("Auth", () => {
       expect(after["anthropic"]).toBeUndefined()
     }),
   )
+})
+
+describe("isPlaceholderApiKey", () => {
+  test("treats oauth dummy and verify dummy keys as placeholders", () => {
+    expect(isPlaceholderApiKey(undefined)).toBe(true)
+    expect(isPlaceholderApiKey("")).toBe(true)
+    expect(isPlaceholderApiKey("   ")).toBe(true)
+    expect(isPlaceholderApiKey(OAUTH_DUMMY_KEY)).toBe(true)
+    expect(isPlaceholderApiKey("moks-verify-dummy-key")).toBe(true)
+    expect(isPlaceholderApiKey("dummy")).toBe(true)
+  })
+
+  test("does not treat a real-looking env key as a placeholder", () => {
+    expect(isPlaceholderApiKey("test-api-key")).toBe(false)
+    expect(isPlaceholderApiKey("sk-ant-api-key-value")).toBe(false)
+  })
 })

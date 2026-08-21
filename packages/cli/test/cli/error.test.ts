@@ -78,4 +78,11 @@ describe("cli.error", () => {
   test("formats cancelled UI errors as empty output", () => {
     expect(FormatError(new UI.CancelledError())).toBe("")
   })
+
+  test("formats missing inference providers as a sign-in hint", () => {
+    const expected =
+      "No inference provider is connected. Sign in / connect OAuth or ACP (`moks auth`). A dummy API key is not enough."
+    expect(FormatError({ _tag: "ProviderNoProvidersError" })).toBe(expected)
+    expect(FormatError({ name: "ProviderNoProvidersError" })).toBe(expected)
+  })
 })

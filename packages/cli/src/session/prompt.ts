@@ -628,7 +628,13 @@ const layer = Layer.effect(
         .findMessage(sessionID, (m) => m.info.role === "user" && !!m.info.model)
         .pipe(Effect.orDie)
       if (Option.isSome(match) && match.value.info.role === "user") return match.value.info.model
-      return yield* provider.defaultModel().pipe(Effect.orDie)
+      const resolved = yield* provider.defaultModel().pipe(Effect.either)
+      if (resolved._tag === "Left") {
+        const error = new NamedError.Unknown({ message: resolved.left.message })
+        yield* events.publish(Session.Event.Error, { sessionID, error: error.toObject() })
+        throw error
+      }
+      return resolved.right
     })
 
     const createUserMessage = Effect.fn("SessionPrompt.createUserMessage")(function* (input: PromptInput) {

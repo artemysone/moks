@@ -75,6 +75,14 @@ export function FormatError(input: unknown): string | undefined {
     return `Failed to initialize provider "${stringField(providerInit, "providerID")}". Check credentials and configuration.`
   }
 
+  // ProviderNoProvidersError: no OAuth/ACP (or real API key) connected
+  if (isTaggedError(input, "ProviderNoProvidersError") || NamedError.hasName(input, "ProviderNoProvidersError")) {
+    return (
+      stringField(input, "message") ||
+      "No inference provider is connected. Sign in / connect OAuth or ACP (`moks auth`). A dummy API key is not enough."
+    )
+  }
+
   // ConfigJsonError: { path: string, message?: string }
   const configJson = configData(input, "ConfigJsonError")
   if (configJson) {

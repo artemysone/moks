@@ -7,6 +7,15 @@ import { FSUtil } from "@moks/core/fs-util"
 
 export const OAUTH_DUMMY_KEY = "moks-oauth-dummy-key"
 
+/** Env/stored keys that must not count as inference credentials. */
+export function isPlaceholderApiKey(key: string | undefined) {
+  if (!key) return true
+  const value = key.trim()
+  if (!value) return true
+  if (value === OAUTH_DUMMY_KEY) return true
+  return /dummy/i.test(value)
+}
+
 const file = path.join(Global.Path.data, "auth.json")
 
 const fail = (message: string) => (cause: unknown) => new AuthError({ message, cause })
