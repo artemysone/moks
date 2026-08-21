@@ -1,8 +1,8 @@
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises"
+import { appendFile, mkdir, mkdtemp, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { describe, expect, test } from "bun:test"
-import { countCards, formatReqStatus, readReqTitle } from "../../src/component/prompt/req-status"
+import { countCards, formatReqStatus, ledgerStamp, readReqTitle } from "../../src/component/prompt/req-status"
 import { ledgerCounts } from "../../src/util/decision-cli"
 
 describe("req-status", () => {
@@ -36,6 +36,47 @@ describe("req-status", () => {
     await writeFile(path.join(dir, "founding-engineer", "candidates", "cand-jane.md"), "")
     expect(await countCards(dir)).toBe(1)
     expect(await readReqTitle(dir)).toBe("Founding Engineer")
+  })
+
+  test("recomputes title and cards for the same dir after open-req and pull", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "moks-req-"))
+    await writeFile(path.join(dir, "COMPANY.md"), "# Co\n")
+    await mkdir(path.join(dir, ".moks"), { recursive: true })
+    expect(await readReqTitle(dir)).toBe(path.basename(dir))
+    expect(await countCards(dir)).toBe(0)
+
+    await mkdir(path.join(dir, "founding-engineer", "candidates"), { recursive: true })
+    await writeFile(path.join(dir, "founding-engineer", "HIRING.md"), "# Founding Engineer\n")
+    await writeFile(path.join(dir, ".moks", "focus"), "founding-engineer")
+    for (const id of ["cand-jane", "cand-marcus", "cand-priya", "cand-devon", "cand-amira"]) {
+      await writeFile(path.join(dir, "founding-engineer", "candidates", `${id}.md`), "")
+    }
+    expect(await readReqTitle(dir)).toBe("Founding Engineer")
+    expect(await countCards(dir)).toBe(5)
+  })
+
+  test("ledgerStamp changes when the ledger moves and resolves from a req subdir", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "moks-req-"))
+    expect(await ledgerStamp(dir)).toBeUndefined()
+
+    await mkdir(path.join(dir, ".moks"), { recursive: true })
+    await writeFile(path.join(dir, ".moks", "ledger.sqlite"), "seed")
+    const first = await ledgerStamp(dir)
+    expect(first).toBeDefined()
+    expect(await ledgerStamp(dir)).toBe(first!)
+
+    await appendFile(path.join(dir, ".moks", "ledger.sqlite"), "-changed")
+    const second = await ledgerStamp(dir)
+    expect(second).toBeDefined()
+    expect(second).not.toBe(first)
+
+    await writeFile(path.join(dir, ".moks", "ledger.sqlite-wal"), "wal")
+    const third = await ledgerStamp(dir)
+    expect(third).not.toBe(second)
+
+    const req = path.join(dir, "founding-engineer")
+    await mkdir(req, { recursive: true })
+    expect(await ledgerStamp(req)).toBe(third!)
   })
 
   test("formats staged and approved counts from the ledger", () => {
