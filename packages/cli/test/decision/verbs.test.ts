@@ -79,6 +79,34 @@ describe("decision/verbs", () => {
     await expect(DecisionVerbs.commit({ rationale: "empty", cwd: tmp.path })).rejects.toThrow("nothing to commit")
   })
 
+  test("reject of an already-Rejected candidate names the stage and suggests --target-id", async () => {
+    await using tmp = await workspace()
+    await pull(tmp.path)
+    await expect(
+      DecisionVerbs.commit({
+        action: "reject",
+        target: { kind: "candidate", id: "cand_amira" },
+        reason: "already out",
+        cwd: tmp.path,
+      }),
+    ).rejects.toThrow(/cannot reject cand_amira: current stage is Rejected/)
+    try {
+      await DecisionVerbs.commit({
+        action: "reject",
+        target: { kind: "candidate", id: "cand_amira" },
+        reason: "already out",
+        cwd: tmp.path,
+      })
+      throw new Error("expected reject of cand_amira to fail")
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      expect(message).toContain("try --target-id ")
+      expect(message).toMatch(/stage (Sourced|Contacted|Replied|Screen|Interview|Offer)/)
+      expect(message).not.toContain("\u2192")
+      expect(message).not.toContain("Unexpected error")
+    }
+  })
+
   test("push adverse without confirm → needs_confirm", async () => {
     await using tmp = await workspace()
     await pull(tmp.path)
@@ -302,7 +330,10 @@ describe("decision/verbs", () => {
       source: "mock",
       extra: { name: "Jane Ortega" },
     })
-    expect(await CandidateCard.read(tmp.extra, "cand_priya")).toMatchObject({ stage: "Sourced", extra: { name: "Priya" } })
+    expect(await CandidateCard.read(tmp.extra, "cand_priya")).toMatchObject({
+      stage: "Sourced",
+      extra: { name: "Priya" },
+    })
     expect(await Bun.file(path.join(tmp.path, "candidates")).exists()).toBe(false)
   })
 
@@ -333,7 +364,12 @@ describe("decision/verbs", () => {
     await pull(tmp.path)
     const card = await CandidateCard.read(tmp.extra, "cand_jane")
     if (!card) throw new Error("expected projected card")
-    await CandidateCard.write(tmp.extra, { ...card, score: 3, stage: "Sourced", body: "# Jane Ortega\n\nscored notes\n" })
+    await CandidateCard.write(tmp.extra, {
+      ...card,
+      score: 3,
+      stage: "Sourced",
+      body: "# Jane Ortega\n\nscored notes\n",
+    })
     const again = await pull(tmp.path)
     expect(again.cards.created).toEqual([])
     expect(again.cards.updated).toEqual(["cand_jane"])

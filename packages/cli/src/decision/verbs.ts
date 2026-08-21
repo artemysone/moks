@@ -80,7 +80,12 @@ export function mutationForAction(action: string) {
   return trimmed
 }
 
-export function previewMutations(input: { action?: string; mutation?: string; entity?: string; changes?: CommitChange[] }) {
+export function previewMutations(input: {
+  action?: string
+  mutation?: string
+  entity?: string
+  changes?: CommitChange[]
+}) {
   if (input.changes && input.changes.length > 0) return input.changes.map((change) => change.mutation)
   if (input.mutation) return [input.mutation]
   if (input.action) return [mutationForAction(input.action)]
@@ -117,33 +122,73 @@ export async function status(input: { cwd?: string; id?: string; limit?: number 
 
 export async function commit(input: CommitInput) {
   return withLedger(input.cwd, async (handle) => {
-    const { api } = handle
-    const changes = resolveChanges(handle, input)
-    if (changes.length === 0) throw new Error("nothing to commit")
-    const rationale = (input.rationale ?? input.reason ?? "").trim()
-    if (!rationale) throw new Error("rationale is required")
-    const authorKind = input.author_kind ?? (input.source === "tool" ? "agent" : "human")
-    const changeset = api.commitChangeset(
-      handle.db,
-      handle.vault,
-      {
-        rationale,
-        author_id: input.author_id ?? (authorKind === "agent" ? "agent" : defaultAuthor()),
-        author_kind: authorKind,
-        agent_meta: {
-          source: input.source,
-          req: handle.req ? path.relative(handle.company, handle.req) : null,
-          action: input.action,
-          ...(input.meta && typeof input.meta === "object" && !Array.isArray(input.meta) ? input.meta : {}),
-        },
-        changes,
-      },
-      { policy: handle.policy.policy },
-    )
-    await projectCard(handle, input, changeset.changes)
-    const adverse = changeset.changes.some((change) => isAdverseMutation(change.mutation, change.payload))
-    return { changeset, path: handle.company, adverse }
+    try {
+      return await commitWithHandle(handle, input)
+    } catch (error) {
+      throw new Error(explainCommitError(handle, input, error))
+    }
   })
+}
+
+async function commitWithHandle(handle: LedgerHandle, input: CommitInput) {
+  const { api } = handle
+  const changes = resolveChanges(handle, input)
+  if (changes.length === 0) throw new Error("nothing to commit")
+  const rationale = (input.rationale ?? input.reason ?? "").trim()
+  if (!rationale) throw new Error("rationale is required")
+  const authorKind = input.author_kind ?? (input.source === "tool" ? "agent" : "human")
+  const changeset = api.commitChangeset(
+    handle.db,
+    handle.vault,
+    {
+      rationale,
+      author_id: input.author_id ?? (authorKind === "agent" ? "agent" : defaultAuthor()),
+      author_kind: authorKind,
+      agent_meta: {
+        source: input.source,
+        req: handle.req ? path.relative(handle.company, handle.req) : null,
+        action: input.action,
+        ...(input.meta && typeof input.meta === "object" && !Array.isArray(input.meta) ? input.meta : {}),
+      },
+      changes,
+    },
+    { policy: handle.policy.policy },
+  )
+  await projectCard(handle, input, changeset.changes)
+  const adverse = changeset.changes.some((change) => isAdverseMutation(change.mutation, change.payload))
+  return { changeset, path: handle.company, adverse }
+}
+
+const TERMINAL_STAGES = new Set(["Hired", "Rejected", "Withdrawn"])
+
+function asciiCommitMessage(text: string) {
+  return text.replaceAll("\u2192", "->")
+}
+
+export function explainCommitError(handle: LedgerHandle, input: CommitInput, error: unknown) {
+  const raw = error instanceof Error ? error.message : String(error)
+  const match = raw.match(/^illegal_transition:\s+(\S+)\s+(?:\u2192|->)\s+(\S+)$/)
+  if (!match) return asciiCommitMessage(raw)
+  const current = match[1] ?? "unknown"
+  const targetId = input.target?.id ?? input.entity ?? "target"
+  const mutation = input.mutation ?? (input.action ? mutationForAction(input.action) : undefined)
+  const suggested = suggestRejectableTarget(handle, targetId, mutation)
+  const action = input.action ?? mutation ?? "change"
+  const lines = [`cannot ${action} ${targetId}: current stage is ${current}`]
+  if (suggested) lines.push(`try --target-id ${suggested.id} (stage ${suggested.stage})`)
+  return lines.join("\n")
+}
+
+function suggestRejectableTarget(handle: LedgerHandle, failedId: string, mutation?: string) {
+  const applications = handle.api.listApplications(handle.db)
+  const rejectLike = mutation === "Reject" || mutation === "Withdraw" || !mutation
+  const row = applications.find((item) => {
+    if (item.candidateId === failedId || item.id === failedId) return false
+    if (rejectLike) return !TERMINAL_STAGES.has(item.stage)
+    return true
+  })
+  if (!row) return
+  return { id: row.candidateId, stage: row.stage }
 }
 
 export async function diff(input: { cwd?: string; id?: string } = {}) {
@@ -205,7 +250,13 @@ export async function push(input: PushInput) {
         return failPush(handle.company, "needs_confirm", `adverse action requires --confirm`, true)
       }
       if (dry_run) {
-        return { ok: true as const, dry_run: true, pushed: [{ id, status: "approved" as const }], path: handle.company, adverse }
+        return {
+          ok: true as const,
+          dry_run: true,
+          pushed: [{ id, status: "approved" as const }],
+          path: handle.company,
+          adverse,
+        }
       }
       const result = api.pushApproved(handle.db, handle.adapter, handle.vault, id)
       api.refreshAfterPush(handle.db, handle.adapter, result)
@@ -217,7 +268,9 @@ export async function push(input: PushInput) {
       return failPush(handle.company, "nothing_to_push", "nothing to push")
     }
     const details = approved.map((row) => api.getChangeset(handle.db, handle.vault, row.id))
-    const adverse = details.some((row) => row.changes.some((change) => isAdverseMutation(change.mutation, change.payload)))
+    const adverse = details.some((row) =>
+      row.changes.some((change) => isAdverseMutation(change.mutation, change.payload)),
+    )
     if (adverse && !input.confirm) {
       return failPush(handle.company, "needs_confirm", "adverse action requires --confirm", true)
     }
@@ -432,7 +485,12 @@ function stageFromChanges(changes: Array<{ mutation: string; payload: unknown }>
   for (const change of changes) {
     if (change.mutation === "Reject") return "Rejected"
     if (change.mutation === "Withdraw") return "Withdrawn"
-    if (change.mutation === "AdvanceStage" && change.payload && typeof change.payload === "object" && "to" in change.payload) {
+    if (
+      change.mutation === "AdvanceStage" &&
+      change.payload &&
+      typeof change.payload === "object" &&
+      "to" in change.payload
+    ) {
       const to = (change.payload as { to?: unknown }).to
       if (typeof to === "string") return to
     }

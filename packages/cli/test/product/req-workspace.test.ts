@@ -12,14 +12,20 @@ test("slugify lowercases and hyphenates", () => {
   expect(ReqWorkspace.slugify("!!!")).toBe("")
 })
 
+test("parseReqTitle strips wrapping quotes used by headless run --command", () => {
+  expect(ReqWorkspace.parseReqTitle("Founding Engineer")).toBe("Founding Engineer")
+  expect(ReqWorkspace.parseReqTitle('"Founding Engineer"')).toBe("Founding Engineer")
+  expect(ReqWorkspace.parseReqTitle("'Founding Engineer'")).toBe("Founding Engineer")
+  expect(ReqWorkspace.parseReqTitle('"Founding Engineer"\nextra')).toBe("Founding Engineer")
+  expect(ReqWorkspace.slugify(ReqWorkspace.parseReqTitle('"Founding Engineer"'))).toBe("founding-engineer")
+  expect(ReqWorkspace.stubFor(ReqWorkspace.parseReqTitle('"Founding Engineer"'))).toContain("# Founding Engineer")
+  expect(ReqWorkspace.stubFor(ReqWorkspace.parseReqTitle('"Founding Engineer"'))).not.toContain('# "Founding Engineer"')
+})
+
 test("scaffoldCompany stands up the full company workspace in empty cwd", async () => {
   await using tmp = await tmpdir()
   const result = await ReqWorkspace.scaffoldCompany(tmp.path)
-  expect(result.created).toEqual([
-    "COMPANY.md",
-    path.join(".moks", "ledger.sqlite"),
-    path.join(".moks", "vault.key"),
-  ])
+  expect(result.created).toEqual(["COMPANY.md", path.join(".moks", "ledger.sqlite"), path.join(".moks", "vault.key")])
   expect(result.relative).toBe(".")
   expect(await Bun.file(path.join(tmp.path, "COMPANY.md")).text()).toBe(ReqWorkspace.COMPANY_STUB)
   expect(await Bun.file(path.join(tmp.path, "HIRING.md")).exists()).toBe(false)
@@ -50,11 +56,7 @@ test("scaffoldCompany rerun converges: everything skipped, nothing rewritten", a
   const key = await Bun.file(path.join(tmp.path, ".moks", "vault.key")).text()
   const result = await ReqWorkspace.scaffoldCompany(tmp.path)
   expect(result.created).toEqual([])
-  expect(result.skipped).toEqual([
-    "COMPANY.md",
-    path.join(".moks", "ledger.sqlite"),
-    path.join(".moks", "vault.key"),
-  ])
+  expect(result.skipped).toEqual(["COMPANY.md", path.join(".moks", "ledger.sqlite"), path.join(".moks", "vault.key")])
   expect(await Bun.file(path.join(tmp.path, ".moks", "vault.key")).text()).toBe(key)
 })
 
@@ -264,9 +266,7 @@ test("workspaceEnv treats a nested packet as focused req", async () => {
 
 test("slateBlock lists fixture cards without body", async () => {
   const block = await ReqWorkspace.slateBlock(HiringFixtures.dir)
-  expect(block).toBe(
-    ["<slate>", "  jordan-lee  stage=sourced  path=candidates/jordan-lee.md", "</slate>"].join("\n"),
-  )
+  expect(block).toBe(["<slate>", "  jordan-lee  stage=sourced  path=candidates/jordan-lee.md", "</slate>"].join("\n"))
   expect(block).not.toContain("score=")
   expect(block).not.toContain("Meridian Fleet")
 })
@@ -324,9 +324,7 @@ test("/open-req on an existing req focuses without recreating", async () => {
   const result = await ReqWorkspace.scaffoldReq(tmp.path, "Senior Backend")
   expect(result.relative).toBe("senior-backend")
   expect(result.skipped).toContain(path.join("senior-backend", "HIRING.md"))
-  expect(await Bun.file(path.join(tmp.path, "senior-backend", "HIRING.md")).text()).toBe(
-    "# Senior Backend (edited)\n",
-  )
+  expect(await Bun.file(path.join(tmp.path, "senior-backend", "HIRING.md")).text()).toBe("# Senior Backend (edited)\n")
 })
 
 test("fixture layout /open-req does not nest a second req", async () => {

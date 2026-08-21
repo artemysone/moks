@@ -166,7 +166,9 @@ export async function slateBlock(dir: string) {
         const fields = [card.id]
         if (card.stage) fields.push(`stage=${card.stage}`)
         if (card.score !== undefined) fields.push(`score=${card.score}`)
-        fields.push(`path=${path.relative(focused, CandidateCard.filePath(focused, card.id)).replaceAll(path.sep, "/")}`)
+        fields.push(
+          `path=${path.relative(focused, CandidateCard.filePath(focused, card.id)).replaceAll(path.sep, "/")}`,
+        )
         return `  ${fields.join("  ")}`
       }),
       "</slate>",
@@ -210,6 +212,18 @@ export function titleFromSlug(slug: string) {
     .filter(Boolean)
     .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
     .join(" ")
+}
+
+/** First-line title for /open-req and `run --command`. Strips wrapping quotes. */
+export function parseReqTitle(raw: string) {
+  const first = (raw.split("\n")[0] ?? "").trim()
+  if (first.length >= 2) {
+    const quote = first[0]
+    if ((quote === '"' || quote === "'") && first.endsWith(quote)) {
+      return first.slice(1, -1).trim()
+    }
+  }
+  return first
 }
 
 export function stubFor(title?: string) {

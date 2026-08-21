@@ -123,12 +123,57 @@ async function toolError(part: ToolPart) {
   }
 }
 
+function isHeadlessScaffoldCommand(args: { command?: string; mini?: boolean }) {
+  return !args.mini && (args.command === "init" || args.command === "open-req")
+}
+
+async function resolveRunDirectory(dir: string | undefined) {
+  const root = Filesystem.resolve(process.cwd())
+  if (!dir) return root
+  try {
+    process.chdir(path.isAbsolute(dir) ? dir : path.join(root, dir))
+    return process.cwd()
+  } catch {
+    UI.error("Failed to change directory to " + dir)
+    process.exit(1)
+  }
+}
+
+async function runHeadlessScaffold(args: {
+  command?: string
+  message?: string[]
+  dir?: string
+  json?: boolean
+  format?: string
+  ["--"]?: string[]
+}) {
+  const { ReqWorkspace } = await import("@/product/req-workspace")
+  const directory = await resolveRunDirectory(args.dir)
+  const raw = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
+  const title = ReqWorkspace.parseReqTitle(raw)
+  const result =
+    args.command === "open-req"
+      ? await ReqWorkspace.scaffoldReq(directory, title || undefined)
+      : await ReqWorkspace.scaffoldCompany(directory)
+  if (args.command === "open-req" && result.relative !== ".") {
+    await ReqWorkspace.writeFocus(directory, result.relative)
+  }
+  if (args.json || args.format === "json") {
+    console.log(JSON.stringify({ command: args.command, title: title || undefined, ...result }, null, 2))
+    return
+  }
+  const created = result.created.length > 0 ? `created ${result.created.join(", ")}` : "already present"
+  UI.println(`${args.command}: ${created}`)
+  if (result.skipped.length > 0) UI.println(`skipped ${result.skipped.join(", ")}`)
+  if (args.command === "open-req" && result.relative !== ".") UI.println(`focused ${result.relative}`)
+}
+
 export const RunCommand = effectCmd({
   command: "run [message..]",
   describe: "run moks with a message",
   // --attach connects to a remote server (no local instance needed); the
   // default path runs an in-process server and needs the project instance.
-  instance: (args) => !args.attach,
+  instance: (args) => !args.attach && !isHeadlessScaffoldCommand(args),
   // For --dir without --attach, load instance for the resolved target dir.
   // The handler also chdirs (preserving the legacy order: chdir → file resolution).
   directory: (args) => (args.dir && !args.attach ? path.resolve(process.cwd(), args.dir) : process.cwd()),
@@ -266,6 +311,10 @@ export const RunCommand = effectCmd({
         describe: "enable direct interactive demo slash commands; pass one as the message to run it immediately",
       }),
   handler: Effect.fn("Cli.run")(function* (args) {
+    if (isHeadlessScaffoldCommand(args)) {
+      yield* Effect.promise(() => runHeadlessScaffold(args))
+      return
+    }
     const { Agent } = yield* Effect.promise(() => import("@/agent/agent"))
     const { RuntimeFlags } = yield* Effect.promise(() => import("@/effect/runtime-flags"))
     const { InstanceRef } = yield* Effect.promise(() => import("@/effect/instance-ref"))
