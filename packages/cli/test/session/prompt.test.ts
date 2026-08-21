@@ -35,6 +35,7 @@ import { SessionPrompt } from "../../src/session/prompt"
 import { SessionRevert } from "../../src/session/revert"
 import { SessionRunState } from "../../src/session/run-state"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
+import { ReqWorkspace } from "../../src/product/req-workspace"
 import { SessionStatus } from "../../src/session/status"
 import { Skill } from "../../src/skill"
 import { SystemPrompt } from "../../src/session/system"
@@ -1769,6 +1770,92 @@ it.instance(
       const inputs = yield* llm.inputs
       expect(JSON.stringify(inputs.at(-1)?.messages)).toContain("/probe 00001")
       expect(JSON.stringify(inputs.at(-1)?.messages)).toContain("Hidden intake instructions for 00001")
+    }),
+  30_000,
+)
+
+it.instance(
+  "/init in an empty folder writes the company dossier only, even with a title argument",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      const { prompt, chat } = yield* boot()
+      yield* llm.text("done")
+
+      yield* prompt.command({
+        sessionID: chat.id,
+        command: Command.Default.INIT,
+        arguments: "Senior Backend",
+      })
+
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, "COMPANY.md")).text())).toBe(ReqWorkspace.COMPANY_STUB)
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, "HIRING.md")).exists())).toBe(false)
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, ".moks", "ledger.sqlite")).exists())).toBe(true)
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, ".moks", "vault.key")).exists())).toBe(true)
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, "senior-backend", "HIRING.md")).exists())).toBe(false)
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, "candidates", ".gitkeep")).exists())).toBe(false)
+      expect(yield* Effect.promise(() => ReqWorkspace.listReqs(dir))).toEqual([])
+
+      const inputs = yield* llm.inputs
+      expect(JSON.stringify(inputs.at(-1)?.messages)).toContain("company dossier")
+    }),
+  30_000,
+)
+
+it.instance(
+  "/init on an inited company continues the dossier and does not spawn a req",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      const { prompt, chat } = yield* boot()
+      const dossier = path.join(dir, "COMPANY.md")
+      yield* Effect.promise(() => Bun.write(dossier, "# Northline Analytics\n\n## About\n- analytics platform\n"))
+      yield* llm.text("done")
+
+      yield* prompt.command({
+        sessionID: chat.id,
+        command: Command.Default.INIT,
+        arguments: "Staff Platform",
+      })
+
+      expect(yield* Effect.promise(() => Bun.file(dossier).text())).toBe(
+        "# Northline Analytics\n\n## About\n- analytics platform\n",
+      )
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, ".moks", "ledger.sqlite")).exists())).toBe(true)
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, "staff-platform", "HIRING.md")).exists())).toBe(false)
+      expect(yield* Effect.promise(() => ReqWorkspace.listReqs(dir))).toEqual([])
+    }),
+  30_000,
+)
+
+it.instance(
+  "/open-req creates and focuses a req directory, then runs role intake",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      const { prompt, chat } = yield* boot()
+      yield* llm.text("done")
+
+      yield* prompt.command({
+        sessionID: chat.id,
+        command: Command.Default.OPEN_REQ,
+        arguments: "Senior Backend",
+      })
+
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, "senior-backend", "HIRING.md")).text())).toBe(
+        ReqWorkspace.stubFor("Senior Backend"),
+      )
+      expect(
+        yield* Effect.promise(() => Bun.file(path.join(dir, "senior-backend", "candidates", ".gitkeep")).exists()),
+      ).toBe(true)
+      expect(yield* Effect.promise(() => ReqWorkspace.readFocus(dir))).toBe("senior-backend")
+
+      const inputs = yield* llm.inputs
+      const messages = JSON.stringify(inputs.at(-1)?.messages)
+      expect(messages).toContain("req intake")
+      expect(messages).toContain("Senior Backend")
+      expect(messages).toContain("senior-backend")
+      expect(messages).not.toContain("${title}")
     }),
   30_000,
 )

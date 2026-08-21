@@ -208,6 +208,7 @@ const layer = Layer.effect(
                   [path.join(".moks", "ledger.sqlite")]: "deny",
                   [path.join(".moks", "mock-ats.sqlite")]: "deny",
                   [path.join(".moks", "vault.key")]: "deny",
+                  "COMPANY.md": "allow",
                   "HIRING.md": "allow",
                   "*/HIRING.md": "allow",
                   [path.join("candidates", "*")]: "allow",

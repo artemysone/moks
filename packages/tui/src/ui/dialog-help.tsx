@@ -27,7 +27,7 @@ export function DialogHelp() {
       </box>
       <box paddingBottom={1}>
         <text fg={theme.textMuted}>
-          /init a req · @ to focus · score onto the card · /review · /commit · /push
+          /init the company · /open-req a role · @ to focus · score onto the card · /review · /commit · /push
         </text>
         <text fg={theme.textMuted}>Press {commandShortcut()} for every command.</text>
       </box>

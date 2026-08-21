@@ -18,7 +18,7 @@ async function workspace() {
 async function companyWorkspace() {
   return tmpdir({
     init: async (dir) => {
-      await Bun.write(path.join(dir, "HIRING.md"), "# Acme\n")
+      await Bun.write(path.join(dir, "COMPANY.md"), "# Acme\n")
       const req = path.join(dir, "senior-backend")
       await Bun.write(path.join(req, "HIRING.md"), "# SB\n")
       await CandidateCard.write(req, {

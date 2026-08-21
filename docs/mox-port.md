@@ -32,12 +32,13 @@ mark the item done here in the same PR.
    Opencode in richer form. Only `agent/hiring.ts` (the hiring.md parser bridge) comes
    across. Verified: no module outside Mox's `agent/` imports the `ai` SDK, so the
    port set does not touch Moks' `ai@6` catalog pin.
-5. **Paths adapt to moks conventions.** `.mox/` → `.moks/`, `hiring.md` → `HIRING.md`,
-   `scorecard.md` → `SCORECARD.md` (create on `/init` only if absent). Ledger data lives
+5. **Paths adapt to moks conventions.** `.mox/` → `.moks/`, `hiring.md` → req `HIRING.md`.
+   Mox's `scorecard.md` folds into the req `HIRING.md` `## Scorecard` section; there is no
+   standalone `SCORECARD.md`. Ledger data lives
    at the **company** level: `<company>/.moks/ledger.sqlite`, `<company>/.moks/vault.key`.
    Changesets carry the req/job reference; policy loads from the **focused req's**
-   `HIRING.md`, falling back to the company `HIRING.md`, failing closed
-   (`always_gate`) when neither parses.
+   `HIRING.md`, falling back to the company `COMPANY.md` (root `HIRING.md` for a
+   single-req workspace), failing closed (`always_gate`) when none parses.
 6. **MCP SDK version:** moks pins a patched `@modelcontextprotocol/sdk@1.29.0`; Mox's
    adapter uses `^1.30.0`. The ported `adapters/mcp.ts` must compile against the moks
    pinned version. If a 1.30-only API is used, adapt the adapter, not the pin.
@@ -107,9 +108,9 @@ All source paths relative to `~/mox/packages/engine/src/`, targets relative to
 | `mcp/` (client + fixture server) | `mcp/` | As-is (test infrastructure) |
 | `agent/hiring.ts` | `hiring.ts` | **Adapt**: focused-req `HIRING.md` resolution with company fallback (decision 5); drop Mox template-copy behavior in favor of moks `/init` scaffold (`product/req-workspace.ts`) |
 | `config.ts` | `config.ts` | **Adapt**: read from `.moks/config.json`; strip Mox-only keys |
-| `init.ts` | — | **Do not port.** Moks' `/init` (`product/req-workspace.ts`) already scaffolds; extend it in P3 to create `SCORECARD.md` if absent |
+| `init.ts` | — | **Do not port.** Moks' `/init` (`product/req-workspace.ts`) already scaffolds |
 | `~/mox/fixtures/*` | `packages/engine/ledger/fixtures/` | Copy fixture JSON used by ported tests |
-| `~/mox/templates/scorecard.md` | `packages/cli/src/product/` template dir | Copy as `SCORECARD.md` template |
+| `~/mox/templates/scorecard.md` | — | **Do not port as a file.** The scale/bar folds into the req `HIRING.md` stub `## Scorecard` section |
 | Tests: `adapters/*.test.ts`, `mcp/*.test.ts`, `m3.test.ts`, `config.test.ts`, `init.test.ts` | alongside | As-is where deps ported; drop assertions that target unported modules (document each drop in the PR) |
 
 ### Not ported (deliberate)
@@ -167,7 +168,8 @@ share-a-review-link story emerges.
   MCP config behavior. Fixture datasets as-is.
 - **Change:** Port per the P2 table. Reconcile `adapters/mcp.ts` with the moks-pinned
   patched MCP SDK 1.29.0. Rewrite `hiring.ts` path resolution: focused req
-  `HIRING.md` → company `HIRING.md` → fail closed (`always_gate`).
+  `HIRING.md` → company constitution (`COMPANY.md`, or root `HIRING.md` in a
+  single-req workspace) → fail closed (`always_gate`).
 - **Don't:** Add live vendor HTTP calls (that's P6). Change the adapter interface.
   Bump or unpatch the MCP SDK pin.
 - **Touch:** `packages/engine/ledger/src/{adapters,mcp}/**`, `packages/engine/ledger/src/hiring.ts`,
@@ -196,8 +198,8 @@ share-a-review-link story emerges.
   - Update `tool/decision.ts`: native agent tools become `commit` (stage), `status`,
     `diff`. Remove any tool that could apply/push. Effect-class floors from `policy.ts`
     feed the existing permission ask flow (decision 7).
-  - Extend `/init` (`product/req-workspace.ts`) to create `SCORECARD.md` from the
-    template when absent and ensure `<company>/.moks/` exists for the ledger.
+  - Extend `/init` (`product/req-workspace.ts`) to ensure `<company>/.moks/` exists
+    for the ledger.
 - **Don't:** Let any agent-reachable code path call `sync.push` or `ledger.review`.
   Re-introduce a JSON mock write path. Break `moks run --agent recruit` fixture flows.
 - **Touch:** `packages/cli/src/decision/**`, `packages/cli/src/tool/decision.ts`,

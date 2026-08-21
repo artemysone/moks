@@ -13,11 +13,12 @@ Skills are commands internally, but `/` hides `source: skill`. Pick them via `/s
 
 ## Hiring loop
 
-Intended path: `/init` → skills → agent `/review` (packet) → `/commit` → UI `/review` (changeset) → `/push`.
+Intended path: `/init` (company dossier) → `/open-req` (role) → skills → agent `/review` (packet) → `/commit` → UI `/review` (changeset) → `/push`.
 
 | Slash | Kind | Does |
 |---|---|---|
-| `/init` | Agent | Scaffold + HM intake. Empty folder → company `HIRING.md`. Company present → req dir. |
+| `/init` | Agent | Company dossier intake. Scaffolds the company workspace (`COMPANY.md` if missing, `.moks/` ledger, git repo), then interviews for who they are, how they hire, bar, tone, policy. Never creates a req, even with a title. |
+| `/open-req` | Agent | Creates or focuses `<slug>/` (`HIRING.md` + `candidates/`), writes `.moks/focus`, then HM role intake. |
 | `/commit` | UI | Stage a ledger changeset. Action + reason. Toast: **Staged**. No ATS write. |
 | `/status` | UI | List open changesets (staged / approved). Aliases: `/decisions`, `/commits`, `/receipts`. |
 | `/review` | **Both** | **UI:** approve/reject a staged changeset. **Agent:** packet review of `HIRING.md` + cards before commit. Autocomplete shows both. |

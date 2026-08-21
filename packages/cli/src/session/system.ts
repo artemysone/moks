@@ -52,7 +52,7 @@ const layer = Layer.effect(
             `  Company workspace: ${layout.company}`,
             `  Focused req: ${layout.focused}`,
             `  Candidates: ${layout.candidates}`,
-            `  HIRING.md: ${layout.hiring}`,
+            `  Company constitution: ${layout.constitution}`,
             `  Git audit: ${ctx.project.vcs === "git" ? "yes" : "no"}`,
             `  Platform: ${process.platform}`,
             `  Today's date: ${new Date().toDateString()}`,

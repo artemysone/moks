@@ -138,9 +138,9 @@ Do not add panes yet. Make the existing surfaces tell the truth.
 ### H13 — Empty home when this folder is not a company
 
 - **Status:** done
-- **Outcome:** Opening TUI in a folder without a company `HIRING.md` says this folder is the company and points at `/init`. Not a random tip.
+- **Outcome:** Opening TUI in a folder without a company constitution (`COMPANY.md`, or a single-req root `HIRING.md`) says this folder is the company and points at `/init`. Not a random tip.
 - **Keep:** Home splash, `/init` scaffold.
-- **Change:** If `HIRING.md` is missing in the opened folder, show a single empty state: “This folder is the company. `/init` to start.” Keep today’s hiring tips when `HIRING.md` is present (fixture / company / single-req). Do not implement focus or req-list empty states here (H33 / H34 / H26).
+- **Change:** If the constitution is missing in the opened folder, show a single empty state: “This folder is the company. `/init` to start.” Keep today’s hiring tips when it is present (fixture / company / single-req). Do not implement focus or req-list empty states here (H33 / H34 / H26).
 - **Don't:** Auto-run `/init`. Treat a parent *software* repo as the company. Don’t build a cloud req picker.
 - **Touch:** TUI home route / empty state (around home placeholders and tips)
 - **Verify:** TUI in an empty tmp dir. Then TUI in the hiring fixture — tips, not the empty state.
@@ -240,7 +240,7 @@ This is the SWE analog of “the file tree is the repo.” Still files. Just vis
 - **Status:** done
 - **Outcome:** The model is told this folder is the company workspace and which req is focused, not “workspace root / is git repo.”
 - **Keep:** cwd, platform, date. The ledger is how `moks commit` audits.
-- **Change:** Relabel the env block in `session/system.ts` (and core builtin twin if it still says “Workspace root folder”). Mention company `HIRING.md`, focused req when present, and that req’s `candidates/`. Single-req fixture: company and req are the same folder.
+- **Change:** Relabel the env block in `session/system.ts` (and core builtin twin if it still says “Workspace root folder”). Mention the company constitution (`COMPANY.md`), focused req when present, and that req’s `candidates/`. Single-req fixture: company and req are the same folder.
 - **Don't:** Change `Project.resolve` here (H28). Don’t hide git from `moks commit`.
 - **Touch:** `packages/cli/src/session/system.ts`, `packages/engine/core/src/system-context/builtins.ts`
 - **Verify:** First turn system context in a company workspace reads as hiring, not a software workspace.
@@ -251,18 +251,18 @@ This is the SWE analog of “the file tree is the repo.” Still files. Just vis
 
 Structural. Do H33 → H34 before H26 / H29. H27 is deferred. Verify H33–H29 on a **throwaway company** with two req dirs, not this monorepo. The hiring fixture stays a valid single-req workspace.
 
-### H33 — `/init` at company root scaffolds a req directory
+### H33 — `/init` writes the company dossier; `/open-req` scaffolds a req
 
-- **Status:** done
-- **Outcome:** `/init` matches the ontology. Empty folder becomes a company. Company root gains a req subdirectory. Single-req fixture layout still works.
-- **Keep:** `HIRING.md` stub + `candidates/`. No `.moks/reqs/`. Hidden `/init-code` stays gone.
+- **Status:** done (superseded twice: `/init` is company-only; the constitution is `COMPANY.md`)
+- **Outcome:** `/init` matches the ontology. Empty folder becomes a company (`COMPANY.md` + `.moks/`) and never gains a req from `/init`, even with a title. `/open-req <title>` creates `<slug>/HIRING.md` + `<slug>/candidates/`. Single-req fixture layout still works.
+- **Keep:** Req `HIRING.md` stub + `candidates/`. No `.moks/reqs/`. No `SCORECARD.md` (company bar is a `COMPANY.md` section; role scorecard is a req `HIRING.md` section). Hidden `/init-code` stays gone.
 - **Change:**
-  - No `HIRING.md` in the opened folder: write company `HIRING.md` (constitution stub). Folder is now a company.
-  - Company `HIRING.md` present, no `candidates/` at root: `/init [title]` creates `<slug>/HIRING.md` + `<slug>/candidates/`.
-  - Root already has `HIRING.md` + `candidates/`: single-req workspace; do not nest a second req; skip or refresh empty stubs only.
-- **Don't:** Auto-focus a picker UI. Walk up to a parent software `HIRING.md` and init there. Turn this monorepo into a company.
+  - No `COMPANY.md` in the opened folder: write the `COMPANY.md` constitution stub. Folder is now a company.
+  - `/open-req <title>`: create `<slug>/HIRING.md` + `<slug>/candidates/` and write `.moks/focus`.
+  - Root already has `HIRING.md` + `candidates/`: single-req workspace; do not nest a second req and do not add a `COMPANY.md`; skip or refresh empty stubs only.
+- **Don't:** Auto-focus a picker UI. Walk up to a parent software constitution and init there. Turn this monorepo into a company.
 - **Touch:** `/init` templates and scaffold (`packages/cli/src/product/req-workspace.ts`, command initialize templates)
-- **Verify:** Empty tmp → company `HIRING.md`. Second `/init Senior Backend` → `senior-backend/HIRING.md` + `candidates/`. Fixture `/init` does not nest.
+- **Verify:** Empty tmp → `COMPANY.md`. `/init Senior Backend` → no req dir. `/open-req Senior Backend` → `senior-backend/HIRING.md` + `candidates/`. Fixture `/open-req` does not nest.
 
 ### H34 — Focus a req (`@<req>` or last-focused)
 
@@ -290,17 +290,17 @@ Structural. Do H33 → H34 before H26 / H29. H27 is deferred. Verify H33–H29 o
 
 - **Status:** done
 - **Outcome:** Opening moks in a company (or focused req inside it) does not adopt a parent software git root as the workspace.
-- **Keep:** The ledger is the audit log for the company workspace. `moks commit` stages changesets. Engineering checkouts without a company `HIRING.md` still resolve as a git project.
+- **Keep:** The ledger is the audit log for the company workspace. `moks commit` stages changesets. Engineering checkouts without a company constitution still resolve as a git project.
 - **Change (tactical, not a Project rewrite):** If the opened folder is a company workspace, treat that folder as the project directory even when a parent git repo exists. `moks commit` must not write hiring commits into this monorepo. Do not change identity hashing for non-hiring directories in the same PR if that ripples through Instance/Session — split if so.
 - **Don't:** Delete git. Make every folder a fake repo. Invent a parallel project store. One git remote per req.
 - **Depends:** H25 so copy and runtime agree. Decision git: `packages/cli/src/decision/git.ts`, `decision/verbs.ts`.
 - **Touch:** `packages/engine/core/src/project.ts` *or* a company-aware wrapper used by Instance + DecisionGit — prefer the wrapper if `Project.resolve` is too load-bearing.
 - **Verify:** `moks commit` inside a throwaway company workspace does **not** create a commit on this monorepo. `moks` at this repo root still behaves as an engineering checkout.
 
-### H29 — Load company + focused req `HIRING.md`, not a software parent
+### H29 — Load company + focused req constitutions, not a software parent
 
 - **Status:** done
-- **Outcome:** Constitution is `~/.config/moks/HIRING.md` + company `HIRING.md` + focused req `HIRING.md`. A parent software repo’s `HIRING.md` does not attach.
+- **Outcome:** Constitution is `~/.config/moks/HIRING.md` + company `COMPANY.md` + focused req `HIRING.md`. A parent software repo’s files do not attach.
 - **Keep:** Global user `HIRING.md`. Nested instruction-on-read inside the focused req.
 - **Change:** Instruction walk is company root → focused req, then stop. Do not walk out of the company into a parent software worktree.
 - **Don't:** Load `candidates/` as constitution. Remove global HIRING.md. Flatten all req constitutions into every turn.

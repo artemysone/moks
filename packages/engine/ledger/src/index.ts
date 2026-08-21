@@ -130,14 +130,7 @@ export { createGreenhouseAdapter, migrateGreenhouse, seedGreenhouse } from "./ad
 export { createJuiceboxAdapter, migrateJuicebox, seedJuicebox } from "./adapters/juicebox.ts";
 export { createMcpAtsAdapter, createMcpSourcingAdapter } from "./adapters/mcp.ts";
 export { openAtsAdapter, openSourcingAdapter } from "./adapters/resolve.ts";
-export {
-  promptRefFor,
-  readHiringFiles,
-  readWorkspacePolicy,
-  type HiringFiles,
-  type HiringResolveOptions,
-  type WorkspacePolicy,
-} from "./hiring.ts";
+export { readWorkspacePolicy, type HiringResolveOptions, type WorkspacePolicy } from "./hiring.ts";
 export {
   SOURCE_SEARCH_DEFAULT_LIMIT,
   SOURCE_SEARCH_MAX_LIMIT,

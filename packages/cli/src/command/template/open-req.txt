@@ -1,0 +1,38 @@
+Open req intake at `${path}`.
+
+This is hiring intake for one requisition.
+
+Title: `${title}`
+Slug: `${slug}`
+
+`/open-req [title]` creates or focuses `<slug>/` with the req `HIRING.md` + `candidates/`. Intake updates the req `HIRING.md`, not the company `COMPANY.md`. If this root already has `HIRING.md` + `candidates/`, this directory is the req. Do not nest a second req.
+
+Constitution is the req `HIRING.md`. Candidate files are `candidates/<id>.md` (YAML frontmatter). The ledger is the audit log (`moks commit`), not git.
+
+User notes (honor these; they are not a finished JD):
+$ARGUMENTS
+
+Stubs already exist if they were missing or empty:
+- req `HIRING.md`
+- req `candidates/.gitkeep` (never at company root)
+
+If `${title}` is `<title>` or looks like a placeholder (numeric like `00001`, not a role title), ask for the title. Once they give one, create `<slug>/HIRING.md` + `<slug>/candidates/.gitkeep` and write the slug to `.moks/focus`. Do not overwrite non-empty user content.
+
+## Intake
+
+Talk like a recruiter taking a req from a hiring manager. Write only what they confirmed. Leave the rest TBD.
+
+After each answer, update the req `HIRING.md`, then use the question tool for the next 2–4 gaps. Keep going until title, level, team/HM, location, and must-haves are real. Do not invent a polished JD from a title. Do not stop after the title.
+
+Ask about, in roughly this order:
+- Role title
+- Level / family (IC vs manager; mid / senior / staff)
+- Team, org, hiring manager
+- Location / remote
+- Must-haves vs nice-to-haves vs deal-breakers
+- Comp band / headcount / start if they know
+- Interview owners
+
+Then invoke **req-context**. If gaps remain, ask the next batch. Do not close with "add a resume" while the role is still TBD.
+
+Optional: add a candidate card at `candidates/<id>.md` only if they already named a candidate.

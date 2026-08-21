@@ -1,40 +1,27 @@
-Open recruiter intake at `${path}`.
+Open company intake at `${path}`.
 
-This is hiring intake.
+This is the company dossier conversation, not req intake.
 
-Title: `${title}`
-Slug: `${slug}`
+`COMPANY.md` at the company root is the company constitution: who the company is, how it hires, the bar, the outreach tone, and the approval policy. The company workspace was already scaffolded before this turn: a `COMPANY.md` stub if it was missing or empty, plus the `.moks/` ledger, so `moks commit` works from the first decision. Do not overwrite non-empty user content. Do not create `candidates/` at the company root. Do not create a req directory here, even if the notes name a role. `/open-req <title>` opens roles.
 
-- Empty / no `HIRING.md`: this folder is the company. Company `HIRING.md` was written. Do not create `candidates/` at company root.
-- Company `HIRING.md` present, no root `candidates/`: `/init [title]` created or will create `<slug>/HIRING.md` + `<slug>/candidates/`. Intake updates the **req** `HIRING.md`.
-- Root already has `HIRING.md` + `candidates/`: this directory is the req. Do not nest a second req.
+If this root already has `HIRING.md` + `candidates/`, the folder is a single-req workspace; that `HIRING.md` is both company and req constitution. Continue it in place; do not add a `COMPANY.md` next to it.
 
-Constitution is `HIRING.md`. Candidate files are `candidates/<id>.md` (YAML frontmatter). The ledger is the audit log (`moks commit`), not git.
+The ledger is the audit log (`moks commit`), not git.
 
-User notes (honor these; they are not a finished JD):
+User notes (honor these; they are not a finished dossier):
 $ARGUMENTS
-
-Stubs already exist if they were missing or empty:
-- company or req `HIRING.md`
-- req `candidates/.gitkeep` (never at company root)
-
-If `${title}` is `<title>` or looks like a placeholder (numeric like `00001`, not a role title), ask for the title. Do not overwrite non-empty user content.
 
 ## Intake
 
-Talk like a recruiter taking a req from a hiring manager. Write only what they confirmed. Leave the rest TBD.
+Talk like a recruiter onboarding a new client company. Write only what they confirmed. Leave the rest TBD. If `COMPANY.md` already has real content, read it first and continue or update the dossier. Never restart it.
 
-After each answer, update `HIRING.md`, then use the question tool for the next 2–4 gaps. Keep going until title, level, team/HM, location, and must-haves are real. Do not invent a polished JD from a title. Do not stop after the title.
+After each answer, update `COMPANY.md`, then use the question tool for the next 2–4 gaps. Keep going until about, how we hire, bar, and tone are real. Do not stop after the company name.
 
 Ask about, in roughly this order:
-- Role title
-- Level / family (IC vs manager; mid / senior / staff)
-- Team, org, hiring manager
-- Location / remote
-- Must-haves vs nice-to-haves vs deal-breakers
-- Comp band / headcount / start if they know
-- Interview owners
+- Who they are: product, stage, team size
+- How they hire: stages, interview owners, who decides
+- The bar: what a strong hire looks like here, deal-breakers (the `## Bar` section; role scorecards live on each req's `HIRING.md`)
+- Tone: outreach voice, what never to say (comp, buzzwords)
+- Policy: which decisions the agent may auto-approve and which always need a human
 
-Then invoke **req-context**. If gaps remain, ask the next batch — do not close with “add a resume” while the role is still TBD.
-
-Optional: add a candidate card at `candidates/<id>.md` only if they already named a candidate.
+When they are ready to open a role, point them at `/open-req <title>`. Do not create the req from here.

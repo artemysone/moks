@@ -9,6 +9,7 @@ import { HiringSkills } from "../../src/product/hiring-skills"
 import { HiringFixtures } from "../../src/product/fixtures"
 import PROMPT_RECRUIT from "../../src/product/agents/recruit.txt"
 import PROMPT_INITIALIZE from "../../src/command/template/initialize.txt"
+import PROMPT_OPEN_REQ from "../../src/command/template/open-req.txt"
 import path from "path"
 
 const node = LayerNode.compile(CrossSpawnSpawner.node)
@@ -52,12 +53,22 @@ it.effect("score-candidate writes a score file path; commit-disposition cites it
     expect(PROMPT_RECRUIT).toContain("question tool")
     expect(PROMPT_RECRUIT).not.toContain("packages/moks/src/product/fixtures/hiring/")
     expect(PROMPT_INITIALIZE).toContain("HIRING.md")
-    expect(PROMPT_INITIALIZE).toContain("candidates/<id>.md")
     expect(PROMPT_INITIALIZE).toContain("Do not overwrite non-empty user content")
-    expect(PROMPT_INITIALIZE).toContain("Keep going until title, level, team/HM, location, and must-haves are real")
+    expect(PROMPT_INITIALIZE).toContain("Do not create a req directory here")
+    expect(PROMPT_INITIALIZE).toContain("The company workspace was already scaffolded")
+    expect(PROMPT_INITIALIZE).toContain("`.moks/` ledger")
+    expect(PROMPT_INITIALIZE).toContain("/open-req")
     expect(PROMPT_INITIALIZE).toContain("The ledger is the audit log")
+    expect(PROMPT_INITIALIZE).not.toContain("taking a req from a hiring manager")
+    expect(PROMPT_INITIALIZE).not.toContain("${title}")
     expect(PROMPT_INITIALIZE).not.toContain("Git is the audit log")
     expect(PROMPT_INITIALIZE).not.toContain("ask once")
+    expect(PROMPT_OPEN_REQ).toContain("HIRING.md")
+    expect(PROMPT_OPEN_REQ).toContain("candidates/<id>.md")
+    expect(PROMPT_OPEN_REQ).toContain("Do not overwrite non-empty user content")
+    expect(PROMPT_OPEN_REQ).toContain("Keep going until title, level, team/HM, location, and must-haves are real")
+    expect(PROMPT_OPEN_REQ).toContain("Do not nest a second req")
+    expect(PROMPT_OPEN_REQ).toContain("The ledger is the audit log")
   }),
 )
 

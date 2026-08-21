@@ -1,11 +1,10 @@
-import { mkdir, readdir } from "fs/promises"
+import { readdir } from "fs/promises"
 import path from "path"
 import { Filesystem } from "@/util/filesystem"
 import { CandidateCard, CANDIDATES_DIR } from "./candidate-card"
 
 export const HIRING_FILE = "HIRING.md"
-export const SCORECARD_FILE = "SCORECARD.md"
-const SCORECARD_TEMPLATE = path.join(import.meta.dir, "templates", "SCORECARD.md")
+export const COMPANY_FILE = "COMPANY.md"
 
 export const HIRING_STUB = `# <role title>
 
@@ -21,9 +20,11 @@ export const HIRING_STUB = `# <role title>
 - TBD
 
 ## Scorecard
-| Dimension | Bar | Notes |
-|-----------|-----|-------|
-| TBD | 1–5 | |
+Scale 1–4: 1 well below, 2 below, 3 at bar, 4 above. Bar is 3 on every required dimension. Advance only with no 1s and an average ≥ 3.
+
+| Dimension | Bar (what a 3 looks like) | Notes |
+|-----------|---------------------------|-------|
+| TBD | TBD | |
 
 ## Process
 - Stages: sourced → screen → phone → onsite → offer → hire
@@ -35,11 +36,18 @@ export const COMPANY_STUB = `# Company
 ## About
 - TBD
 
-## Hiring principles
+## How we hire
+- Stages: TBD
+- Reqs live in subdirectories. Each req has HIRING.md + candidates/. Open one with /open-req.
+
+## Bar
 - TBD
 
-## Process
-- Reqs live in subdirectories. Each req has HIRING.md + candidates/.
+## Tone
+- TBD
+
+## Policy
+- TBD
 `
 
 export function slugify(input: string) {
@@ -54,6 +62,14 @@ export function slugify(input: string) {
 
 export function hiringPath(dirpath: string) {
   return path.join(dirpath, HIRING_FILE)
+}
+
+export function companyPath(dirpath: string) {
+  return path.join(dirpath, COMPANY_FILE)
+}
+
+export async function hasCompanyFile(dirpath: string) {
+  return Bun.file(companyPath(dirpath)).exists()
 }
 
 export async function isReqDir(dirpath: string) {
@@ -72,8 +88,10 @@ export async function isPacket(dir: string) {
   return (await isReqDir(dir)) && (await Filesystem.isDir(path.join(dir, CANDIDATES_DIR)))
 }
 
+// A company root holds COMPANY.md; a single-req workspace root is a packet
+// (HIRING.md + candidates/) where one HIRING.md is both company and req.
 export async function isCompanyRoot(dir: string) {
-  return isReqDir(dir)
+  return (await hasCompanyFile(dir)) || (await isPacket(dir))
 }
 
 export async function listReqs(company: string) {
@@ -122,11 +140,16 @@ export async function focusedReq(opened: string) {
 export async function workspaceEnv(dir: string) {
   const company = (await companyRoot(dir)) ?? dir
   const focused = await focusedReq(dir)
+  const constitution = (await isPacket(company))
+    ? `${HIRING_FILE} (single-req)`
+    : (await hasCompanyFile(company))
+      ? COMPANY_FILE
+      : "missing"
   return {
     company,
     focused: !focused ? "none" : focused === company ? "same as company" : focused,
     candidates: focused ? path.join(focused, CANDIDATES_DIR) : "none",
-    hiring: (await isReqDir(dir)) ? "present" : "missing",
+    constitution,
   }
 }
 
@@ -162,7 +185,7 @@ export async function resolve(directory: string, stop?: string) {
   const limit = stop === undefined ? undefined : path.resolve(stop)
   let current = start
   while (true) {
-    if (await isReqDir(current)) return current
+    if ((await hasCompanyFile(current)) || (await isReqDir(current))) return current
     if (limit && current === limit) return
     const parent = path.dirname(current)
     if (parent === current) return
@@ -175,16 +198,10 @@ export async function companyRoot(opened: string) {
   const stop = top ?? path.resolve(opened, "..", "..", "..", "..")
   const nearest = await resolve(opened, stop)
   if (!nearest) return
+  if (await hasCompanyFile(nearest)) return nearest
   const parent = path.dirname(nearest)
-  if (
-    parent !== nearest &&
-    (await isPacket(nearest)) &&
-    (await isCompanyRoot(parent)) &&
-    !(await isPacket(parent))
-  ) {
-    return parent
-  }
-  return nearest
+  if (parent !== nearest && (await hasCompanyFile(parent))) return parent
+  if (await isPacket(nearest)) return nearest
 }
 
 export function titleFromSlug(slug: string) {
@@ -200,74 +217,75 @@ export function stubFor(title?: string) {
   return HIRING_STUB.replaceAll("<role title>", title)
 }
 
-export async function scaffold(cwd: string, title?: string) {
+export async function scaffoldCompany(cwd: string) {
   const created: string[] = []
   const skipped: string[] = []
-  const hiring = hiringPath(cwd)
-  const existing = Bun.file(hiring)
-  const present = (await existing.exists()) && (await existing.text()).trim().length > 0
+  // A packet root is a single-req workspace; its HIRING.md is already the constitution.
+  const packet = await isPacket(cwd)
+  const existing = Bun.file(companyPath(cwd))
+  const present = packet || ((await existing.exists()) && (await existing.text()).trim().length > 0)
 
-  await mkdir(path.join(cwd, ".moks"), { recursive: true })
-
-  if (!present) {
-    await Bun.write(hiring, COMPANY_STUB)
-    created.push(HIRING_FILE)
-    await ensureScorecard(cwd, SCORECARD_FILE, created, skipped)
-    const git = await gitInitIfNeeded(cwd)
-    return { created, skipped, title, relative: ".", git }
-  }
-
-  if (!(await Filesystem.isDir(path.join(cwd, CANDIDATES_DIR)))) {
-    const slug = title ? slugify(title) : ""
-    if (!slug) {
-      skipped.push(HIRING_FILE)
-      await ensureScorecard(cwd, SCORECARD_FILE, created, skipped)
-      const git = await gitInitIfNeeded(cwd, false)
-      return { created, skipped, title, relative: ".", git }
-    }
-    const reqDir = path.join(cwd, slug)
-    const reqHiring = path.join(slug, HIRING_FILE)
-    const reqKeep = path.join(slug, CANDIDATES_DIR, ".gitkeep")
-    const reqFile = Bun.file(path.join(cwd, reqHiring))
-    if ((await reqFile.exists()) && (await reqFile.text()).trim().length > 0) {
-      skipped.push(reqHiring)
-    } else {
-      await Bun.write(path.join(cwd, reqHiring), stubFor(title))
-      created.push(reqHiring)
-    }
-    await ensureScorecard(reqDir, path.join(slug, SCORECARD_FILE), created, skipped)
-    if (await Bun.file(path.join(cwd, reqKeep)).exists()) {
-      skipped.push(reqKeep)
-    } else {
-      await Bun.write(path.join(cwd, reqKeep), "")
-      created.push(reqKeep)
-    }
-    const git = await gitInitIfNeeded(cwd, false)
-    return { created, skipped, title, relative: slug, git }
-  }
-
-  skipped.push(HIRING_FILE)
-  await ensureScorecard(cwd, SCORECARD_FILE, created, skipped)
-  const gitkeep = path.join(CANDIDATES_DIR, ".gitkeep")
-  if (await Bun.file(path.join(cwd, gitkeep)).exists()) {
-    skipped.push(gitkeep)
+  if (present) {
+    skipped.push(packet ? HIRING_FILE : COMPANY_FILE)
   } else {
-    await Bun.write(path.join(cwd, gitkeep), "")
-    created.push(gitkeep)
+    await Bun.write(companyPath(cwd), COMPANY_STUB)
+    created.push(COMPANY_FILE)
   }
-  const git = await gitInitIfNeeded(cwd, false)
-  return { created, skipped, title, relative: ".", git }
+  await ensureLedger(cwd, created, skipped)
+  const git = await gitInitIfNeeded(cwd, !present)
+  return { created, skipped, relative: ".", git }
 }
 
-async function ensureScorecard(dir: string, relative: string, created: string[], skipped: string[]) {
-  const dest = path.join(dir, SCORECARD_FILE)
-  const existing = Bun.file(dest)
-  if ((await existing.exists()) && (await existing.text()).trim().length > 0) {
-    skipped.push(relative)
-    return
+export async function scaffoldReq(cwd: string, title?: string) {
+  // A root that already has HIRING.md + candidates/ is the req itself; never nest.
+  const packet = await isPacket(cwd)
+  const company = await scaffoldCompany(cwd)
+  const created = [...company.created]
+  const skipped = [...company.skipped]
+
+  if (packet) {
+    const gitkeep = path.join(CANDIDATES_DIR, ".gitkeep")
+    if (await Bun.file(path.join(cwd, gitkeep)).exists()) {
+      skipped.push(gitkeep)
+    } else {
+      await Bun.write(path.join(cwd, gitkeep), "")
+      created.push(gitkeep)
+    }
+    return { created, skipped, title, relative: ".", git: company.git }
   }
-  await Bun.write(dest, await Bun.file(SCORECARD_TEMPLATE).text())
-  created.push(relative)
+
+  const slug = title ? slugify(title) : ""
+  if (!slug) return { created, skipped, title, relative: ".", git: company.git }
+
+  const reqHiring = path.join(slug, HIRING_FILE)
+  const reqKeep = path.join(slug, CANDIDATES_DIR, ".gitkeep")
+  const reqFile = Bun.file(path.join(cwd, reqHiring))
+  if ((await reqFile.exists()) && (await reqFile.text()).trim().length > 0) {
+    skipped.push(reqHiring)
+  } else {
+    await Bun.write(path.join(cwd, reqHiring), stubFor(title))
+    created.push(reqHiring)
+  }
+  if (await Bun.file(path.join(cwd, reqKeep)).exists()) {
+    skipped.push(reqKeep)
+  } else {
+    await Bun.write(path.join(cwd, reqKeep), "")
+    created.push(reqKeep)
+  }
+  return { created, skipped, title, relative: slug, git: company.git }
+}
+
+async function ensureLedger(cwd: string, created: string[], skipped: string[]) {
+  const { workspacePaths, openSqlite, migrateWorkspace, openVault } = await import("@moks/ledger")
+  const paths = workspacePaths(cwd)
+  const hadDb = await Bun.file(paths.workspaceDb).exists()
+  const hadKey = await Bun.file(paths.vaultKey).exists()
+  const db = openSqlite(paths.workspaceDb)
+  migrateWorkspace(db)
+  openVault(db, paths.vaultKey)
+  db.close()
+  ;(hadDb ? skipped : created).push(path.join(".moks", "ledger.sqlite"))
+  ;(hadKey ? skipped : created).push(path.join(".moks", "vault.key"))
 }
 
 async function gitToplevel(dir: string) {

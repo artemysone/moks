@@ -4,14 +4,14 @@ The agent harness for engineering talent acquisition.
 
 moks is to hiring what a coding agent is to software: same workplace shape — workspace, plan, tools, review, push — pointed at requisitions instead of repos. Local first. Remote later.
 
-The company folder is the workspace. A req is a subdirectory. `HIRING.md` is the constitution (company + per req). `candidates/<id>.md` are working copies. `moks commit` stages a ledger changeset. `moks push` applies approved changesets through the ATS adapter (mock today). `.moks/` is ledger + cache.
+The company folder is the workspace. A req is a subdirectory. `COMPANY.md` is the company constitution; each req carries its own `HIRING.md`. `candidates/<id>.md` are working copies. `moks commit` stages a ledger changeset. `moks push` applies approved changesets through the ATS adapter (mock today). `.moks/` is ledger + cache.
 
 **Based on [OpenCode](https://github.com/anomalyco/opencode).** MIT licensed. **Not** officially affiliated with OpenCode or Anomaly.
 
 | Coding | moks |
 |--------|------|
 | Repo | Company folder is the workspace |
-| `AGENTS.md` | `HIRING.md` |
+| `AGENTS.md` | `COMPANY.md` + req `HIRING.md` |
 | GitHub | ATS (adapter seam; live Ashby on hold) |
 | Diff | Local card + constitution changes |
 | Commit / push | `moks commit` / `moks push` |

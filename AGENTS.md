@@ -14,7 +14,7 @@ The company folder is the workspace (the repo). A req is a subdirectory you focu
 
 ```
 <company>/                    ← workspace root
-  HIRING.md                   ← company constitution
+  COMPANY.md                  ← company constitution
   <req>/                      ← a requisition
     HIRING.md                 ← req constitution
     candidates/<id>.md        ← working copies
@@ -26,7 +26,7 @@ Cards are the human-readable projection. The ledger is the system of record for 
 | Piece | Role |
 |-------|------|
 | workspace root | the company |
-| company `HIRING.md` | company constitution |
+| `COMPANY.md` | company constitution (always injected; company bar is a section here) |
 | `<req>/` | a requisition |
 | `<req>/HIRING.md` | req constitution (scorecard, must-haves, process) |
 | `<req>/candidates/<id>.md` | working copies (score, outreach, notes) |
@@ -36,7 +36,7 @@ Cards are the human-readable projection. The ledger is the system of record for 
 | `.moks/` | ledger + cache at company root. Not a hiring book |
 | `~/.config/moks/HIRING.md` | this recruiter’s global constitution |
 
-`/init` at the company root scaffolds a req directory. A root that itself has `HIRING.md` + `candidates/` is a single-req workspace (fixture / one-req company).
+`/init` at the company root writes the company dossier (`COMPANY.md` + `.moks/`) and never spawns a req. `/open-req` scaffolds `<req>/HIRING.md` + `<req>/candidates/`. The role scorecard is a section of the req `HIRING.md`; there is no `SCORECARD.md` and no company-root `HIRING.md`. A root that itself has `HIRING.md` + `candidates/` is a single-req workspace (fixture / one-req company).
 
 The filesystem is the book. Do not invent `.moks/reqs/`. Do not build a cloud req picker. Do not treat a parent software repo as the company.
 
@@ -51,7 +51,7 @@ Change: prominence, defaults, copy, agent wiring, workspace paths.
 | OpenCode | moks | Wrong port |
 |----------|------|------------|
 | Repo / project | Company folder is the workspace | One git remote per req; cwd-only req |
-| `AGENTS.md` | `HIRING.md` at company + per req | `/init` still writes coding AGENTS.md |
+| `AGENTS.md` | `COMPANY.md` at company + `HIRING.md` per req | `/init` still writes coding AGENTS.md |
 | GitHub | ATS (adapter seam; live Ashby on hold) | GitHub recruiting as the product |
 | Working tree | company + focused req packet | Cloud ATS with no local drafts |
 | Diff | Local hiring file deltas | Delete diff, or only show remote ATS |

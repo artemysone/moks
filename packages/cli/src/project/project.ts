@@ -82,9 +82,10 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Pro
 
 export interface Interface {
   /**
-   * Per-instance setup. Subscribes to the `/init` slash command for the
-   * current instance and stamps the project's initialized timestamp when it
-   * fires. Subscription lifetime is tied to the per-instance state scope.
+   * Per-instance setup. Subscribes to the `/init` and `/open-req` slash
+   * commands for the current instance and stamps the project's initialized
+   * timestamp when either fires. Subscription lifetime is tied to the
+   * per-instance state scope.
    */
   readonly init: () => Effect.Effect<void>
   readonly fromDirectory: (directory: string) => Effect.Effect<{ project: Info; sandbox: string }>
@@ -389,7 +390,9 @@ const layer = Layer.effect(
           if (event.type !== Command.Event.Executed.type || event.location?.directory !== ctx.directory)
             return Effect.void
           const data = event.data as EventV2.Data<typeof Command.Event.Executed>
-          return data.name === Command.Default.INIT ? setInitialized(ctx.project.id) : Effect.void
+          return data.name === Command.Default.INIT || data.name === Command.Default.OPEN_REQ
+            ? setInitialized(ctx.project.id)
+            : Effect.void
         })
         yield* Effect.addFinalizer(() => unsubscribe)
       }),

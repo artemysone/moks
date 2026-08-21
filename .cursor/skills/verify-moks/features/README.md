@@ -40,6 +40,7 @@ Keep implementation details out of the map. Name only user paths, stable handles
 
 ## Features
 
+- [Company /init and /open-req intake](./init-open-req.md) covers the company dossier scaffold and req creation/focus.
 - [Pull the ATS mirror](./pull.md) covers seeding the mock ATS and reading it back through `status`.
 - [Stage a disposition](./commit.md) covers `moks commit` onto a mirrored candidate.
 - [Review a changeset](./review.md) covers human approve and reject.

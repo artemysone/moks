@@ -14,7 +14,7 @@ import {
 } from "./policy.ts";
 
 const hiringTemplate = readFileSync(
-  join(dirname(fileURLToPath(import.meta.url)), "../templates/hiring.md"),
+  join(dirname(fileURLToPath(import.meta.url)), "../templates/company.md"),
   "utf8",
 );
 
@@ -30,16 +30,16 @@ function policy(overrides: Partial<Policy> = {}): Policy {
 }
 
 describe("parseHiringMarkdown", () => {
-  test("parses the REQ-142 hiring.md template", () => {
+  test("parses the company-constitution COMPANY.md template", () => {
     const doc = parseHiringMarkdown(hiringTemplate);
 
-    expect(doc.role).toBe("Staff-leaning senior backend engineer, payments team. JD: ./jd.md");
-    expect(doc.bar).toContain("5+ yrs backend; strong distributed-systems fundamentals");
-    expect(doc.bar).toContain("Scorecard: ./scorecard.md");
-    expect(doc.comp).toContain("$185k–$225k");
+    // A company constitution has no Role section; the role lives on each req.
+    expect(doc.role).toBe("");
+    expect(doc.bar).toContain("Strong fundamentals over framework familiarity");
+    expect(doc.bar).toContain("role scorecard");
     expect(doc.comp).toContain("Never state comp in outreach.");
     expect(doc.tone).toContain("Warm, specific, no buzzwords.");
-    expect(doc.tone).toContain("Follow-ups: max 2, spaced 4 business days.");
+    expect(doc.tone).toContain("Follow-ups: max 2,");
 
     expect(doc.policy).toEqual({
       autoApprove: ["AddNote", "AddTag"],
