@@ -1,5 +1,5 @@
 import { render, TimeToFirstDraw, useRenderer, useTerminalDimensions } from "@opentui/solid"
-import { registerOpencodeSpinner } from "./component/register-spinner"
+import { registerMoksSpinner } from "./component/register-spinner"
 import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
 import { Deferred, Effect } from "effect"
 import { Global } from "@moks/core/global"
@@ -76,7 +76,7 @@ import {
   MoksKeymapProvider,
   registerMoksKeymap,
   useBindings,
-  useOpencodeKeymap,
+  useMoksKeymap,
 } from "./keymap"
 
 import type { EventSource } from "./context/sdk"
@@ -87,7 +87,7 @@ import { win32DisableProcessedInput, win32FlushInputBuffer } from "./terminal-wi
 import { destroyRenderer } from "./util/renderer"
 import { cliErrorMessage, errorFormat } from "./util/error"
 
-registerOpencodeSpinner()
+registerMoksSpinner()
 
 const appGlobalBindingCommands = [
   "session.list",
@@ -371,7 +371,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
   const dialog = useDialog()
   const local = useLocal()
   const kv = useKV()
-  const keymap = useOpencodeKeymap()
+  const keymap = useMoksKeymap()
   const event = useEvent()
   const sdk = useSDK()
   const toast = useToast()

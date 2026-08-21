@@ -10,7 +10,7 @@
 /** @jsxImportSource @opentui/solid */
 import { useTerminalDimensions } from "@opentui/solid"
 import { For, Match, Show, Switch, createEffect, createMemo, createSignal, onCleanup } from "solid-js"
-import { registerOpencodeSpinner } from "@moks/tui/component/register-spinner"
+import { registerMoksSpinner } from "@moks/tui/component/register-spinner"
 import { createColors, createFrames } from "@moks/tui/ui/spinner"
 import {
   RUN_SUBAGENT_PANEL_ROWS,
@@ -56,7 +56,7 @@ import type {
 import type { RunTheme } from "./theme"
 import { modelInfo } from "./variant.shared"
 
-registerOpencodeSpinner()
+registerMoksSpinner()
 
 const EMPTY_BORDER = {
   topLeft: "",
