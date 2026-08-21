@@ -2,7 +2,7 @@
 
 Fake eng-TA sample so moks can run req → score → outreach → disposition without a live ATS. Remote/ATS later.
 
-cwd is the requisition. `HIRING.md` is the constitution. `candidates/*.md` are working copies (frontmatter: `stage` / `score` / `source` / `ats_id`). **`moks commit`** stages the ledger. **`moks push`** is the ATS write (local/mock).
+A single-req workspace: this folder is a one-req company, so the root holds `HIRING.md` (req constitution) and `candidates/*.md` working copies directly. In a multi-req company folder these live under the focused `<req>/` directory. Cards use frontmatter (`stage` / `score` / `source` / `ats_id`). **`moks commit`** stages the ledger. **`moks push`** is the ATS write (local/mock).
 
 | File | Contents |
 |------|----------|
@@ -12,7 +12,7 @@ cwd is the requisition. `HIRING.md` is the constitution. `candidates/*.md` are w
 ## Discovery order (skills + recruit agent)
 
 1. Paths you pass (`moks run -f …` or @ attachments)
-2. Cwd requisition: `HIRING.md`, `candidates/*.md`
+2. Focused req (or single-req root): `HIRING.md`, `candidates/*.md`
 3. These fixtures (reference / copy into a req dir)
 
 ## Quick start
