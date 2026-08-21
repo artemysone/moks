@@ -8,7 +8,7 @@ export async function packetDir(dir: string) {
     const hiring = await Bun.file(path.join(current, "HIRING.md")).exists()
     const packet = hiring && (await isDir(path.join(current, "candidates")))
     if (packet) return current
-    if (hiring) {
+    if (hiring || (await Bun.file(path.join(current, "COMPANY.md")).exists())) {
       const slug = await readFocus(current)
       if (slug) return path.join(current, slug)
       return current

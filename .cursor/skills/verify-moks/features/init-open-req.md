@@ -26,7 +26,8 @@ Preconditions: isolated workspace from `workspace.sh`; for `init-empty` and `ope
 
 ## Gotchas
 
-- Without a connected provider the model turn after the scaffold errors; the scaffold and focus writes land anyway. File state is the proof, not the chat reply.
+- With a configured but failing provider (the workspace stub key) the model turn after the scaffold errors; the scaffold and focus writes land anyway. File state is the proof, not the chat reply.
+- With zero providers the TUI blocks the submit itself behind the connect-provider dialog and nothing scaffolds. The workspace stub provider prevents this state; if the dialog appears, the env is missing `MOKS_MODELS_PATH` or the key.
 - The scaffold runs when the command is submitted, not while typing. Autocomplete inserting `/open-req ` into the composer has no side effect yet.
 - `/init` takes free-form notes, not a title. Typing `/init Senior Backend` must not create a req; if a req dir appears, that is the regression this feature guards.
 - The slug comes from the first line of the arguments only.

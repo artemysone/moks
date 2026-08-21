@@ -290,4 +290,57 @@ describe("decision/verbs", () => {
     expect(await CandidateCard.read(tmp.extra, "cand_priya")).toMatchObject({ stage: "Rejected" })
     expect(await Bun.file(path.join(tmp.path, "candidates")).exists()).toBe(false)
   })
+
+  test("pull projects candidate cards into the focused req", async () => {
+    await using tmp = await companyWorkspace()
+    await ReqWorkspace.writeFocus(tmp.path, "senior-backend")
+    const result = await pull(tmp.path)
+    expect(result.cards.dir).toBe(path.join("senior-backend", "candidates"))
+    expect(result.cards.created.toSorted()).toEqual(["cand_amira", "cand_devon", "cand_jane", "cand_marcus"])
+    expect(await CandidateCard.read(tmp.extra, "cand_jane")).toMatchObject({
+      stage: "Screen",
+      source: "mock",
+      extra: { name: "Jane Ortega" },
+    })
+    expect(await CandidateCard.read(tmp.extra, "cand_priya")).toMatchObject({ stage: "Sourced", extra: { name: "Priya" } })
+    expect(await Bun.file(path.join(tmp.path, "candidates")).exists()).toBe(false)
+  })
+
+  test("pull without a focused req projects no cards", async () => {
+    await using tmp = await companyWorkspace()
+    const result = await pull(tmp.path)
+    expect(result.cards.dir).toBeNull()
+    expect(result.cards.created).toEqual([])
+    expect(await CandidateCard.read(tmp.extra, "cand_jane")).toBeUndefined()
+  })
+
+  test("pull projects cards into a single-req packet root", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
+        await Bun.write(path.join(dir, "candidates", ".gitkeep"), "")
+      },
+    })
+    const result = await pull(tmp.path)
+    expect(result.cards.dir).toBe("candidates")
+    expect(result.cards.created).toHaveLength(5)
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
+  })
+
+  test("second pull preserves recruiter edits and syncs stage from the mirror", async () => {
+    await using tmp = await companyWorkspace()
+    await ReqWorkspace.writeFocus(tmp.path, "senior-backend")
+    await pull(tmp.path)
+    const card = await CandidateCard.read(tmp.extra, "cand_jane")
+    if (!card) throw new Error("expected projected card")
+    await CandidateCard.write(tmp.extra, { ...card, score: 3, stage: "Sourced", body: "# Jane Ortega\n\nscored notes\n" })
+    const again = await pull(tmp.path)
+    expect(again.cards.created).toEqual([])
+    expect(again.cards.updated).toEqual(["cand_jane"])
+    expect(await CandidateCard.read(tmp.extra, "cand_jane")).toMatchObject({
+      score: 3,
+      stage: "Screen",
+      body: "# Jane Ortega\n\nscored notes\n",
+    })
+  })
 })

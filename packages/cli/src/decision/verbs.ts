@@ -94,7 +94,8 @@ export function defaultAuthor() {
 export async function pull(input: { cwd?: string } = {}) {
   return withLedger(input.cwd, async (handle) => {
     const result = handle.api.pullMirror(handle.db, handle.adapter)
-    return { ...result, path: handle.company }
+    const cards = await projectPulledCards(handle)
+    return { ...result, cards, path: handle.company }
   })
 }
 
@@ -374,6 +375,34 @@ function nextStageFor(handle: LedgerHandle, entityRef: string) {
   const application = handle.api.listApplications(handle.db).find((row) => row.id === entityRef)
   if (!application) return
   return handle.api.nextStage(application.stage) ?? undefined
+}
+
+// The mirror owns stage (dispositions flow through commit/push); score, notes,
+// and body on an existing card are local drafts and stay untouched.
+async function projectPulledCards(handle: LedgerHandle) {
+  const dir = handle.req ?? ((await ReqWorkspace.isPacket(handle.company)) ? handle.company : undefined)
+  if (!dir) return { dir: null, created: [] as string[], updated: [] as string[] }
+  const created: string[] = []
+  const updated: string[] = []
+  for (const listing of handle.api.listApplications(handle.db)) {
+    const existing = await CandidateCard.read(dir, listing.candidateId)
+    if (!existing) {
+      const name = listing.candidateName ?? listing.candidateId
+      await CandidateCard.write(dir, {
+        id: listing.candidateId,
+        stage: listing.stage,
+        source: handle.adapter.id,
+        extra: { name },
+        body: listing.candidateHeadline ? `# ${name}\n\n${listing.candidateHeadline}\n` : `# ${name}\n`,
+      })
+      created.push(listing.candidateId)
+      continue
+    }
+    if (existing.stage === listing.stage) continue
+    await CandidateCard.write(dir, { ...existing, stage: listing.stage })
+    updated.push(listing.candidateId)
+  }
+  return { dir: path.relative(handle.company, path.join(dir, CandidateCard.CANDIDATES_DIR)), created, updated }
 }
 
 async function projectCard(

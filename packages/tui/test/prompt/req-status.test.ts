@@ -26,6 +26,18 @@ describe("req-status", () => {
     expect(await countCards(dir)).toBe(2)
   })
 
+  test("counts cards from the focused req at a COMPANY.md root", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "moks-req-"))
+    await writeFile(path.join(dir, "COMPANY.md"), "# Co\n")
+    await mkdir(path.join(dir, ".moks"), { recursive: true })
+    await writeFile(path.join(dir, ".moks", "focus"), "founding-engineer")
+    await mkdir(path.join(dir, "founding-engineer", "candidates"), { recursive: true })
+    await writeFile(path.join(dir, "founding-engineer", "HIRING.md"), "# Founding Engineer\n")
+    await writeFile(path.join(dir, "founding-engineer", "candidates", "cand-jane.md"), "")
+    expect(await countCards(dir)).toBe(1)
+    expect(await readReqTitle(dir)).toBe("Founding Engineer")
+  })
+
   test("formats staged and approved counts from the ledger", () => {
     expect(
       formatReqStatus({ title: "Senior Backend Engineer", cards: 3, staged: 2, approved: 1, agent: "recruit" }),
