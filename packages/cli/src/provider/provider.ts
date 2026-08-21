@@ -11,7 +11,7 @@ import { Plugin } from "../plugin"
 import { serviceUse } from "@moks/core/effect/service-use"
 import { type LanguageModelV3 } from "@ai-sdk/provider"
 import { ModelsDev } from "@moks/core/models-dev"
-import { Auth } from "../auth"
+import { Auth, isPlaceholderApiKey } from "../auth"
 import { Env } from "../env"
 import { InstallationVersion } from "@moks/core/installation/version"
 import { iife } from "@/util/iife"
@@ -996,7 +996,7 @@ export class InitError extends Schema.TaggedErrorClass<InitError>()("ProviderIni
 
 export class NoProvidersError extends Schema.TaggedErrorClass<NoProvidersError>()("ProviderNoProvidersError", {}) {
   override get message() {
-    return "No providers are available"
+    return "No inference provider is connected. Sign in / connect OAuth or ACP (`moks auth`). A dummy API key is not enough."
   }
 
   static isInstance(input: unknown): input is NoProvidersError {
@@ -1394,7 +1394,7 @@ const layer = Layer.effect(
           const providerID = ProviderV2.ID.make(id)
           if (disabled.has(providerID)) continue
           const apiKey = provider.env.map((item) => envs[item]).find(Boolean)
-          if (!apiKey) continue
+          if (!apiKey || isPlaceholderApiKey(apiKey)) continue
           mergeProvider(providerID, {
             source: "env",
             key: provider.env.length === 1 ? apiKey : undefined,
@@ -1407,6 +1407,7 @@ const layer = Layer.effect(
           const providerID = ProviderV2.ID.make(id)
           if (disabled.has(providerID)) continue
           if (provider.type === "api") {
+            if (isPlaceholderApiKey(provider.key)) continue
             mergeProvider(providerID, {
               source: "api",
               key: provider.key,
@@ -1824,7 +1825,15 @@ const layer = Layer.effect(
       }
 
       const configured = Object.keys(cfg.provider ?? {})
-      const provider = Object.values(s.providers).find((p) => configured.length === 0 || configured.includes(p.id))
+      const allowed = Object.values(s.providers).filter((p) => configured.length === 0 || configured.includes(p.id))
+      const auths = yield* auth.all().pipe(Effect.orDie)
+      const oauthIDs = new Set(
+        Object.entries(auths)
+          .filter(([, info]) => info.type === "oauth")
+          .map(([id]) => ProviderV2.ID.make(id)),
+      )
+      const preferred = allowed.filter((p) => oauthIDs.has(p.id))
+      const provider = (preferred.length ? preferred : allowed)[0]
       if (!provider) return yield* new NoProvidersError()
       const [model] = sort(Object.values(provider.models))
       if (!model) return yield* new NoModelsError({ providerID: provider.id })

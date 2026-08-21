@@ -84,4 +84,26 @@ describe("cli dogfood", () => {
     expect(rejected.combined).not.toContain("Unexpected error")
     expect(rejected.combined).not.toContain("\u2192")
   }, 20_000)
+
+  test("headless score with a dummy API key and no oauth fails fast", async () => {
+    await using company = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "COMPANY.md"), "# Co\n")
+        await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
+        await Bun.write(path.join(dir, "candidates", "jordan-lee.md"), "# Jordan Lee\n")
+      },
+    })
+    await using home = await tmpdir()
+    const started = Date.now()
+    const result = await moks(
+      ["run", "--agent", "recruit", "--", "Score this resume"],
+      company.path,
+      home.path,
+      { ANTHROPIC_API_KEY: "moks-verify-dummy-key" },
+    )
+    const elapsed = Date.now() - started
+    expect(result.code).toBe(1)
+    expect(result.combined).toMatch(/sign in \/ connect OAuth or ACP/i)
+    expect(elapsed).toBeLessThan(15_000)
+  }, 20_000)
 })

@@ -56,6 +56,7 @@ afterEach(async () => {
     else process.env[key] = value
   }
   originalEnv.clear()
+  await unlink(path.join(process.env.XDG_DATA_HOME!, "moks", "auth.json")).catch(() => {})
   await disposeAllInstances()
 })
 
@@ -386,6 +387,90 @@ it.instance(
     expect(error._tag).toBe("ProviderNoProvidersError")
   }),
   { config: { enabled_providers: [] } },
+)
+
+it.instance("placeholder env API key does not load a provider", () =>
+  Effect.gen(function* () {
+    yield* setProcessEnv("ANTHROPIC_API_KEY", "moks-verify-dummy-key")
+    const providers = yield* list
+    expect(providers[ProviderV2.ID.anthropic]).toBeUndefined()
+    const error = yield* Provider.use.defaultModel().pipe(Effect.flip)
+    expect(error).toBeInstanceOf(Provider.NoProvidersError)
+    expect(error.message).toMatch(/sign in \/ connect OAuth or ACP/i)
+  }),
+)
+
+it.instance("oauth auth loads a provider without an env API key", () =>
+  Effect.gen(function* () {
+    const authPath = path.join(Global.Path.data, "auth.json")
+    yield* Effect.promise(() =>
+      Filesystem.write(
+        authPath,
+        JSON.stringify({
+          opencode: {
+            type: "oauth",
+            access: "access-token",
+            refresh: "refresh-token",
+            expires: Date.now() + 3_600_000,
+          },
+        }),
+      ),
+    )
+    const providers = yield* list
+    expect(providers[ProviderV2.ID.opencode]).toBeDefined()
+    const model = yield* Provider.use.defaultModel()
+    expect(String(model.providerID)).toBe("opencode")
+  }),
+)
+
+it.instance("defaultModel prefers oauth over an env API key", () =>
+  Effect.gen(function* () {
+    yield* setProcessEnv("ANTHROPIC_API_KEY", "test-api-key")
+    const authPath = path.join(Global.Path.data, "auth.json")
+    yield* Effect.promise(() =>
+      Filesystem.write(
+        authPath,
+        JSON.stringify({
+          opencode: {
+            type: "oauth",
+            access: "access-token",
+            refresh: "refresh-token",
+            expires: Date.now() + 3_600_000,
+          },
+        }),
+      ),
+    )
+    const providers = yield* list
+    expect(providers[ProviderV2.ID.anthropic]).toBeDefined()
+    expect(providers[ProviderV2.ID.opencode]).toBeDefined()
+    const model = yield* Provider.use.defaultModel()
+    expect(String(model.providerID)).toBe("opencode")
+  }),
+)
+
+it.instance("oauth is used when only a dummy env API key is present", () =>
+  Effect.gen(function* () {
+    yield* setProcessEnv("ANTHROPIC_API_KEY", "moks-verify-dummy-key")
+    const authPath = path.join(Global.Path.data, "auth.json")
+    yield* Effect.promise(() =>
+      Filesystem.write(
+        authPath,
+        JSON.stringify({
+          opencode: {
+            type: "oauth",
+            access: "access-token",
+            refresh: "refresh-token",
+            expires: Date.now() + 3_600_000,
+          },
+        }),
+      ),
+    )
+    const providers = yield* list
+    expect(providers[ProviderV2.ID.anthropic]).toBeUndefined()
+    expect(providers[ProviderV2.ID.opencode]).toBeDefined()
+    const model = yield* Provider.use.defaultModel()
+    expect(String(model.providerID)).toBe("opencode")
+  }),
 )
 
 it.instance(

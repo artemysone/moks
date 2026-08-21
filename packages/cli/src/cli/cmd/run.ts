@@ -319,9 +319,18 @@ export const RunCommand = effectCmd({
     const { RuntimeFlags } = yield* Effect.promise(() => import("@/effect/runtime-flags"))
     const { InstanceRef } = yield* Effect.promise(() => import("@/effect/instance-ref"))
     const { ServerAuth } = yield* Effect.promise(() => import("@/server/auth"))
+    const { Provider } = yield* Effect.promise(() => import("@/provider/provider"))
     const agentSvc = yield* Agent.Service
     const flags = yield* RuntimeFlags.Service
     const localInstance = yield* InstanceRef
+    const providerSvc = yield* Provider.Service
+    if (!args.mini && !args.attach) {
+      const connected = yield* providerSvc.list()
+      if (Object.keys(connected).length === 0) {
+        UI.error(new Provider.NoProvidersError().message)
+        process.exit(1)
+      }
+    }
     yield* Effect.promise(async () => {
       const rawMessage = [...args.message, ...(args["--"] || [])].join(" ")
       const interactive = args.mini
