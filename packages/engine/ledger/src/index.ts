@@ -99,7 +99,7 @@ export {
   encodeSse,
   type EventBus,
   type EventListener,
-  type MoxEvent,
+  type MoksEvent,
   type PermissionAsk,
   type PermissionGateHandle,
   type PermissionResponse,

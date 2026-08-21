@@ -9,7 +9,7 @@ import { VaultError } from "./errors.ts";
 
 describe("pii vault", () => {
   test("encrypts payloads and shredding makes them unreadable", () => {
-    const dir = mkdtempSync(join(tmpdir(), "mox-vault-"));
+    const dir = mkdtempSync(join(tmpdir(), "moks-vault-"));
     const db = openSqlite(":memory:");
     migrateWorkspace(db);
     const vault = openVault(db, join(dir, "vault.key"));

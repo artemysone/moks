@@ -120,7 +120,7 @@ type PushHarness = {
 function pushHarness(): PushHarness {
   const db = openSqlite(":memory:");
   migrateWorkspace(db);
-  const vault = openVault(db, join(mkdtempSync(join(tmpdir(), "mox-sync-")), "vault.key"));
+  const vault = openVault(db, join(mkdtempSync(join(tmpdir(), "moks-sync-")), "vault.key"));
   const current = { value: snapshot() };
   pullMirror(db, adapterFor(current));
   return { db, vault, current, applies: [], pulls: { count: 0 } };

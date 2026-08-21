@@ -30,7 +30,7 @@ const validFixture = {
 };
 
 function writeFixture(body: unknown): string {
-  const dir = mkdtempSync(join(tmpdir(), "mox-jb-fixture-"));
+  const dir = mkdtempSync(join(tmpdir(), "moks-jb-fixture-"));
   const path = join(dir, "mock-juicebox.json");
   writeFileSync(path, JSON.stringify(body));
   return path;

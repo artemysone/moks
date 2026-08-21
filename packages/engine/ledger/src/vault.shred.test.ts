@@ -20,7 +20,7 @@ afterEach(() => {
 });
 
 function tempVaultEnv(): { db: SqliteDb; keyPath: string } {
-  const dir = mkdtempSync(join(tmpdir(), "mox-vault-shred-"));
+  const dir = mkdtempSync(join(tmpdir(), "moks-vault-shred-"));
   tempDirs.push(dir);
   const db = openSqlite(join(dir, "ledger.sqlite"));
   migrateWorkspace(db);

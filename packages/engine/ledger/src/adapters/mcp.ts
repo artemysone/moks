@@ -106,7 +106,7 @@ function parseSourcedCandidates(value: unknown): SourcedCandidate[] {
   });
 }
 
-/** ATS backed by an MCP server implementing `ats_snapshot` / `ats_apply` (Mox MCP ATS contract). */
+/** ATS backed by an MCP server implementing `ats_snapshot` / `ats_apply` (moks MCP ATS contract). */
 export function createMcpAtsAdapter(config: McpServerConfig, options: { id: AtsId }): AtsAdapter {
   const client: SyncMcpClient = openSyncMcpClient(config);
   return {

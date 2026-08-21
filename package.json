@@ -12,7 +12,6 @@
     "upgrade-opentui": "bun run script/upgrade-opentui.ts",
     "postinstall": "bun run --cwd packages/engine/core fix-node-pty",
     "prepare": "husky",
-    "random": "echo 'Random script'",
     "test": "echo 'do not run tests from root' && exit 1"
   },
   "workspaces": {

@@ -40,7 +40,7 @@ const validFixture = {
 };
 
 function writeFixture(body: unknown): string {
-  const dir = mkdtempSync(join(tmpdir(), "mox-gh-fixture-"));
+  const dir = mkdtempSync(join(tmpdir(), "moks-gh-fixture-"));
   const path = join(dir, "mock-greenhouse.json");
   writeFileSync(path, JSON.stringify(body));
   return path;
@@ -91,7 +91,7 @@ describe("createGreenhouseAdapter", () => {
     expect(pulled.jobs[0]?.remoteId).toBe("GH-JOB-1");
   });
 
-  test("seeds the repo fixture with Mox stages and GH remote ids", () => {
+  test("seeds the repo fixture with moks stages and GH remote ids", () => {
     const db = openSqlite(":memory:");
     migrateGreenhouse(db);
     const adapter = createGreenhouseAdapter(db, { fixturePath: repoFixture });

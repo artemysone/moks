@@ -1,7 +1,7 @@
 import type { McpErrorCode } from "./errors.ts";
 
 /**
- * Mox MCP ATS contract. A server backs an ATS by exposing:
+ * moks MCP ATS contract. A server backs an ATS by exposing:
  * - `ats_snapshot` (no args) → the same snapshot JSON shape `AtsAdapter.pull` produces.
  * - `ats_apply` (an `ApplyChange`, plus an optional client-generated `idempotencyKey`
  *   string) → the same `ApplyResult` shape `AtsAdapter.apply` produces, with CAS

@@ -31,6 +31,7 @@ jobs:
       - name: Run harness tests
         run: |
           bun --cwd packages/cli test
+          bun --cwd packages/engine/ledger test
           bun --cwd packages/engine/core test
           bun --cwd packages/tui test
           bun --cwd packages/engine/llm test

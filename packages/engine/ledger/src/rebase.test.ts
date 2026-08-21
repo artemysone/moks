@@ -10,7 +10,7 @@ import { openVault } from "./vault.ts";
 import { openWorkspace, type Workspace } from "./temp-ledger.ts";
 
 function tempCwd(): string {
-  return mkdtempSync(join(tmpdir(), "mox-rebase-"));
+  return mkdtempSync(join(tmpdir(), "moks-rebase-"));
 }
 
 function openTemp(): Workspace {

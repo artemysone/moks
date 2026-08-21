@@ -147,7 +147,7 @@ export type SessionCompactionFailedEvent = {
   };
 };
 
-export type MoxEvent =
+export type MoksEvent =
   | ServerConnectedEvent
   | SessionCreatedEvent
   | SessionUpdatedEvent
@@ -165,11 +165,11 @@ export type MoxEvent =
   | SyncUpdatedEvent
   | PluginWarningEvent;
 
-export type EventListener = (event: MoxEvent) => void;
+export type EventListener = (event: MoksEvent) => void;
 
 export type EventBus = {
   subscribe(listener: EventListener): () => void;
-  publish(event: MoxEvent): void;
+  publish(event: MoksEvent): void;
   size(): number;
 };
 
@@ -193,7 +193,7 @@ export function createEventBus(): EventBus {
   };
 }
 
-export function encodeSse(event: MoxEvent): string {
+export function encodeSse(event: MoksEvent): string {
   return `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
 }
 

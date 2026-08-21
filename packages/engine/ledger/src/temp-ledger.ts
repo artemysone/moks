@@ -21,10 +21,10 @@ import {
   type PushResult,
   type StatusReport,
 } from "./sync.ts";
-import { createMockAdapter } from "./temp-mock-ats.ts";
+import { createMockAdapter } from "./adapters/mock.ts";
 import { openVault } from "./vault.ts";
 
-/** Test-only stand-in for Mox's workspace facade. Not exported from the package. */
+/** Test-only stand-in for the moks workspace facade. Not exported from the package. */
 export type Workspace = {
   paths: WorkspacePaths;
   pull(): PullResult;

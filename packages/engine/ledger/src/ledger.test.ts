@@ -7,7 +7,7 @@ import { openWorkspace, type Workspace } from "./temp-ledger.ts";
 import { markChangesetStatus } from "./ledger.ts";
 
 function tempCwd(): string {
-  return mkdtempSync(join(tmpdir(), "mox-ledger-"));
+  return mkdtempSync(join(tmpdir(), "moks-ledger-"));
 }
 
 function openTemp(): Workspace {

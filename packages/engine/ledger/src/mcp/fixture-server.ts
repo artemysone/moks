@@ -236,7 +236,7 @@ export async function runMockMcpAtsServer(options: { datasetPath: string }): Pro
   const dataset = JSON.parse(readFileSync(options.datasetPath, "utf8")) as FixtureDataset;
   const state = createFixtureState(dataset);
 
-  const server = new Server({ name: "mox-mock-mcp-ats", version: "0.0.1" }, { capabilities: { tools: {} } });
+  const server = new Server({ name: "moks-mock-mcp-ats", version: "0.0.1" }, { capabilities: { tools: {} } });
   server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: TOOLS }));
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const args = (request.params.arguments ?? {}) as Record<string, unknown>;
