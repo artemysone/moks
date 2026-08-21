@@ -784,7 +784,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       {
         name: "decision.review",
         title: "Review changeset",
-        slashName: "review",
+        // No slashName: "/review" belongs to the packet-review server command.
+        // Ledger approve/reject stays reachable from the palette and the CLI.
         category: "Decision",
         run: () => {
           void runReviewFlow({
