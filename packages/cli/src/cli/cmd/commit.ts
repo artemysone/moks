@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { effectCmd, fail } from "../effect-cmd"
+import { CliError, effectCmd, fail } from "../effect-cmd"
 import { DecisionVerbs, defaultAuthor, type CommitChange } from "@/decision/verbs"
 import { UI } from "../ui"
 
@@ -105,26 +105,31 @@ export const CommitCommand = effectCmd({
     }
     const target =
       args.targetKind || args.targetId ? { kind: args.targetKind ?? "candidate", id: args.targetId } : undefined
-    const result = yield* Effect.promise(() =>
-      DecisionVerbs.commit({
-        action: args.action,
-        mutation: args.mutation,
-        entity: args.entity,
-        target,
-        reason: args.reason,
-        rationale: args.rationale ?? args.reason,
-        to: args.to,
-        body: args.body,
-        tag: args.tag,
-        terms: args.terms,
-        changes: parsedChanges,
-        author_id: args.author ?? defaultAuthor(),
-        author_kind: "human",
-        meta,
-        source: "cli",
-        cwd: args.cwd,
-      }),
-    )
+    const result = yield* Effect.tryPromise({
+      try: () =>
+        DecisionVerbs.commit({
+          action: args.action,
+          mutation: args.mutation,
+          entity: args.entity,
+          target,
+          reason: args.reason,
+          rationale: args.rationale ?? args.reason,
+          to: args.to,
+          body: args.body,
+          tag: args.tag,
+          terms: args.terms,
+          changes: parsedChanges,
+          author_id: args.author ?? defaultAuthor(),
+          author_kind: "human",
+          meta,
+          source: "cli",
+          cwd: args.cwd,
+        }),
+      catch: (error) =>
+        new CliError({
+          message: error instanceof Error ? error.message : "commit failed",
+        }),
+    })
     if (args.json) {
       console.log(JSON.stringify(result, null, 2))
       return

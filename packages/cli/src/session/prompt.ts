@@ -1367,7 +1367,7 @@ const layer = Layer.effect(
       }
       if (input.command === Command.Default.OPEN_REQ) {
         const ctx = yield* InstanceState.context
-        const title = (input.arguments.split("\n")[0] ?? "").trim()
+        const title = ReqWorkspace.parseReqTitle(input.arguments)
         yield* Effect.promise(async () => {
           const result = await ReqWorkspace.scaffoldReq(ctx.directory, title || undefined)
           if (result.relative !== ".") await ReqWorkspace.writeFocus(ctx.directory, result.relative)
@@ -1401,11 +1401,9 @@ const layer = Layer.effect(
       }
 
       if (input.command === Command.Default.OPEN_REQ) {
-        const title = (input.arguments.split("\n")[0] ?? "").trim()
+        const title = ReqWorkspace.parseReqTitle(input.arguments)
         const slug = ReqWorkspace.slugify(title)
-        template = template
-          .replaceAll("${title}", title || "<title>")
-          .replaceAll("${slug}", slug || "<slug>")
+        template = template.replaceAll("${title}", title || "<title>").replaceAll("${slug}", slug || "<slug>")
       }
 
       const shellMatches = ConfigMarkdown.shell(template)
