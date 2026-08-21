@@ -330,7 +330,8 @@
       <h1>Open the <span>harness</span>. Sell the <span>kernel</span>.</h1>
       <p class="thesis">
         <strong>moks</strong> is the MIT agent workplace for engineering TA:
-        a req is a directory, <code>HIRING.md</code> is the constitution, git is the audit,
+        the company folder is the workspace, a req is a directory you focus, <code>HIRING.md</code> is the constitution,
+        the moks ledger is the audit,
         <code>moks push</code> is the write. Local first. Remote later.
         Convert teams later to a <strong>hosted decision kernel + multiplayer workplace</strong>.
         Acquihire is a call option, not the plan.
@@ -342,7 +343,7 @@
         <h2><span class="n">1</span> One-liner</h2>
         <p style="font-size: 15px; margin-bottom: 10px;">
           <strong>moks</strong> — a recruiter-native agent harness.
-          Req = cwd. Diff the cards. Commit the decision. Push when ready.
+          Company = workspace, req = focus. Diff the cards. Commit the decision. Push when ready.
         </p>
         <p class="muted" style="font-size: 13.5px;">
           Free/local loop for eng-led TA. Paid cloud when hiring needs policy,
@@ -377,7 +378,7 @@
       <div class="stack-flow" style="margin-bottom: 14px;">
         <div class="layer open">
           <b>moks Open (MIT) — the drug</b>
-          <span>One agent product: TUI + headless · HIRING.md + candidate cards · git audit · confirm-on-adverse · moks push (local/mock). Not three pillars on day 0.</span>
+          <span>One agent product: TUI + headless · HIRING.md + candidate cards · moks ledger audit · confirm-on-adverse · moks push (local/mock). Not three pillars on day 0.</span>
         </div>
         <div class="layer cloud">
           <b>moks Cloud (commercial) — the company</b>
@@ -385,7 +386,7 @@
         </div>
         <div class="layer edge">
           <b>Edges (not identity)</b>
-          <span>ATS / notes / sourcing tools are adapters when they exist. Local files + git are the loop. Remote write is later — not the identity.</span>
+          <span>ATS / notes / sourcing tools are adapters when they exist. Local files + ledger are the loop. Remote write is later — not the identity.</span>
         </div>
       </div>
 
@@ -393,7 +394,7 @@
         <strong>CLI stance:</strong> Day 0 there is <strong>no separate CLI product pillar</strong> and no third GTM motion.
         Open = harness (TUI + headless CLI). Shared <strong>write verbs</strong>
         (<code>commit</code> / <code>status</code> / <code>push</code> / <code>--json</code>) are what agents and the TUI both call —
-        git is the audit, push is the write. <strong>CLI-as-co-equal pillar</strong>
+        the ledger is the audit, push is the write. <strong>CLI-as-co-equal pillar</strong>
         lands at <strong>kernel-on / Cloud</strong>, when there is a real API worth being thick against.
         TUI shells those verbs; never forks policy into the client.
       </div>
@@ -419,7 +420,7 @@
           </tr>
           <tr>
             <td>Write protocol</td>
-            <td>Frozen verbs: <code>commit</code> / <code>status</code> / <code>push</code>; git is the audit</td>
+            <td>Frozen verbs: <code>commit</code> / <code>status</code> / <code>push</code>; the ledger is the audit</td>
             <td>Same verbs → Cloud kernel APIs only</td>
           </tr>
           <tr>
@@ -429,7 +430,7 @@
           </tr>
           <tr>
             <td>Writes / stages</td>
-            <td>Edit cards → git commit → <code>moks push</code> (local/mock; adverse confirm)</td>
+            <td>Edit cards → <code>moks commit</code> (changeset) → <code>moks push</code> (local/mock; adverse confirm)</td>
             <td><strong>Kernel-only</strong> propose/apply; ATS export subscriber</td>
           </tr>
           <tr>
@@ -444,7 +445,7 @@
           </tr>
           <tr>
             <td>Compliance export</td>
-            <td>Git log of <code>moks:</code> commits</td>
+            <td>Ledger changeset log (<code>moks log --compliance</code>)</td>
             <td>Org export that answers <em>why</em> without opening the ATS</td>
           </tr>
         </tbody>
@@ -470,8 +471,8 @@
         <h2><span class="n">5</span> Open scope (now)</h2>
         <ul>
           <li>MIT harness (TUI + headless) with hiring verbs &amp; skills.</li>
-          <li>Cwd is the req: <code>HIRING.md</code> + <code>candidates/*.md</code>.</li>
-          <li>Every disposition is a git commit. <code>moks push</code> is the write (local/mock).</li>
+          <li>Company folder is the workspace: <code>COMPANY.md</code> at the root; focus selects the req packet (<code>HIRING.md</code> + <code>candidates/*.md</code>).</li>
+          <li>Every disposition is a ledger changeset (<code>moks commit</code>). <code>moks push</code> is the write (local/mock).</li>
           <li>Adverse actions default to confirm; hero demo ≠ silent stage move.</li>
           <li>Same verbs via <code>--json</code>. Don’t staff a separate CLI roadmap.</li>
           <li>Remote ATS later. Local loop is the product until WAU says otherwise.</li>
@@ -571,7 +572,7 @@
           <tr>
             <td><strong>0 · Open wedge</strong></td>
             <td>moks; fast local loops</td>
-            <td>One harness (TUI + headless); git audit; confirm adverse; <code>commit</code>/<code>push</code>; no separate CLI pillar</td>
+            <td>One harness (TUI + headless); ledger audit; confirm adverse; <code>commit</code>/<code>push</code>; no separate CLI pillar</td>
           </tr>
           <tr>
             <td><strong>1 · Kernel on</strong></td>
@@ -601,12 +602,12 @@
       </p>
       <div class="grid two" style="margin-bottom: 0;">
         <div class="card" style="padding: 14px 16px;">
-          <h2 style="margin-bottom: 10px;">Ship in v0</h2>
+          <h2 style="margin-bottom: 10px;">In the first slice</h2>
           <ul>
             <li>OSS TA harness — run in about a minute</li>
             <li>TUI + headless same package</li>
-            <li>Hiring skills + local req book (<code>HIRING.md</code> + cards)</li>
-            <li>Git audit + confirm-on-adverse + <code>moks push</code></li>
+            <li>Hiring skills + local req packet (<code>HIRING.md</code> + cards)</li>
+            <li>Ledger audit + confirm-on-adverse + <code>moks push</code></li>
             <li>Prove <strong>WAU eng-TA</strong></li>
           </ul>
         </div>
@@ -624,7 +625,7 @@
       <table style="margin-top: 14px;">
         <thead>
           <tr>
-            <th>v0 slice</th>
+            <th>First slice</th>
             <th>Done means</th>
           </tr>
         </thead>
@@ -651,7 +652,7 @@
           </tr>
           <tr>
             <td>Receipts</td>
-            <td>Every disposition → git commit</td>
+            <td>Every disposition → ledger changeset (<code>moks commit</code>)</td>
           </tr>
           <tr>
             <td>Writes</td>
@@ -664,7 +665,7 @@
         </tbody>
       </table>
       <p class="muted" style="font-size: 13px; margin-top: 12px;">
-        <strong style="color: var(--text);">Out of v0:</strong> multiplayer rooms, server policy cathedral, thick watch/CI product, Postgres, dual-ATS polish.
+        <strong style="color: var(--text);">Not in the first slice:</strong> multiplayer rooms, server policy cathedral, thick watch/CI product, Postgres, dual-ATS polish.
       </p>
       <div class="callout" style="margin-top: 14px;">
         <strong>Only metric that matters:</strong> weekly active eng-TA running a real req in the TUI.

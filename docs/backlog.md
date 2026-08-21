@@ -56,7 +56,7 @@ Strategy: `docs/gtm.html`. Ontology: `AGENTS.md`. Ledger-first port: `docs/mox-p
 - Claude / Agents skill discovery stays **on** (same `SKILL.md` format)
 
 **Loop verbs**
-- `/init` today writes `HIRING.md` + `candidates/` in cwd (single-req workspace). Company `/init` (req subdirectory) is H33.
+- `/init` writes the company dossier (`COMPANY.md` + `.moks/`) and never spawns a req. `/open-req` scaffolds `<req>/HIRING.md` + `<req>/candidates/` (H33). Single-req workspace layout still works.
 - Instruction loader reads `HIRING.md` only.
 - `/review` is packet review, not `gh pr`. No build/gh escape hatch in the template.
 - CLI `commit` / `push` / `status` / `activity` exist and are hiring-shaped.
