@@ -63,22 +63,13 @@ export {
 } from "./mirror.ts";
 export { casProjection, isEmptyPrecondition, matchesPrecondition } from "./precondition.ts";
 export {
-  AGENT_TOOL_NAMES,
-  commitPermissionFor,
-  effectiveCommitPermission,
   failClosedPolicy,
   gateFor,
   parseHiringMarkdown,
-  permissionFor,
   sampleReject,
-  toolPermission,
-  type AgentToolName,
   type Gate,
   type HiringDoc,
-  type PermissionDecision,
-  type PermissionRule,
   type Policy,
-  type ToolPermission,
 } from "./policy.ts";
 export { openVault, type Vault } from "./vault.ts";
 export {

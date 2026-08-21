@@ -64,7 +64,6 @@ describe("readWorkspacePolicy", () => {
       batchReview: [],
       alwaysGate: [],
       rejectSampling: 0,
-      permissions: [],
     });
     expect(gateFor("AddNote", resolved.policy)).toBe("always");
     expect(gateFor("AdvanceStage", resolved.policy)).toBe("always");
