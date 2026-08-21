@@ -22,7 +22,7 @@ cliIt.concurrent(
       yield* llm.text("score: yes — strong postgres and event-driven signal")
 
       // `--` stops yargs from treating the prompt as another `--file` value.
-      const result = yield* opencode.run("Score this candidate using the score-candidate skill", {
+      const result = yield* opencode.run("Brief this req using the req-context skill", {
         agent: "recruit",
         extraArgs: ["--file", hiring, "--file", card, "--"],
         timeoutMs: 60_000,

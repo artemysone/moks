@@ -5,25 +5,33 @@ import { ReqWorkspace } from "../../src/product/req-workspace"
 
 const entry = path.join(import.meta.dir, "../../src/index.ts")
 
-async function moks(args: string[], cwd: string, home: string, extraEnv: Record<string, string> = {}) {
+async function moks(args: string[], cwd: string, home: string, extraEnv: Record<string, string | undefined> = {}) {
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    MOKS_PURE: "1",
+    MOKS_DISABLE_PROJECT_CONFIG: "1",
+    MOKS_DISABLE_AUTOUPDATE: "1",
+    MOKS_DISABLE_AUTOCOMPACT: "1",
+    MOKS_DISABLE_MODELS_FETCH: "1",
+    MOKS_TEST_HOME: home,
+    HOME: home,
+    PWD: cwd,
+    XDG_CONFIG_HOME: path.join(home, ".config"),
+    XDG_DATA_HOME: path.join(home, ".local/share"),
+    XDG_STATE_HOME: path.join(home, ".local/state"),
+    XDG_CACHE_HOME: path.join(home, ".cache"),
+    ANTHROPIC_API_KEY: undefined,
+    OPENAI_API_KEY: undefined,
+    GITHUB_TOKEN: undefined,
+    GH_TOKEN: undefined,
+    ...extraEnv,
+  }
+  for (const key of Object.keys(env)) {
+    if (env[key] === undefined) delete env[key]
+  }
   const proc = Bun.spawn([process.execPath, entry, ...args], {
     cwd,
-    env: {
-      ...process.env,
-      MOKS_PURE: "1",
-      MOKS_DISABLE_PROJECT_CONFIG: "1",
-      MOKS_DISABLE_AUTOUPDATE: "1",
-      MOKS_DISABLE_AUTOCOMPACT: "1",
-      MOKS_DISABLE_MODELS_FETCH: "1",
-      MOKS_TEST_HOME: home,
-      HOME: home,
-      PWD: cwd,
-      XDG_CONFIG_HOME: path.join(home, ".config"),
-      XDG_DATA_HOME: path.join(home, ".local/share"),
-      XDG_STATE_HOME: path.join(home, ".local/state"),
-      XDG_CACHE_HOME: path.join(home, ".cache"),
-      ...extraEnv,
-    },
+    env,
     stdout: "pipe",
     stderr: "pipe",
   })
@@ -85,7 +93,7 @@ describe("cli dogfood", () => {
     expect(rejected.combined).not.toContain("\u2192")
   }, 20_000)
 
-  test("headless score with a dummy API key and no oauth fails fast", async () => {
+  test("headless model prompt with a dummy API key and no oauth fails fast", async () => {
     await using company = await tmpdir({
       init: async (dir) => {
         await Bun.write(path.join(dir, "COMPANY.md"), "# Co\n")
@@ -96,7 +104,7 @@ describe("cli dogfood", () => {
     await using home = await tmpdir()
     const started = Date.now()
     const result = await moks(
-      ["run", "--agent", "recruit", "--", "Score this resume"],
+      ["run", "--agent", "recruit", "--", "Who is the hiring manager"],
       company.path,
       home.path,
       { ANTHROPIC_API_KEY: "moks-verify-dummy-key" },
@@ -106,4 +114,46 @@ describe("cli dogfood", () => {
     expect(result.combined).toMatch(/sign in \/ connect OAuth or ACP/i)
     expect(elapsed).toBeLessThan(15_000)
   }, 20_000)
+
+  test("headless score and draft write onto a pulled card without a model", async () => {
+    await using company = await tmpdir()
+    await using home = await tmpdir()
+    const env = { ANTHROPIC_API_KEY: "" }
+    const init = await moks(["run", "--command", "init"], company.path, home.path, env)
+    expect(init.code).toBe(0)
+    const opened = await moks(["run", "--command", "open-req", "--", "Senior Backend"], company.path, home.path, env)
+    expect(opened.code).toBe(0)
+    const pulled = await moks(["pull", "--cwd", company.path], company.path, home.path, env)
+    expect(pulled.code).toBe(0)
+    expect(pulled.combined).toMatch(/5 candidates/)
+
+    const started = Date.now()
+    const scored = await moks(
+      ["run", "--agent", "recruit", "--", "Score cand_priya"],
+      company.path,
+      home.path,
+      env,
+    )
+    const draft = await moks(
+      ["run", "--agent", "recruit", "--", "Draft outreach for cand_priya"],
+      company.path,
+      home.path,
+      env,
+    )
+    const elapsed = Date.now() - started
+    expect(scored.code).toBe(0)
+    expect(draft.code).toBe(0)
+    expect(elapsed).toBeLessThan(15_000)
+    expect(scored.combined).not.toContain("Unexpected error")
+    expect(draft.combined).toContain("not sent")
+
+    const card = await Bun.file(path.join(company.path, "senior-backend", "candidates", "cand-priya.md")).text()
+    expect(card).toMatch(/^---[\s\S]*score:\s*\d+/m)
+    expect(card).toContain("# Score")
+    expect(card).toContain("# Outreach")
+    expect(card).toContain("Priya Shah")
+    expect(card).not.toContain("Meridian Fleet")
+    expect(card).toContain("Never sent")
+  }, 20_000)
+
 })
