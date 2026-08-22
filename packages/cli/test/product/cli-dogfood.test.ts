@@ -156,6 +156,61 @@ describe("cli dogfood", () => {
     expect(card).toContain("Never sent")
   }, 20_000)
 
+  async function snapshotCards(company: string) {
+    const dir = path.join(company, "senior-backend", "candidates")
+    const names = (await Array.fromAsync(new Bun.Glob("*.md").scan({ cwd: dir }))).toSorted()
+    const files: Record<string, string> = {}
+    for (const name of names) {
+      files[name] = await Bun.file(path.join(dir, name)).text()
+    }
+    return files
+  }
+
+  test("no-id Score/Draft with 2+ scoreable cards exits 1, names cards, writes nothing", async () => {
+    await using company = await tmpdir()
+    await using home = await tmpdir()
+    const env = { ANTHROPIC_API_KEY: "" }
+    expect((await moks(["run", "--command", "init"], company.path, home.path, env)).code).toBe(0)
+    expect((await moks(["run", "--command", "open-req", "--", "Senior Backend"], company.path, home.path, env)).code).toBe(0)
+    expect((await moks(["pull", "--cwd", company.path], company.path, home.path, env)).code).toBe(0)
+    const before = await snapshotCards(company.path)
+
+    const score = await moks(["run", "--", "Score this resume"], company.path, home.path, env)
+    expect(score.code).toBe(1)
+    expect(score.stderr + score.stdout).toMatch(/no target id — name one of:/)
+    expect(score.combined).toMatch(/cand_/)
+    expect(score.combined).not.toMatch(/Rejected|cand_amira/)
+    expect(score.combined).not.toMatch(/score: wrote/)
+
+    const draft = await moks(["run", "--", "Draft outreach"], company.path, home.path, env)
+    expect(draft.code).toBe(1)
+    expect(draft.combined).toMatch(/no target id — name one of:/)
+    expect(draft.combined).not.toMatch(/draft: wrote/)
+
+    expect(await snapshotCards(company.path)).toEqual(before)
+  }, 20_000)
+
+  test("specified missing id Score/Draft exits 1 and does not write another card", async () => {
+    await using company = await tmpdir()
+    await using home = await tmpdir()
+    const env = { ANTHROPIC_API_KEY: "" }
+    expect((await moks(["run", "--command", "init"], company.path, home.path, env)).code).toBe(0)
+    expect((await moks(["run", "--command", "open-req", "--", "Senior Backend"], company.path, home.path, env)).code).toBe(0)
+    expect((await moks(["pull", "--cwd", company.path], company.path, home.path, env)).code).toBe(0)
+    const before = await snapshotCards(company.path)
+
+    const score = await moks(["run", "--", "Score cand_nobody"], company.path, home.path, env)
+    expect(score.code).toBe(1)
+    expect(score.combined).toMatch(/unknown card: cand_nobody/)
+    expect(score.combined).not.toMatch(/score: wrote/)
+
+    const draft = await moks(["run", "--", "Draft outreach for cand_nobody"], company.path, home.path, env)
+    expect(draft.code).toBe(1)
+    expect(draft.combined).toMatch(/unknown card: cand_nobody/)
+    expect(draft.combined).not.toMatch(/draft: wrote/)
+
+    expect(await snapshotCards(company.path)).toEqual(before)
+  }, 20_000)
 
   test("run --cwd aliases --dir; status --dir aliases --cwd; review has no Unexpected error prefix", async () => {
     await using company = await tmpdir()
