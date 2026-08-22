@@ -74,7 +74,7 @@ Options:
       --attach       attach to a running moks server (e.g., http://localhost:4096)          [string]
   -p, --password     basic auth password (defaults to MOKS_SERVER_PASSWORD)                 [string]
   -u, --username     basic auth username (defaults to MOKS_SERVER_USERNAME or 'moks')       [string]
-      --dir          directory to run in, path on remote server if attaching                [string]
+      --dir, --cwd   company directory to run in (alias: --cwd; same flag as ledger --cwd)  [string]
       --port         port for the local server (defaults to random port if no value provided)
                                                                                             [number]
       --variant      model variant (provider-specific reasoning effort, e.g., high, max, minimal)
