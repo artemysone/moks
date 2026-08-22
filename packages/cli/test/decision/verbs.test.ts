@@ -11,6 +11,7 @@ async function workspace() {
   return tmpdir({
     init: async (dir) => {
       await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
+      await Bun.write(path.join(dir, "candidates", ".gitkeep"), "")
     },
   })
 }
@@ -454,14 +455,28 @@ describe("decision/verbs", () => {
     await expect(DecisionVerbs.log({ cwd: empty.path })).rejects.toThrow(/not a company directory|no ledger|empty company/)
   })
 
-  test("activity without a company directory fails instead of looking quiet", async () => {
-    await using empty = await tmpdir()
-    await expect(DecisionVerbs.activityRows({ cwd: empty.path })).rejects.toThrow(/not a company directory|no ledger|empty company/)
+  test("COMPANY.md stub without reqs is not a live company", async () => {
+    await using stub = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "COMPANY.md"), ReqWorkspace.COMPANY_STUB)
+      },
+    })
+    await expect(DecisionVerbs.status({ cwd: stub.path })).rejects.toThrow(/not a company directory|no ledger|pass --cwd\/--dir/)
+    await expect(DecisionVerbs.log({ cwd: stub.path })).rejects.toThrow(/not a company directory|no ledger|pass --cwd\/--dir/)
+    await expect(DecisionVerbs.diff({ cwd: stub.path })).rejects.toThrow(/not a company directory|no ledger|pass --cwd\/--dir|empty company/)
+    await expect(DecisionVerbs.push({ cwd: stub.path })).rejects.toThrow(/not a company directory|no ledger|pass --cwd\/--dir|empty company/)
   })
+
+
   test("pull without a company directory fails and does not write a ledger", async () => {
     await using empty = await tmpdir()
     await expect(DecisionVerbs.pull({ cwd: empty.path })).rejects.toThrow(/not a company directory|pass --cwd\/--dir/)
     expect(await Bun.file(path.join(empty.path, ".moks", "ledger.sqlite")).exists()).toBe(false)
+  })
+
+  test("activity without a company directory fails instead of looking quiet", async () => {
+    await using empty = await tmpdir()
+    await expect(DecisionVerbs.activityRows({ cwd: empty.path })).rejects.toThrow(/not a company directory|no ledger|empty company/)
   })
 
   test("diff without a company directory fails instead of looking empty-healthy", async () => {

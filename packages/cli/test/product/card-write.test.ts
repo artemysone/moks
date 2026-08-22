@@ -146,3 +146,14 @@ test("writeOnCard outside a company directory points at --cwd/--dir", async () =
     /not a company directory.*--cwd\/--dir/,
   )
 })
+
+test("writeOnCard on a COMPANY.md stub points at --cwd/--dir", async () => {
+  await using stub = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "COMPANY.md"), ReqWorkspace.COMPANY_STUB)
+    },
+  })
+  await expect(CardWrite.writeOnCard(stub.path, { kind: "score", hint: "cand_marcus" })).rejects.toThrow(
+    /not a company directory.*--cwd\/--dir/,
+  )
+})

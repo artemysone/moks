@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { effectCmd, fail } from "../effect-cmd"
+import { CliError, effectCmd, fail } from "../effect-cmd"
 import { DecisionVerbs } from "@/decision/verbs"
 import { UI } from "../ui"
 
@@ -38,15 +38,20 @@ export const PushCommand = effectCmd({
         describe: "company directory (alias: --dir; same as moks run --dir)",
       }),
   handler: Effect.fn("Cli.push")(function* (args) {
-    const result = yield* Effect.promise(() =>
-      DecisionVerbs.push({
-        id: args.id ?? args.commitId,
-        dry_run: !args.execute,
-        confirm: args.confirm,
-        source: "cli",
-        cwd: args.cwd,
-      }),
-    )
+    const result = yield* Effect.tryPromise({
+      try: () =>
+        DecisionVerbs.push({
+          id: args.id ?? args.commitId,
+          dry_run: !args.execute,
+          confirm: args.confirm,
+          source: "cli",
+          cwd: args.cwd,
+        }),
+      catch: (error) =>
+        new CliError({
+          message: error instanceof Error ? error.message : "push failed",
+        }),
+    })
     if (!result.ok) {
       if (args.json) {
         console.log(

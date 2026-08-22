@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { effectCmd } from "../effect-cmd"
+import { CliError, effectCmd } from "../effect-cmd"
 import { DecisionActivity } from "@/decision/activity"
 import { UI } from "../ui"
 
@@ -25,12 +25,17 @@ export const ActivityCommand = effectCmd({
         describe: "company directory (alias: --dir; same as moks run --dir)",
       }),
   handler: Effect.fn("Cli.activity")(function* (args) {
-    const summary = yield* Effect.promise(() =>
-      DecisionActivity.summarizeActivity({
-        days: args.days,
-        cwd: args.cwd,
-      }),
-    )
+    const summary = yield* Effect.tryPromise({
+      try: () =>
+        DecisionActivity.summarizeActivity({
+          days: args.days,
+          cwd: args.cwd,
+        }),
+      catch: (error) =>
+        new CliError({
+          message: error instanceof Error ? error.message : "activity failed",
+        }),
+    })
     if (args.json) {
       console.log(
         JSON.stringify(

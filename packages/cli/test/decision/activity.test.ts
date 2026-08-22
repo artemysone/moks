@@ -11,6 +11,7 @@ async function workspace() {
   return tmpdir({
     init: async (dir) => {
       await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
+      await Bun.write(path.join(dir, "candidates", ".gitkeep"), "")
     },
   })
 }
@@ -61,6 +62,18 @@ describe("decision/activity", () => {
     await using empty = await tmpdir()
     await expect(DecisionActivity.summarizeActivity({ cwd: empty.path })).rejects.toThrow(
       /not a company directory|no ledger|empty company/,
+    )
+  })
+
+  test("COMPANY.md stub is not quiet-healthy", async () => {
+    const { ReqWorkspace } = await import("../../src/product/req-workspace")
+    await using stub = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "COMPANY.md"), ReqWorkspace.COMPANY_STUB)
+      },
+    })
+    await expect(DecisionActivity.summarizeActivity({ cwd: stub.path })).rejects.toThrow(
+      /not a company directory|no ledger|pass --cwd\/--dir/,
     )
   })
 
