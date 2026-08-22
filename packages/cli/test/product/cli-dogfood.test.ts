@@ -248,6 +248,42 @@ describe("cli dogfood", () => {
     expect(statusWrong.code).toBe(1)
     expect(statusWrong.combined).toMatch(/not a company directory|no ledger|empty company/)
 
+    const activityWrong = await moks(["activity"], other.path, home.path, env)
+    expect(activityWrong.code).toBe(1)
+    expect(activityWrong.combined).toMatch(/not a company directory|pass --cwd\/--dir/)
+    expect(activityWrong.combined).not.toMatch(/Signal: quiet/)
+
+    const logWrong = await moks(["log"], other.path, home.path, env)
+    expect(logWrong.code).toBe(1)
+    expect(logWrong.combined).toMatch(/not a company directory|pass --cwd\/--dir/)
+    expect(logWrong.combined).not.toMatch(/log empty/)
+
+    const scoreWrong = await moks(
+      ["run", "--command", "score", "--", "cand_marcus"],
+      other.path,
+      home.path,
+      env,
+    )
+    expect(scoreWrong.code).toBe(1)
+    expect(scoreWrong.combined).toMatch(/not a company directory|pass --cwd\/--dir/)
+    expect(scoreWrong.combined).not.toMatch(/no focused req/)
+
+    const pullWrong = await moks(["pull"], other.path, home.path, env)
+    expect(pullWrong.code).toBe(1)
+    expect(pullWrong.combined).toMatch(/not a company directory|pass --cwd\/--dir/)
+    expect(await Bun.file(path.join(other.path, ".moks", "ledger.sqlite")).exists()).toBe(false)
+
+    const diffWrong = await moks(["diff"], other.path, home.path, env)
+    expect(diffWrong.code).toBe(1)
+    expect(diffWrong.combined).toMatch(/not a company directory|pass --cwd\/--dir|empty company/)
+    expect(diffWrong.combined).not.toMatch(/no staged or approved/)
+
+    const pushWrong = await moks(["push"], other.path, home.path, env)
+    expect(pushWrong.code).toBe(1)
+    expect(pushWrong.combined).toMatch(/not a company directory|pass --cwd\/--dir|empty company/)
+    expect(pushWrong.combined).not.toMatch(/nothing to push/)
+
+
     const reviewed = await moks(["review", "not-a-changeset"], company.path, home.path, env)
     expect(reviewed.code).toBe(1)
     const first = reviewed.combined.trim().split(/\n/).find((line) => line.trim())

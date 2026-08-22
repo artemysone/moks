@@ -448,4 +448,29 @@ describe("decision/verbs", () => {
     await using empty = await tmpdir()
     await expect(DecisionVerbs.status({ cwd: empty.path })).rejects.toThrow(/not a company directory|no ledger|empty company/)
   })
+
+  test("log without a company directory fails instead of looking empty", async () => {
+    await using empty = await tmpdir()
+    await expect(DecisionVerbs.log({ cwd: empty.path })).rejects.toThrow(/not a company directory|no ledger|empty company/)
+  })
+
+  test("activity without a company directory fails instead of looking quiet", async () => {
+    await using empty = await tmpdir()
+    await expect(DecisionVerbs.activityRows({ cwd: empty.path })).rejects.toThrow(/not a company directory|no ledger|empty company/)
+  })
+  test("pull without a company directory fails and does not write a ledger", async () => {
+    await using empty = await tmpdir()
+    await expect(DecisionVerbs.pull({ cwd: empty.path })).rejects.toThrow(/not a company directory|pass --cwd\/--dir/)
+    expect(await Bun.file(path.join(empty.path, ".moks", "ledger.sqlite")).exists()).toBe(false)
+  })
+
+  test("diff without a company directory fails instead of looking empty-healthy", async () => {
+    await using empty = await tmpdir()
+    await expect(DecisionVerbs.diff({ cwd: empty.path })).rejects.toThrow(/not a company directory|no ledger|empty company/)
+  })
+
+  test("push without a company directory fails instead of nothing to push", async () => {
+    await using empty = await tmpdir()
+    await expect(DecisionVerbs.push({ cwd: empty.path, dry_run: true })).rejects.toThrow(/not a company directory|no ledger|empty company/)
+  })
 })

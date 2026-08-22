@@ -1,7 +1,7 @@
 import path from "path"
 import { CandidateCard } from "@/product/candidate-card"
 import { ReqWorkspace } from "@/product/req-workspace"
-import { companyCwd, ledgerDbExists, withLedger, type LedgerHandle } from "./session"
+import { requireCompanyDirectory, requireCompanyRoot, withLedger, type LedgerHandle } from "./session"
 
 export type CommitChange = {
   entity_type: string
@@ -97,6 +97,7 @@ export function defaultAuthor() {
 }
 
 export async function pull(input: { cwd?: string } = {}) {
+  await requireCompanyRoot(input.cwd)
   return withLedger(input.cwd, async (handle) => {
     const result = handle.api.pullMirror(handle.db, handle.adapter)
     const cards = await projectPulledCards(handle)
@@ -105,20 +106,7 @@ export async function pull(input: { cwd?: string } = {}) {
 }
 
 export async function status(input: { cwd?: string; id?: string; limit?: number } = {}) {
-  const opened = input.cwd ?? process.cwd()
-  const root = await ReqWorkspace.companyRoot(opened)
-  const dbExists = await ledgerDbExists(input.cwd)
-  if (!root && !dbExists) {
-    throw new Error(
-      `not a company directory: ${opened} — pass --cwd/--dir to the company (same as moks run --dir)`,
-    )
-  }
-  if (!dbExists) {
-    const at = root ?? opened
-    throw new Error(
-      `no ledger at ${at} — run moks pull --cwd ${at} (or --dir; same flag as moks run --dir)`,
-    )
-  }
+  await requireCompanyDirectory(input.cwd)
   return withLedger(input.cwd, async (handle) => {
     const report = handle.api.readStatus(handle.db)
     if (!report.ats) {
@@ -212,6 +200,7 @@ function suggestRejectableTarget(handle: LedgerHandle, failedId: string, mutatio
 }
 
 export async function diff(input: { cwd?: string; id?: string } = {}) {
+  await requireCompanyDirectory(input.cwd)
   return withLedger(input.cwd, async (handle) => {
     const { api } = handle
     if (input.id) {
@@ -245,6 +234,7 @@ export async function rebase(input: { cwd?: string; id: string }) {
 }
 
 export async function push(input: PushInput) {
+  await requireCompanyDirectory(input.cwd)
   return withLedger(input.cwd, async (handle) => {
     const { api } = handle
     const dry_run = input.dry_run ?? true
@@ -318,6 +308,7 @@ export async function push(input: PushInput) {
 }
 
 export async function log(input: { cwd?: string; compliance?: boolean } = {}) {
+  await requireCompanyDirectory(input.cwd)
   return withLedger(input.cwd, async (handle) => {
     const { api } = handle
     if (input.compliance) {
@@ -329,10 +320,7 @@ export async function log(input: { cwd?: string; compliance?: boolean } = {}) {
 
 export async function activityRows(input: { cwd?: string; days?: number; now?: Date } = {}) {
   const days = input.days ?? 7
-  const company = await companyCwd(input.cwd)
-  if (!(await ledgerDbExists(input.cwd))) {
-    return { days, path: company, rows: [] as Awaited<ReturnType<typeof loadActivityRows>> }
-  }
+  const { root: company } = await requireCompanyDirectory(input.cwd)
   const rows = await withLedger(input.cwd, (handle) => Promise.resolve(loadActivityRows(handle)))
   return { days, path: company, rows }
 }

@@ -35,6 +35,37 @@ export async function ledgerDbExists(cwd?: string) {
   return Bun.file(paths.workspaceDb).exists()
 }
 
+export async function requireCompanyRoot(cwd?: string) {
+  const opened = cwd ?? process.cwd()
+  const root = await ReqWorkspace.companyRoot(opened)
+  if (!root) {
+    throw new Error(ReqWorkspace.notACompanyDirectory(opened))
+  }
+  return { opened, root }
+}
+
+/** Fail like `moks status` when cwd is not a company (or has no ledger). */
+export async function requireCompanyDirectory(cwd?: string) {
+  const opened = cwd ?? process.cwd()
+  const found = await ReqWorkspace.companyRoot(opened)
+  const live =
+    found &&
+    ((await ReqWorkspace.isPacket(found)) ||
+      Boolean(await ReqWorkspace.focusedReq(opened)) ||
+      (await ReqWorkspace.listReqs(found)).length > 0)
+  const root = live ? found : undefined
+  const dbExists = await ledgerDbExists(cwd)
+  if (!root) {
+    throw new Error(ReqWorkspace.notACompanyDirectory(opened))
+  }
+  if (!dbExists) {
+    throw new Error(
+      `no ledger at ${root} — run moks pull --cwd ${root} (or --dir; same flag as moks run --dir)`,
+    )
+  }
+  return { opened, root }
+}
+
 export async function withLedger<T>(cwd: string | undefined, fn: (handle: LedgerHandle) => Promise<T>): Promise<T> {
   const handle = await openLedger(cwd)
   try {
