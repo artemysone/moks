@@ -54,8 +54,12 @@ export function parseWriteIntent(command?: string, message = ""): WriteIntent | 
 }
 
 export async function writeOnCard(cwd: string, intent: WriteIntent) {
+  const root = await ReqWorkspace.companyRoot(cwd)
+  if (!root) {
+    throw new Error(ReqWorkspace.notACompanyDirectory(cwd))
+  }
   const packet = (await ReqWorkspace.focusedReq(cwd)) ?? ((await ReqWorkspace.isPacket(cwd)) ? cwd : undefined)
-  if (!packet) throw new Error("no focused req — run /open-req then moks pull")
+  if (!packet) throw new Error(ReqWorkspace.notACompanyDirectory(cwd))
   const hiring = await Bun.file(path.join(packet, HIRING_FILE))
     .text()
     .catch(() => "")

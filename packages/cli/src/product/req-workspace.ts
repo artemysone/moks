@@ -94,6 +94,10 @@ export async function isCompanyRoot(dir: string) {
   return (await hasCompanyFile(dir)) || (await isPacket(dir))
 }
 
+export function notACompanyDirectory(opened: string) {
+  return `not a company directory: ${opened} — pass --cwd/--dir to the company (same as moks run --dir)`
+}
+
 export async function listReqs(company: string) {
   if (!(await Filesystem.isDir(company))) return []
   const names: string[] = []

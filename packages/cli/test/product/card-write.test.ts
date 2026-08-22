@@ -139,3 +139,10 @@ test("writeOnCard Score cand_nobody does not fall through to another card", asyn
   expect(priya?.body).not.toContain("# Score:")
 })
 
+
+test("writeOnCard outside a company directory points at --cwd/--dir", async () => {
+  await using empty = await tmpdir()
+  await expect(CardWrite.writeOnCard(empty.path, { kind: "score", hint: "cand_marcus" })).rejects.toThrow(
+    /not a company directory.*--cwd\/--dir/,
+  )
+})
