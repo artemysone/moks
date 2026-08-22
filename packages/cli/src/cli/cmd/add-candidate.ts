@@ -19,14 +19,10 @@ export const AddCandidateCommand = effectCmd({
         type: "boolean",
         default: false,
         describe: "print JSON only",
-      })
-      .option("cwd", {
-        type: "string",
-        describe: "working directory override",
       }),
   handler: Effect.fn("Cli.add-candidate")(function* (args) {
     const result = yield* Effect.tryPromise({
-      try: () => CandidateAdd.addFromFile(args.cwd ?? process.cwd(), args.file),
+      try: () => CandidateAdd.addFromFile(process.cwd(), args.file),
       catch: (error) =>
         new CliError({ message: error instanceof Error ? error.message : String(error) }),
     })
