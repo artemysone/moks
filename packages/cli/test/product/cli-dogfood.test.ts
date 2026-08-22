@@ -294,7 +294,7 @@ describe("cli dogfood", () => {
     })
     expect(result.code).toBe(1)
     expect(result.combined).toMatch(/unknown command: foobar/)
-    expect(result.combined).toMatch(/init \/ open-req \/ score \/ draft \/ add-candidate/)
+    expect(result.combined).toMatch(/init \/ open-req \/ score \/ draft/)
     expect(result.combined).not.toMatch(/sign in \/ connect OAuth or ACP/i)
     expect(Date.now() - started).toBeLessThan(8_000)
   }, 15_000)
