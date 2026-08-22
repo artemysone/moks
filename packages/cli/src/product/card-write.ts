@@ -99,6 +99,10 @@ export function resolveCard(cards: Card[], hint: string): Card {
     }
     return byId
   }
+  if (ids.length > 0) {
+    const named = ids[0]
+    throw new Error(`unknown card: ${named} — name one of: ${scoreable.map((card) => card.id).toSorted().join(", ")}`)
+  }
   const byName =
     scoreable.find((card) => named && (card.extra.name ?? "").toLowerCase().includes(named)) ??
     scoreable.find((card) => named && card.id.toLowerCase().includes(named.replace(/\s+/g, "-")))
