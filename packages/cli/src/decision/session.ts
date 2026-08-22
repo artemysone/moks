@@ -52,22 +52,16 @@ export async function requireCompanyRoot(cwd?: string) {
   return { opened, root }
 }
 
-/** Fail like status when there is no company root and no ledger. */
+/** Fail like status: stub COMPANY.md / leftover ledger is not a live company. */
 export async function requireCompanyDirectory(cwd?: string) {
-  const opened = cwd ?? process.cwd()
-  const root = await ReqWorkspace.companyRoot(opened)
+  const { opened, root } = await requireCompanyRoot(cwd)
   const dbExists = await ledgerDbExists(cwd)
-  const live = Boolean(root) && (await ReqWorkspace.isLiveCompany(root!))
-  if (!live && !dbExists) {
-    throw new Error(ReqWorkspace.notACompanyDirectory(opened))
-  }
   if (!dbExists) {
-    const at = root ?? opened
     throw new Error(
-      `no ledger at ${at} — run moks pull --cwd ${at} (or --dir; same flag as moks run --dir)`,
+      `no ledger at ${root} — run moks pull --cwd ${root} (or --dir; same flag as moks run --dir)`,
     )
   }
-  return { opened, root: root ?? opened }
+  return { opened, root }
 }
 
 export async function withLedger<T>(cwd: string | undefined, fn: (handle: LedgerHandle) => Promise<T>): Promise<T> {
