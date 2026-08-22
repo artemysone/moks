@@ -156,4 +156,54 @@ describe("cli dogfood", () => {
     expect(card).toContain("Never sent")
   }, 20_000)
 
+  test("headless add-candidate from a local resume then score and draft without a model", async () => {
+    await using company = await tmpdir()
+    await using home = await tmpdir()
+    const env = { ANTHROPIC_API_KEY: "" }
+    const init = await moks(["run", "--command", "init"], company.path, home.path, env)
+    expect(init.code).toBe(0)
+    const opened = await moks(["run", "--command", "open-req", "--", "Staff Platform"], company.path, home.path, env)
+    expect(opened.code).toBe(0)
+
+    const resume = path.join(company.path, "sam-chen-resume.md")
+    await Bun.write(
+      resume,
+      ["# Sam Chen", "", "Platform engineer focused on payments edge and on-call.", "", "- Rust, Go, Postgres", ""].join(
+        "\n",
+      ),
+    )
+    const added = await moks(["add-candidate", resume], company.path, home.path, env)
+    expect(added.code).toBe(0)
+    expect(added.combined).toContain("sam-chen")
+
+    const cardPath = path.join(company.path, "staff-platform", "candidates", "sam-chen.md")
+    const before = await Bun.file(cardPath).text()
+    expect(before).toMatch(/^---[\s\S]*stage:\s*Sourced/m)
+    expect(before).toContain("Sam Chen")
+    expect(before).toContain("payments edge")
+    expect(before).not.toContain("Priya")
+    expect(before).not.toContain("cand_priya")
+
+    const scored = await moks(["run", "--agent", "recruit", "--", "Score sam-chen"], company.path, home.path, env)
+    const draft = await moks(
+      ["run", "--agent", "recruit", "--", "Draft outreach for sam-chen"],
+      company.path,
+      home.path,
+      env,
+    )
+    expect(scored.code).toBe(0)
+    expect(draft.code).toBe(0)
+    expect(draft.combined).toContain("not sent")
+
+    const card = await Bun.file(cardPath).text()
+    expect(card).toMatch(/^---[\s\S]*score:\s*\d+/m)
+    expect(card).toContain("# Score")
+    expect(card).toContain("# Outreach")
+    expect(card).toContain("Sam Chen")
+    expect(card).toContain("payments edge")
+    expect(card).toContain("Never sent")
+    expect(card).not.toContain("Priya")
+    expect(card).not.toContain("Meridian Fleet")
+  }, 20_000)
+
 })

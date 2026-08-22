@@ -27,6 +27,7 @@ import { StatusCommand } from "./cli/cmd/status"
 import { PushCommand } from "./cli/cmd/push"
 import { ActivityCommand } from "./cli/cmd/activity"
 import { PullCommand } from "./cli/cmd/pull"
+import { AddCandidateCommand } from "./cli/cmd/add-candidate"
 import { DiffCommand } from "./cli/cmd/diff"
 import { ReviewCommand } from "./cli/cmd/review"
 import { RebaseCommand } from "./cli/cmd/rebase"
@@ -103,6 +104,7 @@ const cli = yargs(args)
   .command(PushCommand)
   .command(ActivityCommand)
   .command(PullCommand)
+  .command(AddCandidateCommand)
   .command(DiffCommand)
   .command(ReviewCommand)
   .command(RebaseCommand)
