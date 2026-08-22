@@ -94,6 +94,11 @@ export async function isCompanyRoot(dir: string) {
   return (await hasCompanyFile(dir)) || (await isPacket(dir))
 }
 
+/** COMPANY.md stub alone (no req / packet) is not a live company. */
+export async function isLiveCompany(dir: string) {
+  return (await isPacket(dir)) || (await isReqDir(dir)) || (await listReqs(dir)).length > 0
+}
+
 export function notACompanyDirectory(opened: string) {
   return `not a company directory: ${opened} — pass --cwd/--dir to the company (same as moks run --dir)`
 }
@@ -207,7 +212,7 @@ export async function companyRoot(opened: string) {
   if (await hasCompanyFile(nearest)) return nearest
   const parent = path.dirname(nearest)
   if (parent !== nearest && (await hasCompanyFile(parent))) return parent
-  if (await isPacket(nearest)) return nearest
+  if ((await isPacket(nearest)) || (await isReqDir(nearest))) return nearest
 }
 
 export function titleFromSlug(slug: string) {

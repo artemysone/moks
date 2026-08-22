@@ -55,7 +55,7 @@ export function parseWriteIntent(command?: string, message = ""): WriteIntent | 
 
 export async function writeOnCard(cwd: string, intent: WriteIntent) {
   const root = await ReqWorkspace.companyRoot(cwd)
-  if (!root) {
+  if (!root || !(await ReqWorkspace.isLiveCompany(root))) {
     throw new Error(ReqWorkspace.notACompanyDirectory(cwd))
   }
   const packet = (await ReqWorkspace.focusedReq(cwd)) ?? ((await ReqWorkspace.isPacket(cwd)) ? cwd : undefined)

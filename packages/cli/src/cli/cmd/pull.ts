@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { effectCmd } from "../effect-cmd"
+import { CliError, effectCmd } from "../effect-cmd"
 import { DecisionVerbs } from "@/decision/verbs"
 import { UI } from "../ui"
 
@@ -20,7 +20,13 @@ export const PullCommand = effectCmd({
         describe: "company directory (alias: --dir; same as moks run --dir)",
       }),
   handler: Effect.fn("Cli.pull")(function* (args) {
-    const result = yield* Effect.promise(() => DecisionVerbs.pull({ cwd: args.cwd }))
+    const result = yield* Effect.tryPromise({
+      try: () => DecisionVerbs.pull({ cwd: args.cwd }),
+      catch: (error) =>
+        new CliError({
+          message: error instanceof Error ? error.message : "pull failed",
+        }),
+    })
     if (args.json) {
       console.log(JSON.stringify(result, null, 2))
       return

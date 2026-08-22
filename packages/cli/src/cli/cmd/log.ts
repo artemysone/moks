@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { effectCmd } from "../effect-cmd"
+import { CliError, effectCmd } from "../effect-cmd"
 import { DecisionVerbs } from "@/decision/verbs"
 import { UI } from "../ui"
 
@@ -25,7 +25,13 @@ export const LogCommand = effectCmd({
         describe: "company directory (alias: --dir; same as moks run --dir)",
       }),
   handler: Effect.fn("Cli.log")(function* (args) {
-    const result = yield* Effect.promise(() => DecisionVerbs.log({ cwd: args.cwd, compliance: args.compliance }))
+    const result = yield* Effect.tryPromise({
+      try: () => DecisionVerbs.log({ cwd: args.cwd, compliance: args.compliance }),
+      catch: (error) =>
+        new CliError({
+          message: error instanceof Error ? error.message : "log failed",
+        }),
+    })
     if (args.json || args.compliance) {
       console.log(JSON.stringify(result, null, 2))
       return

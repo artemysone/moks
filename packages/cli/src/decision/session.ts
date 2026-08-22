@@ -35,35 +35,39 @@ export async function ledgerDbExists(cwd?: string) {
   return Bun.file(paths.workspaceDb).exists()
 }
 
+export async function requireOpenedHiringDir(cwd?: string) {
+  const opened = cwd ?? process.cwd()
+  if (await ReqWorkspace.isLiveCompany(opened)) {
+    return { opened }
+  }
+  throw new Error(ReqWorkspace.notACompanyDirectory(opened))
+}
+
 export async function requireCompanyRoot(cwd?: string) {
   const opened = cwd ?? process.cwd()
   const root = await ReqWorkspace.companyRoot(opened)
-  if (!root) {
+  if (!root || !(await ReqWorkspace.isLiveCompany(root))) {
     throw new Error(ReqWorkspace.notACompanyDirectory(opened))
   }
   return { opened, root }
 }
 
-/** Fail like `moks status` when cwd is not a company (or has no ledger). */
+/** Fail like status when there is no company root and no ledger. */
 export async function requireCompanyDirectory(cwd?: string) {
   const opened = cwd ?? process.cwd()
-  const found = await ReqWorkspace.companyRoot(opened)
-  const live =
-    found &&
-    ((await ReqWorkspace.isPacket(found)) ||
-      Boolean(await ReqWorkspace.focusedReq(opened)) ||
-      (await ReqWorkspace.listReqs(found)).length > 0)
-  const root = live ? found : undefined
+  const root = await ReqWorkspace.companyRoot(opened)
   const dbExists = await ledgerDbExists(cwd)
-  if (!root) {
+  const live = Boolean(root) && (await ReqWorkspace.isLiveCompany(root!))
+  if (!live && !dbExists) {
     throw new Error(ReqWorkspace.notACompanyDirectory(opened))
   }
   if (!dbExists) {
+    const at = root ?? opened
     throw new Error(
-      `no ledger at ${root} — run moks pull --cwd ${root} (or --dir; same flag as moks run --dir)`,
+      `no ledger at ${at} — run moks pull --cwd ${at} (or --dir; same flag as moks run --dir)`,
     )
   }
-  return { opened, root }
+  return { opened, root: root ?? opened }
 }
 
 export async function withLedger<T>(cwd: string | undefined, fn: (handle: LedgerHandle) => Promise<T>): Promise<T> {
