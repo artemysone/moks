@@ -212,7 +212,7 @@ export async function companyRoot(opened: string) {
   if (await hasCompanyFile(nearest)) return nearest
   const parent = path.dirname(nearest)
   if (parent !== nearest && (await hasCompanyFile(parent))) return parent
-  if ((await isPacket(nearest)) || (await isReqDir(nearest))) return nearest
+  if (await isPacket(nearest)) return nearest
 }
 
 export function titleFromSlug(slug: string) {
