@@ -1,6 +1,6 @@
 import path from "path"
 import { CandidateCard, type Card } from "./candidate-card"
-import { HIRING_FILE, ReqWorkspace } from "./req-workspace"
+import { COMPANY_FILE, HIRING_FILE, ReqWorkspace } from "./req-workspace"
 
 export type WriteKind = "score" | "draft"
 
@@ -64,9 +64,12 @@ export async function writeOnCard(cwd: string, intent: WriteIntent) {
     .text()
     .catch(() => "")
   if (!hiring.trim()) throw new Error(`missing ${HIRING_FILE} in the focused req`)
+  const companyMd = await Bun.file(path.join(root, COMPANY_FILE))
+    .text()
+    .catch(() => "")
   const cards = await CandidateCard.list(packet)
   const card = resolveCard(cards, intent.hint)
-  const req = parseReq(hiring)
+  const req = parseReq(hiring, companyMd)
   const next = intent.kind === "score" ? scored(card, req, packet) : drafted(card, req, packet)
   const file = await CandidateCard.write(packet, next)
   return { kind: intent.kind, id: next.id, file, score: next.score, relative: path.relative(cwd, file) || file }
@@ -118,18 +121,27 @@ export function resolveCard(cards: Card[], hint: string): Card {
   throw new Error(`no target id — name one of: ${scoreable.map((card) => card.id).toSorted().join(", ")}`)
 }
 
-function parseReq(hiring: string) {
+function parseReq(hiring: string, companyMd = "") {
   const title = hiring.match(/^#\s+(.+)$/m)?.[1]?.trim() || "the role"
   const company = hiring.match(/^\s*-\s*Company:\s*(.+)$/m)?.[1]?.trim()
   const location = hiring.match(/^\s*-\s*Location:\s*(.+)$/m)?.[1]?.trim()
   const musts = sectionItems(hiring, "Must-haves").filter((item) => !PLACEHOLDER.test(item))
   const dimensions = scorecardDimensions(hiring)
   const labels = dimensions.length > 0 ? dimensions : musts.length > 0 ? musts : titleWords(title)
+  const companyBar = sectionItems(companyMd, "Bar").filter((item) => !PLACEHOLDER.test(item))
+  const toneHeading = sectionItems(companyMd, "Tone & outreach")
+  const tone = (toneHeading.length > 0 ? toneHeading : sectionItems(companyMd, "Tone")).filter(
+    (item) => !PLACEHOLDER.test(item),
+  )
+  const about = sectionItems(companyMd, "About").filter((item) => !PLACEHOLDER.test(item))
   return {
     title,
     company: company && !PLACEHOLDER.test(company) ? company : undefined,
     location: location && !PLACEHOLDER.test(location) ? location : undefined,
     labels,
+    companyBar,
+    tone,
+    about,
   }
 }
 
@@ -171,9 +183,8 @@ function quoteFor(card: Card, keywords: string[]) {
   return
 }
 
-function scored(card: Card, req: ReturnType<typeof parseReq>, packet: string) {
-  const source = path.relative(packet, CandidateCard.filePath(packet, card.id)).replaceAll(path.sep, "/")
-  const rows = req.labels.map((label) => {
+function scoreRows(card: Card, labels: string[], source: string) {
+  return labels.map((label) => {
     const keys = tokens(label)
     const evidence = quoteFor(card, keys)
     if (!evidence) {
@@ -181,6 +192,14 @@ function scored(card: Card, req: ReturnType<typeof parseReq>, packet: string) {
     }
     return { label, score: "3", evidence, source }
   })
+}
+
+function scored(card: Card, req: ReturnType<typeof parseReq>, packet: string) {
+  const source = path.relative(packet, CandidateCard.filePath(packet, card.id)).replaceAll(path.sep, "/")
+  const rows = [
+    ...scoreRows(card, req.labels, source),
+    ...scoreRows(card, req.companyBar, source).map((row) => ({ ...row, fromCompany: true })),
+  ]
   const numeric = rows.filter((row) => row.score !== "N/A").map(() => 3)
   const overall = numeric.length === 0 ? 2 : 3
   const recommendation = numeric.length === 0 ? "mixed" : numeric.length === rows.length ? "yes" : "mixed"
@@ -194,7 +213,7 @@ function scored(card: Card, req: ReturnType<typeof parseReq>, packet: string) {
   const table = [
     "| Dimension | Score (1-5) | Evidence | Source |",
     "|-----------|-------------|----------|--------|",
-    ...rows.map((row) => `| ${row.label} | ${row.score} | ${row.evidence} | ${row.source} / ${HIRING_FILE} |`),
+    ...rows.map((row) => `| ${row.label} | ${row.score} | ${row.evidence} | ${row.source} / ${"fromCompany" in row && row.fromCompany ? COMPANY_FILE : HIRING_FILE} |`),
   ]
   const section = [
     `# Score: ${name} → ${req.title}`,
@@ -220,6 +239,7 @@ function scored(card: Card, req: ReturnType<typeof parseReq>, packet: string) {
     "## Sources",
     `- ${source}`,
     `- ${HIRING_FILE}`,
+    ...(req.companyBar.length ? [`- ${COMPANY_FILE}`] : []),
     "",
   ].join("\n")
   return { ...card, score: overall, body: upsertSection(card.body, "Score", section) }
@@ -245,6 +265,8 @@ function drafted(card: Card, req: ReturnType<typeof parseReq>, packet: string) {
     `Hi ${first},`,
     "",
     hook ? `${who} a ${req.title}${where}. Your card notes: "${hook}"` : `${who} a ${req.title}${where}.`,
+    ...(req.companyBar.length ? ["", `We hire against: ${req.companyBar.join(", ")}.`] : []),
+    ...(req.tone.length ? ["", req.tone[0]] : []),
     "",
     "Would you be open to a short conversation about the role?",
     "",
@@ -254,6 +276,9 @@ function drafted(card: Card, req: ReturnType<typeof parseReq>, packet: string) {
     "## Personalization hooks",
     hook ? `- "${hook}" (${source})` : `- No extra facts on ${source} beyond the name`,
     `- Role title from ${HIRING_FILE}: ${req.title}`,
+    ...(req.companyBar.length ? [`- Company bar from ${COMPANY_FILE}: ${req.companyBar.join("; ")}`] : []),
+    ...(req.tone.length ? [`- Tone from ${COMPANY_FILE}: ${req.tone.join("; ")}`] : []),
+    ...(req.about.length ? [`- About from ${COMPANY_FILE}: ${req.about.join("; ")}`] : []),
     "",
     "## Open questions",
     `- ${emailNote}`,
