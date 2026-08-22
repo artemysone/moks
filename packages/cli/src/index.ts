@@ -110,8 +110,17 @@ const cli = yargs(args)
   .command(RebaseCommand)
   .command(LogCommand)
   .fail((msg, err) => {
+    if (msg?.startsWith("Unknown argument")) {
+      if (err) throw err
+      process.stderr.write(msg + EOL)
+      if (/\b(cwd|dir)\b/i.test(msg)) {
+        process.stderr.write(
+          "company directory: moks run --dir <company> (alias --cwd); ledger commands accept --cwd or --dir" + EOL,
+        )
+      }
+      process.exit(1)
+    }
     if (
-      msg?.startsWith("Unknown argument") ||
       msg?.startsWith("Not enough non-option arguments") ||
       msg?.startsWith("Invalid values:")
     ) {
@@ -134,9 +143,9 @@ try {
     await cli.parse()
   }
 } catch (e) {
-  const formatted = FormatError(e)
+  const formatted = FormatError(e) ?? (e instanceof Error && e.message ? e.message : undefined)
   if (formatted) UI.error(formatted)
-  if (formatted === undefined) {
+  else {
     UI.error("Unexpected error" + EOL)
     process.stderr.write(errorMessage(e) + EOL)
   }

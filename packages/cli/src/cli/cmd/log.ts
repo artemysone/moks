@@ -20,8 +20,9 @@ export const LogCommand = effectCmd({
         describe: "print JSON only",
       })
       .option("cwd", {
+        alias: ["dir"],
         type: "string",
-        describe: "working directory override",
+        describe: "company directory (alias: --dir; same as moks run --dir)",
       }),
   handler: Effect.fn("Cli.log")(function* (args) {
     const result = yield* Effect.promise(() => DecisionVerbs.log({ cwd: args.cwd, compliance: args.compliance }))

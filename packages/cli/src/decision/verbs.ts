@@ -105,8 +105,27 @@ export async function pull(input: { cwd?: string } = {}) {
 }
 
 export async function status(input: { cwd?: string; id?: string; limit?: number } = {}) {
+  const opened = input.cwd ?? process.cwd()
+  const root = await ReqWorkspace.companyRoot(opened)
+  const dbExists = await ledgerDbExists(input.cwd)
+  if (!root && !dbExists) {
+    throw new Error(
+      `not a company directory: ${opened} — pass --cwd/--dir to the company (same as moks run --dir)`,
+    )
+  }
+  if (!dbExists) {
+    const at = root ?? opened
+    throw new Error(
+      `no ledger at ${at} — run moks pull --cwd ${at} (or --dir; same flag as moks run --dir)`,
+    )
+  }
   return withLedger(input.cwd, async (handle) => {
     const report = handle.api.readStatus(handle.db)
+    if (!report.ats) {
+      throw new Error(
+        `empty company at ${handle.company} — pass --cwd/--dir to the real company, then moks pull`,
+      )
+    }
     const listed = handle.api.listChangesets(handle.db)
     const filtered = listed.filter((row) => !input.id || row.id === input.id || row.id.startsWith(input.id))
     const limit = input.limit ?? 20
@@ -132,9 +151,10 @@ export async function commit(input: CommitInput) {
 
 async function commitWithHandle(handle: LedgerHandle, input: CommitInput) {
   const { api } = handle
-  const changes = resolveChanges(handle, input)
+  const filled = await fillCommitDefaults(handle, input)
+  const changes = resolveChanges(handle, filled)
   if (changes.length === 0) throw new Error("nothing to commit")
-  const rationale = (input.rationale ?? input.reason ?? "").trim()
+  const rationale = (filled.rationale ?? filled.reason ?? filled.body ?? "").trim()
   if (!rationale) throw new Error("rationale is required")
   const authorKind = input.author_kind ?? (input.source === "tool" ? "agent" : "human")
   const changeset = api.commitChangeset(
@@ -265,6 +285,14 @@ export async function push(input: PushInput) {
 
     const approved = api.listChangesets(handle.db, "approved")
     if (approved.length === 0) {
+      const staged = api.listChangesets(handle.db, "staged")
+      if (staged.length > 0) {
+        return failPush(
+          handle.company,
+          "review_required",
+          `0 approved, ${staged.length} staged — review first`,
+        )
+      }
       return failPush(handle.company, "nothing_to_push", "nothing to push")
     }
     const details = approved.map((row) => api.getChangeset(handle.db, handle.vault, row.id))
@@ -320,6 +348,40 @@ function loadActivityRows(handle: LedgerHandle) {
       adverse: detail.changes.some((change) => isAdverseMutation(change.mutation, change.payload)),
     }
   })
+}
+
+
+async function fillCommitDefaults(handle: LedgerHandle, input: CommitInput): Promise<CommitInput> {
+  const mutation = input.mutation ?? (input.action ? mutationForAction(input.action) : undefined)
+  if (mutation !== "AddNote") {
+    return {
+      ...input,
+      rationale: input.rationale ?? input.reason ?? input.body,
+    }
+  }
+  const note = input.body ?? input.reason ?? input.rationale ?? (await defaultNoteFromCard(handle, input))
+  return {
+    ...input,
+    body: input.body ?? note,
+    reason: input.reason ?? note,
+    rationale: input.rationale ?? input.reason ?? input.body ?? note,
+  }
+}
+
+async function defaultNoteFromCard(handle: LedgerHandle, input: CommitInput) {
+  const id = input.target?.id
+  if (!id || id.includes(":")) return
+  const dir = handle.req ?? ((await ReqWorkspace.isPacket(handle.company)) ? handle.company : undefined)
+  if (!dir) return `note on ${id}`
+  const card = await CandidateCard.read(dir, id)
+  if (!card) return `note on ${id}`
+  const rationale = card.body.match(/One-line rationale:\s*(.+)/i)?.[1]?.trim()
+  if (rationale) return rationale
+  const recommendation = card.body.match(/Recommendation:\s*(.+)/i)?.[1]?.trim()
+  if (recommendation) return `score ${card.score ?? "?"}: ${recommendation}`
+  if (/^# Outreach\b/m.test(card.body)) return `draft outreach for ${card.extra.name || id} (not sent)`
+  if (card.score !== undefined) return `score ${card.score} on ${id}`
+  return `note on ${id}`
 }
 
 function resolveChanges(handle: LedgerHandle, input: CommitInput) {
@@ -398,9 +460,14 @@ function resolveEntity(handle: LedgerHandle, input: CommitInput, mutation: strin
 function payloadFor(handle: LedgerHandle, mutation: string, input: CommitInput, entityRef: string) {
   if (mutation === "AdvanceStage") {
     const hire = input.action?.trim().toLowerCase() === "hire"
-    const to = input.to ?? (hire ? "Hired" : nextStageFor(handle, entityRef))
-    if (!to) throw new Error("AdvanceStage requires --to")
-    return { to }
+    if (hire) return { to: input.to ?? "Hired" }
+    if (!input.to) {
+      const next = nextStageFor(handle, entityRef)
+      throw new Error(
+        next ? `AdvanceStage requires --to (legal next: ${next})` : "AdvanceStage requires --to",
+      )
+    }
+    return { to: input.to }
   }
   if (mutation === "AddNote") {
     const body = input.body ?? input.reason ?? input.rationale

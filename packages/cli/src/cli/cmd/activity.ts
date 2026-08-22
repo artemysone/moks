@@ -20,8 +20,9 @@ export const ActivityCommand = effectCmd({
         describe: "print JSON only",
       })
       .option("cwd", {
+        alias: ["dir"],
         type: "string",
-        describe: "working directory override",
+        describe: "company directory (alias: --dir; same as moks run --dir)",
       }),
   handler: Effect.fn("Cli.activity")(function* (args) {
     const summary = yield* Effect.promise(() =>
