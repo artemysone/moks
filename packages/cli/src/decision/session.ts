@@ -46,10 +46,15 @@ export async function requireOpenedHiringDir(cwd?: string) {
 export async function requireCompanyRoot(cwd?: string) {
   const opened = cwd ?? process.cwd()
   const root = await ReqWorkspace.companyRoot(opened)
-  if (!root || !(await ReqWorkspace.isLiveCompany(root))) {
-    throw new Error(ReqWorkspace.notACompanyDirectory(opened))
+  if (root && (await ReqWorkspace.isLiveCompany(root))) {
+    return { opened, root }
   }
-  return { opened, root }
+  // Tests (and dogfood) open a req dir with only HIRING.md, then pull.
+  // That is a live opened workspace, not a companyRoot (no COMPANY.md / candidates/).
+  if (await ReqWorkspace.isLiveCompany(opened)) {
+    return { opened, root: opened }
+  }
+  throw new Error(ReqWorkspace.notACompanyDirectory(opened))
 }
 
 /** Fail like status: stub COMPANY.md / leftover ledger is not a live company. */
