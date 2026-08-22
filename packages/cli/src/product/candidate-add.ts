@@ -3,7 +3,7 @@ import { CandidateCard, CANDIDATES_DIR } from "./candidate-card"
 import { ReqWorkspace } from "./req-workspace"
 import { withLedger, type LedgerHandle } from "@/decision/session"
 
-const LOCAL_ATS = "file"
+const LOCAL_ATS = "mock"
 
 const ADD_COMMANDS = new Set(["add-candidate", "add-local-candidate"])
 
@@ -64,13 +64,28 @@ function headlineFromBody(body: string) {
   return ""
 }
 
-function registerLocalCandidate(
+export function registerLocalCandidate(
   handle: LedgerHandle,
   input: { id: string; name: string; headline: string; stage: string },
+  opts: { collide?: "throw" | "skip" } = {},
 ) {
   const taken = handle.api.readMirrorEntity(handle.db, "candidate", input.id)
+  const mockJob = handle.mockDb.prepare("SELECT id FROM jobs ORDER BY id ASC LIMIT 1").get() as { id: string } | undefined
   if (taken) {
-    throw new Error(`candidate already in ledger: ${input.id} — pick a name that is not a mock ATS id`)
+    if (opts.collide !== "skip") {
+      throw new Error(`candidate already in ledger: ${input.id} — pick a name that is not a mock ATS id`)
+    }
+    const inMock = handle.mockDb.prepare("SELECT id FROM candidates WHERE id = ?").get(input.id) as { id: string } | undefined
+    if (!inMock && mockJob) {
+      const appId = `app_${input.id}`
+      handle.mockDb
+        .prepare("INSERT OR IGNORE INTO candidates (id, remote_id, name, email, headline) VALUES (?, ?, ?, ?, ?)")
+        .run(input.id, input.id, input.name, "", input.headline)
+      handle.mockDb
+        .prepare("INSERT OR IGNORE INTO applications (id, remote_id, job_id, candidate_id, stage) VALUES (?, ?, ?, ?, ?)")
+        .run(appId, appId, mockJob.id, input.id, "Sourced")
+    }
+    return
   }
   const now = Date.now()
   const upsert = handle.db.prepare(`
@@ -81,38 +96,52 @@ function registerLocalCandidate(
       state = excluded.state,
       synced_at = excluded.synced_at
   `)
-  const jobRow = handle.db
-    .prepare("SELECT entity_ref FROM remote_mirror WHERE entity_type = 'job' ORDER BY entity_ref ASC LIMIT 1")
-    .get() as { entity_ref: string } | undefined
-  const jobId = jobRow?.entity_ref ?? "job_file"
-  if (!jobRow) {
-    const job = {
-      id: jobId,
-      remoteId: jobId,
-      title: "Local",
-      team: "",
-      location: "",
-      status: "open",
-    }
-    upsert.run("job", jobId, LOCAL_ATS, jobId, JSON.stringify(job), now)
+  const jobId = mockJob?.id ?? (
+    handle.db
+      .prepare("SELECT entity_ref FROM remote_mirror WHERE entity_type = 'job' ORDER BY entity_ref ASC LIMIT 1")
+      .get() as { entity_ref: string } | undefined
+  )?.entity_ref ?? "job_file"
+  const ats = mockJob ? "mock" : "file"
+  if (!mockJob) {
+    upsert.run(
+      "job",
+      jobId,
+      ats,
+      jobId,
+      JSON.stringify({ id: jobId, remoteId: jobId, title: "Local", team: "", location: "", status: "open" }),
+      now,
+    )
   }
-  const candidate = {
-    id: input.id,
-    remoteId: input.id,
-    name: input.name,
-    email: "",
-    headline: input.headline,
-  }
+  const candidate = { id: input.id, remoteId: input.id, name: input.name, email: "", headline: input.headline }
   const appId = `app_${input.id}`
-  const application = {
-    id: appId,
-    remoteId: appId,
-    jobId,
-    candidateId: input.id,
-    stage: "Sourced",
+  const application = { id: appId, remoteId: appId, jobId, candidateId: input.id, stage: "Sourced" }
+  upsert.run("candidate", input.id, ats, input.id, JSON.stringify(candidate), now)
+  upsert.run("application", appId, ats, appId, JSON.stringify(application), now)
+  if (mockJob) {
+    handle.mockDb
+      .prepare("INSERT OR IGNORE INTO candidates (id, remote_id, name, email, headline) VALUES (?, ?, ?, ?, ?)")
+      .run(input.id, input.id, input.name, "", input.headline)
+    handle.mockDb
+      .prepare("INSERT OR IGNORE INTO applications (id, remote_id, job_id, candidate_id, stage) VALUES (?, ?, ?, ?, ?)")
+      .run(appId, appId, mockJob.id, input.id, "Sourced")
   }
-  upsert.run("candidate", input.id, LOCAL_ATS, input.id, JSON.stringify(candidate), now)
-  upsert.run("application", appId, LOCAL_ATS, appId, JSON.stringify(application), now)
+}
+
+export async function adoptLocalCards(handle: LedgerHandle) {
+  const packet = handle.req ?? ((await ReqWorkspace.isPacket(handle.company)) ? handle.company : undefined)
+  if (!packet) return
+  for (const card of await CandidateCard.list(packet)) {
+    registerLocalCandidate(
+      handle,
+      {
+        id: card.id,
+        name: card.extra.name || card.id,
+        headline: headlineFromBody(card.body),
+        stage: card.stage || "Sourced",
+      },
+      { collide: "skip" },
+    )
+  }
 }
 
 function lastPathToken(hint: string) {

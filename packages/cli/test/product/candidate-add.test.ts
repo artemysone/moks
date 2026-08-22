@@ -108,6 +108,54 @@ test("pull after add-candidate keeps the local card in status", async () => {
   expect(card?.body).toContain("Kenji Okada")
 })
 
+
+test("add-candidate after pull registers nora-voss for commit", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await ReqWorkspace.scaffoldReq(dir, "Staff Platform")
+      await ReqWorkspace.writeFocus(dir, "staff-platform")
+      await Bun.write(path.join(dir, "nora-voss.md"), "# Nora Voss\n\nPlatform engineer.\n")
+    },
+  })
+  await DecisionVerbs.pull({ cwd: tmp.path })
+  const added = await CandidateAdd.addFromFile(tmp.path, "nora-voss.md")
+  expect(added.id).toBe("nora-voss")
+  const committed = await DecisionVerbs.commit({
+    action: "note",
+    target: { kind: "candidate", id: "nora-voss" },
+    reason: "sourced locally",
+    cwd: tmp.path,
+  })
+  expect(committed.changeset.id).toBeDefined()
+  const st = await DecisionVerbs.status({ cwd: tmp.path, limit: 50 })
+  expect(st.report.candidates).toBeGreaterThanOrEqual(6)
+})
+
+test("pull adopts a disk card so commit --target-id matches Score", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await ReqWorkspace.scaffoldReq(dir, "Staff Platform")
+      await ReqWorkspace.writeFocus(dir, "staff-platform")
+      await CandidateCard.write(path.join(dir, "staff-platform"), {
+        id: "kenji-okada",
+        stage: "Sourced",
+        extra: { name: "Kenji Okada" },
+        body: "# Kenji Okada\n\nStaff platform.\n",
+      })
+    },
+  })
+  await DecisionVerbs.pull({ cwd: tmp.path })
+  const committed = await DecisionVerbs.commit({
+    action: "note",
+    target: { kind: "candidate", id: "kenji-okada" },
+    reason: "on disk",
+    cwd: tmp.path,
+  })
+  expect(committed.changeset.id).toBeDefined()
+  const st = await DecisionVerbs.status({ cwd: tmp.path, limit: 50 })
+  expect(st.report.candidates).toBeGreaterThanOrEqual(6)
+})
+
 const entry = path.join(import.meta.dir, "../../src/index.ts")
 
 async function moks(args: string[], cwd: string) {

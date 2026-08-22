@@ -1,6 +1,7 @@
 import path from "path"
 import { CandidateCard } from "@/product/candidate-card"
 import { ReqWorkspace } from "@/product/req-workspace"
+import { CandidateAdd } from "@/product/candidate-add"
 import { requireCompanyDirectory, requireOpenedHiringDir, withLedger, type LedgerHandle } from "./session"
 
 export type CommitChange = {
@@ -101,6 +102,7 @@ export async function pull(input: { cwd?: string } = {}) {
   return withLedger(input.cwd, async (handle) => {
     const result = handle.api.pullMirror(handle.db, handle.adapter)
     const cards = await projectPulledCards(handle)
+    await CandidateAdd.adoptLocalCards(handle)
     return { ...result, cards, path: handle.company }
   })
 }
@@ -138,6 +140,7 @@ export async function commit(input: CommitInput) {
 }
 
 async function commitWithHandle(handle: LedgerHandle, input: CommitInput) {
+  await CandidateAdd.adoptLocalCards(handle)
   const { api } = handle
   const filled = await fillCommitDefaults(handle, input)
   const changes = resolveChanges(handle, filled)
