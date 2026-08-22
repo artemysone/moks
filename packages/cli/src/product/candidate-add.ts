@@ -1,6 +1,9 @@
 import path from "path"
 import { CandidateCard, CANDIDATES_DIR } from "./candidate-card"
 import { ReqWorkspace } from "./req-workspace"
+import { withLedger, type LedgerHandle } from "@/decision/session"
+
+const LOCAL_ATS = "file"
 
 const ADD_COMMANDS = new Set(["add-candidate", "add-local-candidate"])
 
@@ -45,7 +48,71 @@ export async function addFromFile(cwd: string, resumePath: string) {
     body: bodyFromFile(parsed, rawBody, name),
   }
   const written = await CandidateCard.write(packet, card)
+  const headline = headlineFromBody(card.body)
+  await withLedger(cwd, async (handle) => {
+    registerLocalCandidate(handle, { id, name, headline, stage: card.stage })
+  })
   return { id, name, file: written, relative: path.relative(cwd, written) || written, stage: card.stage }
+}
+
+function headlineFromBody(body: string) {
+  for (const line of body.split(/\r?\n/)) {
+    const trimmed = line.replace(/^[-*#]\s*/, "").trim()
+    if (!trimmed || trimmed.startsWith("---") || trimmed.startsWith("|")) continue
+    return trimmed.slice(0, 160)
+  }
+  return ""
+}
+
+function registerLocalCandidate(
+  handle: LedgerHandle,
+  input: { id: string; name: string; headline: string; stage: string },
+) {
+  const taken = handle.api.readMirrorEntity(handle.db, "candidate", input.id)
+  if (taken) {
+    throw new Error(`candidate already in ledger: ${input.id} — pick a name that is not a mock ATS id`)
+  }
+  const now = Date.now()
+  const upsert = handle.db.prepare(`
+    INSERT INTO remote_mirror (entity_type, entity_ref, ats, remote_id, state, synced_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(entity_type, entity_ref, ats) DO UPDATE SET
+      remote_id = excluded.remote_id,
+      state = excluded.state,
+      synced_at = excluded.synced_at
+  `)
+  const jobRow = handle.db
+    .prepare("SELECT entity_ref FROM remote_mirror WHERE entity_type = 'job' ORDER BY entity_ref ASC LIMIT 1")
+    .get() as { entity_ref: string } | undefined
+  const jobId = jobRow?.entity_ref ?? "job_file"
+  if (!jobRow) {
+    const job = {
+      id: jobId,
+      remoteId: jobId,
+      title: "Local",
+      team: "",
+      location: "",
+      status: "open",
+    }
+    upsert.run("job", jobId, LOCAL_ATS, jobId, JSON.stringify(job), now)
+  }
+  const candidate = {
+    id: input.id,
+    remoteId: input.id,
+    name: input.name,
+    email: "",
+    headline: input.headline,
+  }
+  const appId = `app_${input.id}`
+  const application = {
+    id: appId,
+    remoteId: appId,
+    jobId,
+    candidateId: input.id,
+    stage: "Sourced",
+  }
+  upsert.run("candidate", input.id, LOCAL_ATS, input.id, JSON.stringify(candidate), now)
+  upsert.run("application", appId, LOCAL_ATS, appId, JSON.stringify(application), now)
 }
 
 function lastPathToken(hint: string) {
