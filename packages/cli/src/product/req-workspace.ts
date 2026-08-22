@@ -84,14 +84,32 @@ export function isReqMaterial(filepath: string) {
   return isHiringFile(filepath) || CandidateCard.isCardPath(filepath)
 }
 
-export async function isPacket(dir: string) {
-  return (await isReqDir(dir)) && (await Filesystem.isDir(path.join(dir, CANDIDATES_DIR)))
+export async function hasCandidatesDir(dir: string) {
+  return Filesystem.isDir(path.join(dir, CANDIDATES_DIR))
 }
 
-// A company root holds COMPANY.md; a single-req workspace root is a packet
-// (HIRING.md + candidates/) where one HIRING.md is both company and req.
+export async function isPacket(dir: string) {
+  return (await isReqDir(dir)) && (await hasCandidatesDir(dir))
+}
+
+// COMPANY.md is a company. candidates/ is a company even without COMPANY.md.
+// Bare HIRING.md alone is not.
 export async function isCompanyRoot(dir: string) {
-  return (await hasCompanyFile(dir)) || (await isPacket(dir))
+  return (await hasCompanyFile(dir)) || (await isPacket(dir)) || (await hasCandidatesDir(dir))
+}
+
+/** Stub COMPANY.md or leftover ledger without reqs/candidates is not live. */
+export async function isLiveCompany(dir: string) {
+  return (
+    (await isPacket(dir)) ||
+    (await hasCandidatesDir(dir)) ||
+    (await isReqDir(dir)) ||
+    (await listReqs(dir)).length > 0
+  )
+}
+
+export function notACompanyDirectory(opened: string) {
+  return `not a company directory: ${opened} — pass --cwd/--dir to the company (same as moks run --dir)`
 }
 
 export async function listReqs(company: string) {
@@ -187,7 +205,7 @@ export async function resolve(directory: string, stop?: string) {
   const limit = stop === undefined ? undefined : path.resolve(stop)
   let current = start
   while (true) {
-    if ((await hasCompanyFile(current)) || (await isReqDir(current))) return current
+    if ((await hasCompanyFile(current)) || (await isReqDir(current)) || (await hasCandidatesDir(current))) return current
     if (limit && current === limit) return
     const parent = path.dirname(current)
     if (parent === current) return
@@ -203,7 +221,7 @@ export async function companyRoot(opened: string) {
   if (await hasCompanyFile(nearest)) return nearest
   const parent = path.dirname(nearest)
   if (parent !== nearest && (await hasCompanyFile(parent))) return parent
-  if (await isPacket(nearest)) return nearest
+  if ((await isPacket(nearest)) || (await hasCandidatesDir(nearest))) return nearest
 }
 
 export function titleFromSlug(slug: string) {

@@ -54,23 +54,38 @@ export function parseWriteIntent(command?: string, message = ""): WriteIntent | 
 }
 
 export async function writeOnCard(cwd: string, intent: WriteIntent) {
+  const root = await ReqWorkspace.companyRoot(cwd)
+  if (!root || !(await ReqWorkspace.isLiveCompany(root))) {
+    throw new Error(ReqWorkspace.notACompanyDirectory(cwd))
+  }
   const packet = (await ReqWorkspace.focusedReq(cwd)) ?? ((await ReqWorkspace.isPacket(cwd)) ? cwd : undefined)
-  if (!packet) throw new Error("no focused req — run /open-req then moks pull")
+  if (!packet) throw new Error(ReqWorkspace.notACompanyDirectory(cwd))
   const hiring = await Bun.file(path.join(packet, HIRING_FILE))
     .text()
     .catch(() => "")
   if (!hiring.trim()) throw new Error(`missing ${HIRING_FILE} in the focused req`)
   const cards = await CandidateCard.list(packet)
   const card = resolveCard(cards, intent.hint)
-  if (!card) throw new Error("no candidate cards — run moks pull in a focused req")
   const req = parseReq(hiring)
   const next = intent.kind === "score" ? scored(card, req, packet) : drafted(card, req, packet)
   const file = await CandidateCard.write(packet, next)
   return { kind: intent.kind, id: next.id, file, score: next.score, relative: path.relative(cwd, file) || file }
 }
 
-function resolveCard(cards: Card[], hint: string) {
-  if (cards.length === 0) return
+function isRejected(card: Card) {
+  return (card.stage ?? "").trim().toLowerCase() === "rejected"
+}
+
+function scoreableCards(cards: Card[]) {
+  return cards.filter((card) => !isRejected(card))
+}
+
+function listed(cards: Card[]) {
+  return cards.map((card) => (card.stage ? `${card.id} (${card.stage})` : card.id)).join(", ")
+}
+
+export function resolveCard(cards: Card[], hint: string): Card {
+  if (cards.length === 0) throw new Error("no candidate cards — run moks pull in a focused req")
   const ids = [...hint.matchAll(/\b(cand[_-][a-z0-9]+)\b/gi)].map((match) => match[1].toLowerCase())
   const named = hint
     .replace(/^(?:please\s+|can you\s+)?/i, "")
@@ -79,11 +94,28 @@ function resolveCard(cards: Card[], hint: string) {
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase()
-  const match =
-    cards.find((card) => ids.includes(card.id.toLowerCase())) ??
-    cards.find((card) => named && (card.extra.name ?? "").toLowerCase().includes(named)) ??
-    cards.find((card) => named && card.id.toLowerCase().includes(named.replace(/\s+/g, "-")))
-  return match ?? cards[0]
+  const scoreable = scoreableCards(cards)
+  const byId = cards.find((card) => ids.includes(card.id.toLowerCase()))
+  if (byId) {
+    if (isRejected(byId)) {
+      const others = scoreable.map((card) => card.id).join(", ")
+      throw new Error(`${byId.id} is Rejected` + (others ? ` — scoreable cards: ${others}` : ""))
+    }
+    return byId
+  }
+  if (ids.length > 0) {
+    const named = ids[0]
+    throw new Error(`unknown card: ${named} — name one of: ${scoreable.map((card) => card.id).toSorted().join(", ")}`)
+  }
+  const byName =
+    scoreable.find((card) => named && (card.extra.name ?? "").toLowerCase().includes(named)) ??
+    scoreable.find((card) => named && card.id.toLowerCase().includes(named.replace(/\s+/g, "-")))
+  if (byName) return byName
+  if (scoreable.length === 1) return scoreable[0]
+  if (scoreable.length === 0) {
+    throw new Error(`no scoreable cards (skipped Rejected): ${listed(cards)}`)
+  }
+  throw new Error(`no target id — name one of: ${scoreable.map((card) => card.id).toSorted().join(", ")}`)
 }
 
 function parseReq(hiring: string) {

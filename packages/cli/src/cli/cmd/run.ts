@@ -125,6 +125,18 @@ async function toolError(part: ToolPart) {
   }
 }
 
+const LOCAL_RUN_COMMANDS = "init / open-req / score / draft / add-candidate"
+
+function isLocalWriteOrScaffold(command?: string, message = "", files: string[] = []) {
+  return (
+    command === "init" ||
+    command === "open-req" ||
+    command === "add-candidate" ||
+    Boolean(CardWrite.parseWriteIntent(command, message)) ||
+    Boolean(CandidateAdd.parseAddIntent(command, message, files))
+  )
+}
+
 function isHeadlessScaffoldCommand(args: {
   command?: string
   mini?: boolean
@@ -133,7 +145,8 @@ function isHeadlessScaffoldCommand(args: {
   file?: string[]
 }) {
   if (args.mini) return false
-  if (args.command === "init" || args.command === "open-req") return true
+  // Any --command stays local so unknown names fail here instead of OAuth sign-in.
+  if (args.command) return true
   const message = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
   return Boolean(
     CandidateAdd.parseAddIntent(args.command, message, args.file ?? []) ||
@@ -323,8 +336,9 @@ export const RunCommand = effectCmd({
         describe: "basic auth username (defaults to MOKS_SERVER_USERNAME or 'moks')",
       })
       .option("dir", {
+        alias: ["cwd"],
         type: "string",
-        describe: "directory to run in, path on remote server if attaching",
+        describe: "company directory to run in (alias: --cwd; same flag as ledger --cwd)",
       })
       .option("port", {
         type: "number",
@@ -387,6 +401,10 @@ export const RunCommand = effectCmd({
       if (CandidateAdd.parseAddIntent(args.command, message, args.file ?? [])) {
         yield* Effect.promise(() => runHeadlessAddCandidate(args))
         return
+      }
+      if (args.command && !isLocalWriteOrScaffold(args.command, message, args.file ?? [])) {
+        UI.error(`unknown command: ${args.command} — use ${LOCAL_RUN_COMMANDS}`)
+        process.exit(1)
       }
       if (CardWrite.parseWriteIntent(args.command, message)) {
         yield* Effect.promise(() => runHeadlessCardWrite(args))

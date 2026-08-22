@@ -20,8 +20,9 @@ export const RebaseCommand = effectCmd({
         describe: "print JSON only",
       })
       .option("cwd", {
+        alias: ["dir"],
         type: "string",
-        describe: "working directory override",
+        describe: "company directory (alias: --dir; same as moks run --dir)",
       }),
   handler: Effect.fn("Cli.rebase")(function* (args) {
     const result = yield* Effect.promise(() => DecisionVerbs.rebase({ cwd: args.cwd, id: args.id }))
