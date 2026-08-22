@@ -266,6 +266,7 @@ describe("decision/verbs", () => {
     const committed = await DecisionVerbs.commit({
       action: "advance",
       target: { kind: "candidate", id: "cand_priya" },
+      to: "Contacted",
       reason: "next round",
       cwd: tmp.path,
     })
@@ -378,5 +379,73 @@ describe("decision/verbs", () => {
       stage: "Screen",
       body: "# Jane Ortega\n\nscored notes\n",
     })
+  })
+
+  test("commit note --body fills rationale; missing body defaults from last score", async () => {
+    await using tmp = await workspace()
+    await pull(tmp.path)
+    const withBody = await DecisionVerbs.commit({
+      action: "note",
+      target: { kind: "candidate", id: "cand_priya" },
+      body: "spoke to HM",
+      cwd: tmp.path,
+    })
+    expect(withBody.changeset.rationale).toBe("spoke to HM")
+    expect(withBody.changeset.changes[0].payload).toEqual({ body: "spoke to HM" })
+
+    await CandidateCard.write(tmp.path, {
+      id: "cand_priya",
+      stage: "Sourced",
+      score: 3,
+      extra: { name: "Priya Shah" },
+      body: "# Priya\n\n## Summary\n- Recommendation: yes\n- One-line rationale: Strong ledger fit.\n",
+    })
+    const defaulted = await DecisionVerbs.commit({
+      action: "note",
+      target: { kind: "candidate", id: "cand_priya" },
+      cwd: tmp.path,
+    })
+    expect(defaulted.changeset.rationale).toBe("Strong ledger fit.")
+  })
+
+
+  test("advance without --to names --to and the legal next stage", async () => {
+    await using tmp = await workspace()
+    await pull(tmp.path)
+    await expect(
+      DecisionVerbs.commit({
+        action: "advance",
+        target: { kind: "candidate", id: "cand_priya" },
+        reason: "next round",
+        cwd: tmp.path,
+      }),
+    ).rejects.toThrow(/AdvanceStage requires --to \(legal next: Contacted\)/)
+  })
+
+  test("push dry-run with staged and zero approved names review first", async () => {
+    await using tmp = await workspace()
+    await pull(tmp.path)
+    await DecisionVerbs.commit({
+      action: "note",
+      target: { kind: "candidate", id: "cand_priya" },
+      reason: "one",
+      cwd: tmp.path,
+    })
+    await DecisionVerbs.commit({
+      action: "note",
+      target: { kind: "candidate", id: "cand_marcus" },
+      reason: "two",
+      cwd: tmp.path,
+    })
+    const result = await DecisionVerbs.push({ cwd: tmp.path, dry_run: true })
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error("expected failure")
+    expect(result.message).toMatch(/0 approved, 2 staged — review first/)
+    expect(result.message).not.toBe("nothing to push")
+  })
+
+  test("status without a company directory fails instead of looking empty-healthy", async () => {
+    await using empty = await tmpdir()
+    await expect(DecisionVerbs.status({ cwd: empty.path })).rejects.toThrow(/not a company directory|no ledger|empty company/)
   })
 })

@@ -15,8 +15,9 @@ export const PullCommand = effectCmd({
         describe: "print JSON only",
       })
       .option("cwd", {
+        alias: ["dir"],
         type: "string",
-        describe: "working directory override",
+        describe: "company directory (alias: --dir; same as moks run --dir)",
       }),
   handler: Effect.fn("Cli.pull")(function* (args) {
     const result = yield* Effect.promise(() => DecisionVerbs.pull({ cwd: args.cwd }))

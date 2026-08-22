@@ -35,8 +35,9 @@ export const ReviewCommand = effectCmd({
         describe: "print JSON only",
       })
       .option("cwd", {
+        alias: ["dir"],
         type: "string",
-        describe: "working directory override",
+        describe: "company directory (alias: --dir; same as moks run --dir)",
       })
       .check((argv) => {
         if (argv.approve === argv.reject) throw new Error("moks review requires --approve or --reject")

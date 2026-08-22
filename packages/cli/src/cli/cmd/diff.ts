@@ -19,8 +19,9 @@ export const DiffCommand = effectCmd({
         describe: "print JSON only",
       })
       .option("cwd", {
+        alias: ["dir"],
         type: "string",
-        describe: "working directory override",
+        describe: "company directory (alias: --dir; same as moks run --dir)",
       }),
   handler: Effect.fn("Cli.diff")(function* (args) {
     const result = yield* Effect.promise(() => DecisionVerbs.diff({ cwd: args.cwd, id: args.id }))

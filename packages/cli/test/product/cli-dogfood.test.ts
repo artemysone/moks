@@ -156,4 +156,98 @@ describe("cli dogfood", () => {
     expect(card).toContain("Never sent")
   }, 20_000)
 
+
+  test("run --cwd aliases --dir; status --dir aliases --cwd; review has no Unexpected error prefix", async () => {
+    await using company = await tmpdir()
+    await using home = await tmpdir()
+    await using other = await tmpdir()
+    const env = { ANTHROPIC_API_KEY: "" }
+    expect((await moks(["run", "--command", "init"], company.path, home.path, env)).code).toBe(0)
+    expect((await moks(["run", "--command", "open-req", "--", "Senior Backend"], company.path, home.path, env)).code).toBe(0)
+    expect((await moks(["pull", "--dir", company.path], other.path, home.path, env)).code).toBe(0)
+
+    const scored = await moks(
+      ["run", "--cwd", company.path, "--agent", "recruit", "--", "Score cand_priya"],
+      other.path,
+      home.path,
+      env,
+    )
+    expect(scored.code).toBe(0)
+    expect(scored.combined).toContain("score:")
+
+    const silent = await moks(
+      ["run", "--dir", company.path, "--agent", "recruit", "--", "Score this resume"],
+      other.path,
+      home.path,
+      env,
+    )
+    expect(silent.code).toBe(1)
+    expect(silent.combined).toMatch(/no target id — name one of:/)
+    expect(silent.combined).not.toMatch(/score: wrote/)
+
+    const statusDir = await moks(["status", "--dir", company.path, "--json"], other.path, home.path, env)
+    expect(statusDir.code).toBe(0)
+    expect(statusDir.stdout).toContain(company.path)
+
+    const statusWrong = await moks(["status", "--json"], other.path, home.path, env)
+    expect(statusWrong.code).toBe(1)
+    expect(statusWrong.combined).toMatch(/not a company directory|no ledger|empty company/)
+
+    const reviewed = await moks(["review", "not-a-changeset"], company.path, home.path, env)
+    expect(reviewed.code).toBe(1)
+    const first = reviewed.combined.trim().split(/\n/).find((line) => line.trim())
+    expect(first).toBeDefined()
+    expect(first).not.toMatch(/Unexpected error/)
+    expect(reviewed.combined).toContain("moks review requires --approve or --reject")
+
+    const noted = await moks(
+      ["commit", "--action", "note", "--target-id", "cand_priya", "--body", "from score", "--cwd", company.path],
+      other.path,
+      home.path,
+      env,
+    )
+    expect(noted.code).toBe(0)
+    expect(noted.combined).not.toContain("rationale is required")
+
+    const defaultNote = await moks(
+      ["commit", "--action", "note", "--target-id", "cand_priya", "--cwd", company.path],
+      other.path,
+      home.path,
+      env,
+    )
+    expect(defaultNote.code).toBe(0)
+    expect(defaultNote.combined).not.toContain("rationale is required")
+    expect(defaultNote.combined).not.toContain("AddNote requires")
+
+    const advanced = await moks(
+      ["commit", "--action", "advance", "--target-id", "cand_priya", "--reason", "hop", "--cwd", company.path],
+      other.path,
+      home.path,
+      env,
+    )
+    expect(advanced.code).toBe(1)
+    expect(advanced.combined).toMatch(/--to/)
+    expect(advanced.combined).toMatch(/legal next/)
+    expect(advanced.combined).not.toContain("Unexpected error")
+
+    const pushed = await moks(["push", "--cwd", company.path], other.path, home.path, env)
+    expect(pushed.code).toBe(1)
+    expect(pushed.combined).toMatch(/0 approved, \d+ staged — review first/)
+    expect(pushed.combined).not.toContain("nothing to push")
+  }, 30_000)
+
+  test("run --command foobar fails locally without OAuth", async () => {
+    await using company = await tmpdir()
+    await using home = await tmpdir()
+    const started = Date.now()
+    const result = await moks(["run", "--command", "foobar"], company.path, home.path, {
+      ANTHROPIC_API_KEY: "",
+    })
+    expect(result.code).toBe(1)
+    expect(result.combined).toMatch(/unknown command: foobar/)
+    expect(result.combined).toMatch(/init \/ open-req \/ score \/ draft \/ add-candidate/)
+    expect(result.combined).not.toMatch(/sign in \/ connect OAuth or ACP/i)
+    expect(Date.now() - started).toBeLessThan(8_000)
+  }, 15_000)
+
 })

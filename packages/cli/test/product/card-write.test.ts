@@ -85,3 +85,37 @@ test("thin pulled card scores without inventing employment history", async () =>
   expect(card?.body).toContain("Backend engineer, fintech / ledger systems")
   expect(card?.body).not.toContain('Your card notes: "| Senior')
 })
+
+test("writeOnCard without a target id refuses to pick the first card", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
+      await CandidateCard.write(dir, {
+        id: "cand_priya",
+        stage: "Sourced",
+        extra: { name: "Priya Shah" },
+        body: "# Priya\n",
+      })
+      await CandidateCard.write(dir, {
+        id: "cand_amira",
+        stage: "Rejected",
+        extra: { name: "Amira" },
+        body: "# Amira\n",
+      })
+      await CandidateCard.write(dir, {
+        id: "cand_jordan",
+        stage: "Screen",
+        extra: { name: "Jordan" },
+        body: "# Jordan\n",
+      })
+    },
+  })
+  await expect(CardWrite.writeOnCard(tmp.path, { kind: "score", hint: "Score this resume" })).rejects.toThrow(
+    /no target id — name one of: cand_jordan, cand_priya/,
+  )
+  await expect(CardWrite.writeOnCard(tmp.path, { kind: "draft", hint: "Draft outreach" })).rejects.toThrow(
+    /no target id — name one of:/,
+  )
+  const priya = await CandidateCard.read(tmp.path, "cand_priya")
+  expect(priya?.body).not.toContain("# Score:")
+})

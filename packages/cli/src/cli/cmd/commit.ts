@@ -73,8 +73,9 @@ export const CommitCommand = effectCmd({
         describe: "print JSON only",
       })
       .option("cwd", {
+        alias: ["dir"],
         type: "string",
-        describe: "working directory override",
+        describe: "company directory (alias: --dir; same as moks run --dir)",
       })
       .check((argv) => {
         if (!argv.action && !argv.mutation && !(argv.change && argv.change.length > 0)) {
@@ -113,7 +114,7 @@ export const CommitCommand = effectCmd({
           entity: args.entity,
           target,
           reason: args.reason,
-          rationale: args.rationale ?? args.reason,
+          rationale: args.rationale ?? args.reason ?? args.body,
           to: args.to,
           body: args.body,
           tag: args.tag,
