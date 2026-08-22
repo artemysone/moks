@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { effectCmd } from "../effect-cmd"
+import { CliError, effectCmd } from "../effect-cmd"
 import { DecisionVerbs } from "@/decision/verbs"
 import { UI } from "../ui"
 
@@ -24,27 +24,28 @@ export const StatusCommand = effectCmd({
         describe: "print JSON only",
       })
       .option("cwd", {
+        alias: ["dir"],
         type: "string",
-        describe: "working directory override",
+        describe: "company directory (alias: --dir; same as moks run --dir)",
       }),
   handler: Effect.fn("Cli.status")(function* (args) {
-    const result = yield* Effect.promise(() =>
-      DecisionVerbs.status({
-        id: args.id,
-        limit: args.limit,
-        cwd: args.cwd,
-      }),
-    )
+    const result = yield* Effect.tryPromise({
+      try: () =>
+        DecisionVerbs.status({
+          id: args.id,
+          limit: args.limit,
+          cwd: args.cwd,
+        }),
+      catch: (error) =>
+        new CliError({
+          message: error instanceof Error ? error.message : "status failed",
+        }),
+    })
     if (args.json) {
       console.log(JSON.stringify(result, null, 2))
       return
     }
     const report = result.report
-    if (!report.ats) {
-      UI.println(`${UI.Style.TEXT_DIM}mirror empty — run \`moks pull\`${UI.Style.TEXT_NORMAL}`)
-      UI.println(`${UI.Style.TEXT_DIM}${result.path}${UI.Style.TEXT_NORMAL}`)
-      return
-    }
     const pipeline = Object.entries(report.pipeline)
       .map(([stage, count]) => `${stage} ${count}`)
       .join(", ")

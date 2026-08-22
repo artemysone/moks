@@ -11,6 +11,7 @@ async function workspace() {
   return tmpdir({
     init: async (dir) => {
       await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
+      await Bun.write(path.join(dir, "candidates", ".gitkeep"), "")
     },
   })
 }
@@ -44,7 +45,8 @@ async function moks(args: string[], cwd: string) {
 
 describe("decision/activity", () => {
   test("empty → quiet", async () => {
-    await using tmp = await tmpdir()
+    await using tmp = await workspace()
+    await DecisionVerbs.pull({ cwd: tmp.path })
     const summary = await DecisionActivity.summarizeActivity({ cwd: tmp.path, days: 7 })
     expect(summary.signal).toBe("quiet")
     expect(summary.commits).toBe(0)
@@ -54,6 +56,25 @@ describe("decision/activity", () => {
     expect(summary.days).toBe(7)
     expect(summary.path).toBe(tmp.path)
     expect(summary.real_req_note.length).toBeGreaterThan(0)
+  })
+
+  test("non-company directory fails instead of looking quiet", async () => {
+    await using empty = await tmpdir()
+    await expect(DecisionActivity.summarizeActivity({ cwd: empty.path })).rejects.toThrow(
+      /not a company directory|no ledger|empty company/,
+    )
+  })
+
+  test("COMPANY.md stub is not quiet-healthy", async () => {
+    const { ReqWorkspace } = await import("../../src/product/req-workspace")
+    await using stub = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "COMPANY.md"), ReqWorkspace.COMPANY_STUB)
+      },
+    })
+    await expect(DecisionActivity.summarizeActivity({ cwd: stub.path })).rejects.toThrow(
+      /not a company directory|no ledger|pass --cwd\/--dir/,
+    )
   })
 
   test("commit in window → active", async () => {

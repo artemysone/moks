@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { effectCmd } from "../effect-cmd"
+import { CliError, effectCmd } from "../effect-cmd"
 import { DecisionVerbs } from "@/decision/verbs"
 import { UI } from "../ui"
 
@@ -19,11 +19,18 @@ export const DiffCommand = effectCmd({
         describe: "print JSON only",
       })
       .option("cwd", {
+        alias: ["dir"],
         type: "string",
-        describe: "working directory override",
+        describe: "company directory (alias: --dir; same as moks run --dir)",
       }),
   handler: Effect.fn("Cli.diff")(function* (args) {
-    const result = yield* Effect.promise(() => DecisionVerbs.diff({ cwd: args.cwd, id: args.id }))
+    const result = yield* Effect.tryPromise({
+      try: () => DecisionVerbs.diff({ cwd: args.cwd, id: args.id }),
+      catch: (error) =>
+        new CliError({
+          message: error instanceof Error ? error.message : "diff failed",
+        }),
+    })
     if (args.json) {
       console.log(JSON.stringify(result, null, 2))
       return

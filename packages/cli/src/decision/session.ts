@@ -35,6 +35,40 @@ export async function ledgerDbExists(cwd?: string) {
   return Bun.file(paths.workspaceDb).exists()
 }
 
+export async function requireOpenedHiringDir(cwd?: string) {
+  const opened = cwd ?? process.cwd()
+  if (await ReqWorkspace.isLiveCompany(opened)) {
+    return { opened }
+  }
+  throw new Error(ReqWorkspace.notACompanyDirectory(opened))
+}
+
+export async function requireCompanyRoot(cwd?: string) {
+  const opened = cwd ?? process.cwd()
+  const root = await ReqWorkspace.companyRoot(opened)
+  if (root && (await ReqWorkspace.isLiveCompany(root))) {
+    return { opened, root }
+  }
+  // Tests (and dogfood) open a req dir with only HIRING.md, then pull.
+  // That is a live opened workspace, not a companyRoot (no COMPANY.md / candidates/).
+  if (await ReqWorkspace.isLiveCompany(opened)) {
+    return { opened, root: opened }
+  }
+  throw new Error(ReqWorkspace.notACompanyDirectory(opened))
+}
+
+/** Fail like status: stub COMPANY.md / leftover ledger is not a live company. */
+export async function requireCompanyDirectory(cwd?: string) {
+  const { opened, root } = await requireCompanyRoot(cwd)
+  const dbExists = await ledgerDbExists(cwd)
+  if (!dbExists) {
+    throw new Error(
+      `no ledger at ${root} — run moks pull --cwd ${root} (or --dir; same flag as moks run --dir)`,
+    )
+  }
+  return { opened, root }
+}
+
 export async function withLedger<T>(cwd: string | undefined, fn: (handle: LedgerHandle) => Promise<T>): Promise<T> {
   const handle = await openLedger(cwd)
   try {
