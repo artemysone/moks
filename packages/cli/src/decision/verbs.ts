@@ -1,7 +1,7 @@
 import path from "path"
 import { CandidateCard } from "@/product/candidate-card"
 import { ReqWorkspace } from "@/product/req-workspace"
-import { requireCompanyDirectory, requireOpenedHiringDir, withLedger, type LedgerHandle } from "./session"
+import { requireCompanyDirectory, requireCompanyRoot, withLedger, type LedgerHandle } from "./session"
 
 export type CommitChange = {
   entity_type: string
@@ -97,7 +97,7 @@ export function defaultAuthor() {
 }
 
 export async function pull(input: { cwd?: string } = {}) {
-  await requireOpenedHiringDir(input.cwd)
+  await requireCompanyRoot(input.cwd)
   return withLedger(input.cwd, async (handle) => {
     const result = handle.api.pullMirror(handle.db, handle.adapter)
     const cards = await projectPulledCards(handle)
