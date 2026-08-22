@@ -26,6 +26,7 @@ import { createMoksClient, type MoksClient, type ToolPart } from "@moks/sdk/v2"
 import { FormatError, FormatUnknownError } from "../error"
 import { INTERACTIVE_INPUT_ERROR, resolveInteractiveStdin } from "./run/runtime.stdin"
 import { CardWrite } from "@/product/card-write"
+import { CandidateAdd } from "@/product/candidate-add"
 
 type ModelInput = Parameters<MoksClient["session"]["prompt"]>[0]["model"]
 
@@ -124,11 +125,20 @@ async function toolError(part: ToolPart) {
   }
 }
 
-function isHeadlessScaffoldCommand(args: { command?: string; mini?: boolean; message?: string[]; "--"?: string[] }) {
+function isHeadlessScaffoldCommand(args: {
+  command?: string
+  mini?: boolean
+  message?: string[]
+  "--"?: string[]
+  file?: string[]
+}) {
   if (args.mini) return false
   if (args.command === "init" || args.command === "open-req") return true
   const message = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
-  return Boolean(CardWrite.parseWriteIntent(args.command, message))
+  return Boolean(
+    CandidateAdd.parseAddIntent(args.command, message, args.file ?? []) ||
+      CardWrite.parseWriteIntent(args.command, message),
+  )
 }
 
 async function resolveRunDirectory(dir: string | undefined) {
@@ -170,6 +180,33 @@ async function runHeadlessScaffold(args: {
   UI.println(`${args.command}: ${created}`)
   if (result.skipped.length > 0) UI.println(`skipped ${result.skipped.join(", ")}`)
   if (args.command === "open-req" && result.relative !== ".") UI.println(`focused ${result.relative}`)
+}
+
+async function runHeadlessAddCandidate(args: {
+  command?: string
+  message?: string[]
+  dir?: string
+  json?: boolean
+  format?: string
+  file?: string[]
+  ["--"]?: string[]
+}) {
+  const directory = await resolveRunDirectory(args.dir)
+  const raw = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
+  const intent = CandidateAdd.parseAddIntent(args.command, raw, args.file ?? [])
+  if (!intent) {
+    UI.error("not a local add-candidate")
+    process.exit(1)
+  }
+  const result = await CandidateAdd.addFromFile(directory, intent.file).catch((error) => {
+    UI.error(error instanceof Error ? error.message : String(error))
+    process.exit(1)
+  })
+  if (args.json || args.format === "json") {
+    console.log(JSON.stringify({ command: "add-candidate", ...result }, null, 2))
+    return
+  }
+  UI.println(`add-candidate: wrote ${result.relative} (${result.id}, stage ${result.stage})`)
 }
 
 async function runHeadlessCardWrite(args: {
@@ -347,6 +384,10 @@ export const RunCommand = effectCmd({
   handler: Effect.fn("Cli.run")(function* (args) {
     if (isHeadlessScaffoldCommand(args)) {
       const message = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
+      if (CandidateAdd.parseAddIntent(args.command, message, args.file ?? [])) {
+        yield* Effect.promise(() => runHeadlessAddCandidate(args))
+        return
+      }
       if (CardWrite.parseWriteIntent(args.command, message)) {
         yield* Effect.promise(() => runHeadlessCardWrite(args))
         return
