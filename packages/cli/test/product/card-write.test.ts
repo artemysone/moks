@@ -119,3 +119,23 @@ test("writeOnCard without a target id refuses to pick the first card", async () 
   const priya = await CandidateCard.read(tmp.path, "cand_priya")
   expect(priya?.body).not.toContain("# Score:")
 })
+
+test("writeOnCard Score cand_nobody does not fall through to another card", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
+      await CandidateCard.write(dir, {
+        id: "cand_priya",
+        stage: "Sourced",
+        extra: { name: "Priya Shah" },
+        body: "# Priya\n",
+      })
+    },
+  })
+  await expect(CardWrite.writeOnCard(tmp.path, { kind: "score", hint: "Score cand_nobody" })).rejects.toThrow(
+    /unknown card: cand_nobody/,
+  )
+  const priya = await CandidateCard.read(tmp.path, "cand_priya")
+  expect(priya?.body).not.toContain("# Score:")
+})
+
