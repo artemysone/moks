@@ -27,6 +27,11 @@ export const ReviewCommand = effectCmd({
         type: "string",
         describe: "why this changeset is rejected (required with --reject)",
       })
+      .option("excerpt", {
+        alias: ["body"],
+        type: "string",
+        describe: "amend the note/outreach excerpt, then bless (approve only)",
+      })
       .option("by", {
         type: "string",
         describe: "reviewer identity",
@@ -104,6 +109,7 @@ export const ReviewCommand = effectCmd({
           action: args.approve ? "approve" : "reject",
           by: args.by,
           reason: args.reason,
+          excerpt: args.excerpt,
           cwd: args.cwd,
         }),
       catch: (error) => new CliError({ message: error instanceof Error ? error.message : "review failed" }),

@@ -45,6 +45,7 @@ export type ReviewInput = {
   action: "approve" | "reject"
   by: string
   reason?: string
+  excerpt?: string
   cwd?: string
 }
 
@@ -318,13 +319,21 @@ export async function review(input: ReviewInput) {
     if (input.action === "reject" && !reason) {
       throw new Error("review --reject needs --reason")
     }
+    const excerpt = (input.excerpt ?? "").trim()
+    if (excerpt && input.action !== "approve") {
+      throw new Error("review --excerpt is only for --approve")
+    }
     const changeset = handle.api.reviewChangeset(handle.db, handle.vault, input.id, {
       action: input.action,
       reviewer_id: input.by,
       reason: input.action === "reject" ? reason : undefined,
+      excerpt: excerpt || undefined,
     })
     if (input.action === "reject") {
       await persistRejectReasonOnCards(handle, changeset, reason)
+    }
+    if (excerpt) {
+      await persistExcerptOnCards(handle, changeset, excerpt)
     }
     await HiringSession.refreshSnapshot(handle.company)
     return { changeset, path: handle.company }
@@ -781,6 +790,36 @@ function rejectReasonFrom(input: CommitInput, changes: Array<{ mutation: string 
   if (!changes.some((change) => change.mutation === "Reject")) return
   const reason = (input.rationale ?? input.reason ?? input.body ?? "").trim()
   return reason || undefined
+}
+
+async function persistExcerptOnCards(
+  handle: LedgerHandle,
+  changeset: { changes: Array<{ mutation: string; entity_type: string; entity_ref: string }> },
+  excerpt: string,
+) {
+  const dir = handle.req ?? ((await ReqWorkspace.isPacket(handle.company)) ? handle.company : undefined)
+  if (!dir) return
+  for (const change of changeset.changes) {
+    if (change.mutation !== "AddNote" && change.mutation !== "SendOutreach") continue
+    let id = change.entity_ref
+    if (change.entity_type === "application") {
+      const hit = handle.api.listApplications(handle.db).find((row) => row.id === change.entity_ref)
+      if (hit) id = hit.candidateId
+    }
+    const existing = await CandidateCard.read(dir, id)
+    if (!existing) continue
+    const heading = change.mutation === "SendOutreach" || /^# Outreach\b/m.test(excerpt) ? "Outreach" : /^# Score\b/m.test(excerpt) ? "Score" : "Score"
+    await CandidateCard.write(dir, { ...existing, body: upsertCardSection(existing.body, heading, excerpt) })
+  }
+}
+
+function upsertCardSection(body: string, heading: string, section: string) {
+  const block = section.trim() + "\n"
+  const re = new RegExp(`(?:^|\\n)# ${heading}\\b[^\\n]*\\n[\\s\\S]*?(?=\\n# |$)`)
+  if (re.test(body)) {
+    return body.replace(re, (match) => `${match.startsWith("\n") ? "\n" : ""}${block}`)
+  }
+  return `${body.replace(/\s*$/, "\n\n")}${block}`
 }
 
 async function persistRejectReasonOnCards(

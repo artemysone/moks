@@ -589,11 +589,60 @@ export function getChangeset(db: SqliteDb, vault: Vault, id: string): ChangesetD
   };
 }
 
+function amendExcerpt(db: SqliteDb, vault: Vault, id: string, excerpt: string) {
+  const body = excerpt.trim();
+  if (!body) {
+    throw new LedgerError("empty_excerpt");
+  }
+  const children = db.prepare("SELECT id FROM changesets WHERE parent_id = ?").all(id) as Array<{ id: string }>;
+  if (children.length > 0) {
+    throw new LedgerError("cannot_amend: later changesets already parent this one");
+  }
+  const changes = loadChangeRows(db, id);
+  const editable = changes.filter((change) => change.mutation === "AddNote" || change.mutation === "SendOutreach");
+  if (editable.length === 0) {
+    throw new LedgerError("cannot_amend: changeset has no note or outreach");
+  }
+  for (const change of editable) {
+    const current = vault.get(change.payload_ref);
+    const next =
+      current && typeof current === "object" && !Array.isArray(current)
+        ? { ...(current as Record<string, unknown>), body }
+        : { body };
+    const entityType = isEntityType(change.entity_type) ? change.entity_type : undefined;
+    if (!entityType) {
+      throw new LedgerError(`unknown_entity_type: ${change.entity_type}`);
+    }
+    const state = readMirrorEntity(db, entityType, change.entity_ref)?.state;
+    const payloadRef = vault.put(candidateRefFor(entityType, change.entity_ref, state), next);
+    db.prepare("UPDATE changes SET payload_ref = ? WHERE id = ?").run(payloadRef, change.id);
+  }
+  const row = loadChangesetRow(db, id);
+  const parentHash = row.parent_id ? loadChangesetRow(db, row.parent_id).hash : GENESIS_PARENT_HASH;
+  const updated = loadChangeRows(db, id);
+  const hash = hashChangeset(parentHash, {
+    author_kind: row.author_kind,
+    author_id: row.author_id,
+    agent_meta: row.agent_meta === null ? null : (JSON.parse(row.agent_meta) as unknown),
+    rationale: row.rationale,
+    changes: updated.map((change) => ({
+      entity_type: change.entity_type,
+      entity_ref: change.entity_ref,
+      mutation: change.mutation,
+      effect_class: change.effect_class,
+      precondition: JSON.parse(change.precondition) as unknown,
+      payload_ref: change.payload_ref,
+      payload_hash: payloadCipherHash(db, change.payload_ref),
+    })),
+  });
+  db.prepare("UPDATE changesets SET hash = ? WHERE id = ?").run(hash, id);
+}
+
 export function reviewChangeset(
   db: SqliteDb,
   vault: Vault,
   id: string,
-  input: { action: string; reviewer_id: string; reason?: string },
+  input: { action: string; reviewer_id: string; reason?: string; excerpt?: string },
 ): ChangesetDetail {
   const reviewerId = requireString(input.reviewer_id, "reviewer_id_required");
   if (input.action !== "approve" && input.action !== "reject") {
@@ -602,6 +651,12 @@ export function reviewChangeset(
   const row = loadChangesetRow(db, id);
   if (row.status !== "staged") {
     throw new LedgerError("not_staged");
+  }
+  if (typeof input.excerpt === "string") {
+    if (input.action !== "approve") {
+      throw new LedgerError("cannot_amend: excerpt is only for approve");
+    }
+    amendExcerpt(db, vault, id, input.excerpt);
   }
   const status: ChangesetStatus = input.action === "approve" ? "approved" : "rejected";
   const reason = typeof input.reason === "string" ? input.reason.trim() : "";
