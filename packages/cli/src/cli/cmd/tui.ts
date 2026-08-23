@@ -14,6 +14,7 @@ import { writeHeapSnapshot } from "v8"
 import { ServerAuth } from "@/server/auth"
 import { validateSession } from "../tui/validate-session"
 import { win32InstallCtrlCGuard } from "@moks/tui/terminal-win32"
+import { requireInteractiveTty } from "@moks/tui/util/tty"
 
 declare global {
   const MOKS_WORKER_PATH: string
@@ -193,6 +194,7 @@ export const TuiThreadCommand = cmd({
       return
     }
 
+    requireInteractiveTty()
     const unguard = win32InstallCtrlCGuard()
     try {
       const { TuiConfig } = await import("@/config/tui")

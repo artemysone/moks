@@ -36,3 +36,25 @@ test("replace slot mounts plugin content once", async () => {
     app.renderer.destroy()
   }
 })
+
+test("unconfigured slots still paint their children", async () => {
+  const { createSlots } = await import("../../src/plugin/slots")
+  const slots = createSlots()
+  let mounts = 0
+  const Probe = () => {
+    onMount(() => {
+      mounts += 1
+    })
+    return <box />
+  }
+  const app = await testRender(() => (
+    <slots.Slot name="prompt" mode="replace">
+      <Probe />
+    </slots.Slot>
+  ))
+  try {
+    expect(mounts).toBe(1)
+  } finally {
+    app.renderer.destroy()
+  }
+})
