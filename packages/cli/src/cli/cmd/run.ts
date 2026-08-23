@@ -154,6 +154,11 @@ function isRecruitResume(args: {
   return !message.trim()
 }
 
+function isNeverSentAsk(args: { command?: string; message?: string[]; "--"?: string[] }) {
+  const message = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
+  return Boolean(CardWrite.parseSendIntent(args.command, message))
+}
+
 function isHeadlessScaffoldCommand(args: {
   command?: string
   mini?: boolean
@@ -168,7 +173,8 @@ function isHeadlessScaffoldCommand(args: {
   if (isRecruitResume(args)) return true
   const message = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
   return Boolean(
-    CandidateAdd.parseAddIntent(args.command, message, args.file ?? [], args.agent) ||
+    CardWrite.parseSendIntent(args.command, message) ||
+      CandidateAdd.parseAddIntent(args.command, message, args.file ?? [], args.agent) ||
       CardWrite.parseWriteIntent(args.command, message) ||
       CardWrite.parseNaturalWorkIntent(args.command, message, args.agent),
   )
@@ -285,6 +291,17 @@ async function runHeadlessCardWrite(args: {
     return
   }
   UI.println(`draft: wrote ${result.relative} (not sent)`)
+}
+
+async function runNeverSent(args: { dir?: string }) {
+  const directory = await resolveRunDirectory(args.dir)
+  const { HiringSession } = await import("@/product/hiring-session")
+  await HiringSession.loadSnapshot(directory).catch((error) => {
+    UI.error(error instanceof Error ? error.message : String(error))
+    process.exit(1)
+  })
+  UI.error(CardWrite.NEVER_SENT)
+  process.exit(1)
 }
 
 async function runHeadlessRecruitWork(args: {
@@ -500,6 +517,10 @@ export const RunCommand = effectCmd({
   handler: Effect.fn("Cli.run")(function* (args) {
     if (isHeadlessScaffoldCommand(args)) {
       const message = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
+      if (isNeverSentAsk(args)) {
+        yield* Effect.promise(() => runNeverSent(args))
+        return
+      }
       if (CardWrite.parseNaturalWorkIntent(args.command, message, args.agent)) {
         yield* Effect.promise(() => runHeadlessRecruitWork(args))
         return

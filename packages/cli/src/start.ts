@@ -34,6 +34,7 @@ import { RebaseCommand } from "./cli/cmd/rebase"
 import { LogCommand } from "./cli/cmd/log"
 import { Heap } from "./cli/heap"
 import { unknownCliFailure } from "./cli/unknown-token"
+import { CardWrite } from "./product/card-write"
 
 const args = hideBin(process.argv)
 
@@ -118,6 +119,11 @@ const cli = yargs(args)
   .command(LogCommand)
   .fail((msg, err) => {
     const unknown = unknownCliFailure({ argv: args, message: msg })
+    if (unknown?.kind === "never-sent") {
+      if (err) throw err
+      process.stderr.write(CardWrite.NEVER_SENT + EOL)
+      process.exit(1)
+    }
     if (unknown?.kind === "command") {
       if (err) throw err
       process.stderr.write(`unknown command: ${unknown.name}` + EOL)

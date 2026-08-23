@@ -3,6 +3,7 @@ import { readdir } from "fs/promises"
 import { CandidateCard, CANDIDATES_DIR } from "./candidate-card"
 import { ReqWorkspace } from "./req-workspace"
 import { withLedger, type LedgerHandle } from "@/decision/session"
+import { CardWrite } from "./card-write"
 
 const LOCAL_ATS = "mock"
 
@@ -56,6 +57,7 @@ export function parseAddIntent(
     .filter(Boolean)
     .filter((item) => looksLikePath(item) || !/\s/.test(item))
   const hint = message.trim()
+  if (CardWrite.parseSendIntent(command, hint)) return
   const recruit = !command && agent === "recruit"
   if (command && !ADD_COMMANDS.has(command)) return
   if (command && ADD_COMMANDS.has(command)) {

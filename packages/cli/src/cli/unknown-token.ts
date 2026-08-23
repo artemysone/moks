@@ -1,3 +1,5 @@
+import { CardWrite } from "@/product/card-write"
+
 /** Top-level verbs registered on the root yargs in start.ts (plus completion/help). */
 export const KNOWN_CLI_VERBS = new Set([
   "activity",
@@ -40,6 +42,9 @@ export function firstCliToken(argv: string[]) {
 
 export function unknownCliFailure(input: { argv: string[]; message?: string }) {
   const token = firstCliToken(input.argv)
+  if (token && CardWrite.parseSendIntent(token, "")) {
+    return { kind: "never-sent" as const, name: token }
+  }
   if (token && !KNOWN_CLI_VERBS.has(token)) {
     return { kind: "command" as const, name: token }
   }
