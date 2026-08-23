@@ -11,7 +11,7 @@ export const ReviewCommand = effectCmd({
     yargs
       .positional("id", {
         type: "string",
-        describe: "changeset id (omit to list staged)",
+        describe: "changeset id (omit or pass list to list staged)",
       })
       .option("approve", {
         type: "boolean",
@@ -45,7 +45,7 @@ export const ReviewCommand = effectCmd({
     if (!args.id && (args.approve || args.reject)) {
       return yield* Effect.fail(new CliError({ message: "moks review --approve/--reject needs a changeset id" }))
     }
-    if (!args.id) {
+    if (!args.id || (args.id === "list" && !args.approve && !args.reject)) {
       const listed = yield* Effect.tryPromise({
         try: () => DecisionVerbs.listStagedReviews({ cwd: args.cwd }),
         catch: (error) => new CliError({ message: error instanceof Error ? error.message : "review failed" }),
