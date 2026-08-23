@@ -321,38 +321,32 @@ function voiceOf(tone: string[]): "warm" | "terse" | "plain" {
 
 function letter(card: Card, req: ReturnType<typeof parseReq>) {
   const name = card.extra.name || card.id
-  const first = name.split(/\s+/)[0] ?? name
+  const parts = name.split(/\s+/).filter(Boolean)
+  const first = parts[0] ?? name
+  const last = parts.length > 1 ? parts[parts.length - 1]! : undefined
   const hook = quoteFor(card, tokens(`${card.extra.name ?? ""} ${req.title}`)) ?? quoteFor(card, tokens(card.body))
   const where = req.location ? ` (${req.location})` : ""
   const who = req.company ? `${req.company} is hiring` : "We're hiring"
   const voice = voiceOf(req.tone)
-  const bar = req.companyBar[0]
-  const about = req.about[0]
   if (voice === "plain") {
     return {
       greeting: `Hi ${first},`,
       opening: hook ? `${who} a ${req.title}${where}. Your card notes: "${hook}"` : `${who} a ${req.title}${where}.`,
-      register: undefined as string | undefined,
       ask: "Would you be open to a short conversation about the role?",
+      close: "Best,",
       linkedin: `Hi ${first} — ${who.toLowerCase()} a ${req.title}${where}. Open to a quick chat?`,
       hook,
     }
   }
   if (voice === "warm") {
-    const shop = about ? ` ${about}` : ""
     const opening = hook
       ? `I keep coming back to this on your card: "${hook}"`
       : `${who} a ${req.title}${where}.`
-    const register = bar
-      ? `That sits next to how we hire${shop ? ` (${shop.trim()})` : ""} — ${bar}, not a generic rec-screen.`
-      : about
-        ? `We're the${shop} team hiring a ${req.title}${where}.`
-        : undefined
     return {
       greeting: `Hi ${first} —`,
       opening,
-      register,
       ask: "If a short conversation would be useful, I'm around this week — no pitch deck.",
+      close: "Talk soon if that's useful,",
       linkedin: `Hi ${first} — your card stuck with me. Open to a real conversation about ${req.title}?`,
       hook,
     }
@@ -360,13 +354,12 @@ function letter(card: Card, req: ReturnType<typeof parseReq>) {
   const opening = hook
     ? `${req.company ?? "We"}: ${req.title}${where}. "${hook}"`
     : `${req.company ?? "We"}: ${req.title}${where}.`
-  const register = bar ? `Bar: ${bar}.` : undefined
   return {
-    greeting: `${first},`,
+    greeting: last ? `${last},` : `${first},`,
     opening,
-    register,
     ask: "15 minutes on the role. Yes or no is fine.",
-    linkedin: `${first} — ${req.title}${where}. 15 minutes?`,
+    close: "Regards,",
+    linkedin: `${last ?? first} — ${req.title}${where}. 15 minutes?`,
     hook,
   }
 }
@@ -388,9 +381,10 @@ function drafted(card: Card, req: ReturnType<typeof parseReq>, packet: string) {
     copy.greeting,
     "",
     copy.opening,
-    ...(copy.register ? ["", copy.register] : []),
     "",
     copy.ask,
+    "",
+    copy.close,
     "",
     "## LinkedIn",
     copy.linkedin,
