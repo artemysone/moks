@@ -41,6 +41,7 @@ import type { AssistantMessage, FilePart, UserMessage } from "@moks/sdk/v2"
 import { Locale } from "../../util/locale"
 import { errorMessage } from "../../util/error"
 import { formatDuration } from "../../util/format"
+import { matchSlashCommand } from "../../util/review-queue"
 import { createColors, createFrames } from "../../ui/spinner"
 import { useDialog } from "../../ui/dialog"
 import { DialogProvider as DialogProviderConnect } from "../dialog-provider"
@@ -51,7 +52,7 @@ import { createFadeIn } from "../../util/signal"
 import { DialogSkill } from "../dialog-skill"
 import { DialogWorkspaceUnavailable } from "../dialog-workspace-unavailable"
 import { useArgs } from "../../context/args"
-import { MOKS_BASE_MODE, useBindings, useCommandShortcut, useLeaderActive, useMoksKeymap } from "../../keymap"
+import { MOKS_BASE_MODE, useBindings, useCommandShortcut, useCommandSlashes, useLeaderActive, useMoksKeymap } from "../../keymap"
 import { useTuiConfig } from "../../config"
 import { usePromptWorkspace } from "./workspace"
 import { usePromptMove } from "./move"
@@ -164,6 +165,7 @@ export function Prompt(props: PromptProps) {
   const history = usePromptHistory()
   const stash = usePromptStash()
   const keymap = useMoksKeymap()
+  const slashes = useCommandSlashes()
   const agentShortcut = useCommandShortcut("agent.cycle")
   const paletteShortcut = useCommandShortcut("command.palette.show")
   const renderer = useRenderer()
@@ -1002,6 +1004,23 @@ export function Prompt(props: PromptProps) {
     const trimmed = store.prompt.input.trim()
     if (trimmed === "exit" || trimmed === "quit" || trimmed === ":q") {
       void exit()
+      return true
+    }
+    const localSlash = matchSlashCommand(trimmed, slashes())
+    if (localSlash) {
+      localSlash.onSelect()
+      history.append({
+        ...store.prompt,
+        mode: store.mode,
+      })
+      input.extmarks.clear()
+      setStore("prompt", {
+        input: "",
+        parts: [],
+      })
+      setStore("extmarkToPartIndex", new Map())
+      props.onSubmit?.()
+      input.clear()
       return true
     }
     const selectedModel = local.model.current()

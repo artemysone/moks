@@ -7,7 +7,16 @@ import { Global } from "@moks/core/global"
 import { createTuiResolvedConfig } from "./fixture/tui-runtime"
 import { createEventSource, createFetch, directory, json } from "./fixture/tui-sdk"
 
-test("SIGHUP clears title and disposes scoped resources once", async () => {
+function withTty<T>(fn: () => Promise<T>) {
+  const stdout = process.stdout as { isTTY?: boolean }
+  const previous = stdout.isTTY
+  stdout.isTTY = true
+  return fn().finally(() => {
+    stdout.isTTY = previous
+  })
+}
+
+test("SIGHUP clears title and disposes scoped resources once", async () => withTty(async () => {
   const setup = await createTestRenderer({ width: 80, height: 24, useThread: false })
   const core = await import("@opentui/core")
   mock.module("@opentui/core", () => ({ ...core, createCliRenderer: async () => setup.renderer }))
@@ -58,26 +67,35 @@ test("SIGHUP clears title and disposes scoped resources once", async () => {
     if (!setup.renderer.isDestroyed) setup.renderer.destroy()
     mock.restore()
   }
-})
+}))
 
-test("app.exit prints the session epilogue after scoped cleanup", async () => {
+test("app.exit prints the session epilogue after scoped cleanup", async () => withTty(async () => {
   const setup = await createTestRenderer({ width: 80, height: 24, useThread: false })
   const core = await import("@opentui/core")
   mock.module("@opentui/core", () => ({ ...core, createCliRenderer: async () => setup.renderer }))
   const events = createEventSource()
+  const demo = {
+    id: "dummy",
+    title: "Demo session",
+    slug: "dummy",
+    projectID: "project",
+    directory,
+    version: "0.0.0-test",
+    time: { created: 0, updated: 0 },
+  }
+  let sessionHydrated!: () => void
+  const hydrated = new Promise<void>((resolve) => {
+    sessionHydrated = resolve
+  })
   const calls = createFetch((url) => {
-    if (url.pathname === "/session")
-      return json([
-        {
-          id: "dummy",
-          title: "Demo session",
-          slug: "dummy",
-          projectID: "project",
-          directory,
-          version: "0.0.0-test",
-          time: { created: 0, updated: 0 },
-        },
-      ])
+    if (url.pathname === "/session") {
+      queueMicrotask(sessionHydrated)
+      return json([demo])
+    }
+    if (url.pathname === "/session/dummy") {
+      queueMicrotask(sessionHydrated)
+      return json(demo)
+    }
   })
   const originalWrite = process.stdout.write.bind(process.stdout)
   let stdout = ""
@@ -113,6 +131,9 @@ test("app.exit prints the session epilogue after scoped cleanup", async () => {
     )
 
     await ready
+    await hydrated
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    while (calls.inflight > 0) await new Promise((resolve) => setTimeout(resolve, 0))
     await setup.renderOnce()
     await setup.renderOnce()
     api?.keymap.dispatchCommand("app.exit")
@@ -125,4 +146,4 @@ test("app.exit prints the session epilogue after scoped cleanup", async () => {
     if (!setup.renderer.isDestroyed) setup.renderer.destroy()
     mock.restore()
   }
-})
+}))

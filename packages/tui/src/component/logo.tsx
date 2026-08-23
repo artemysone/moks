@@ -10,7 +10,7 @@ const STAGGER = 80
 
 export function Logo() {
   const { theme } = useTheme()
-  const [now, setNow] = createSignal(0)
+  const [now, setNow] = createSignal(900)
 
   onMount(() => {
     const origin = Date.now()

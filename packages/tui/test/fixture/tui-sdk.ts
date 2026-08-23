@@ -63,8 +63,11 @@ export type FetchHandler = (url: URL) => Response | Promise<Response> | undefine
 
 export function createFetch(override?: FetchHandler, events?: ReturnType<typeof createEventSource>) {
   const session = [] as URL[]
+  let inflight = 0
   const fetch = (async (input: RequestInfo | URL) => {
     const url = new URL(input instanceof Request ? input.url : String(input))
+    inflight++
+    try {
     if (url.pathname === "/session") session.push(url)
     const overridden = await override?.(url)
     if (overridden) return overridden
@@ -96,12 +99,35 @@ export function createFetch(override?: FetchHandler, events?: ReturnType<typeof 
         data: [],
       })
     if (url.pathname === "/project/current") return json({ id: "proj_test" })
+    if (/^\/project\/[^/]+\/directories$/.test(url.pathname)) return json([])
     if (url.pathname === "/api/reference")
       return json({ location: { directory, project: { id: "proj_test", directory } }, data: [] })
     if (url.pathname === "/provider") return json({ all: [], default: {}, connected: [] })
     if (url.pathname === "/session") return json([])
+    if (/^\/session\/[^/]+\/(message|todo|diff|children)$/.test(url.pathname)) return json([])
+    if (/^\/session\/[^/]+$/.test(url.pathname)) {
+      const id = url.pathname.slice("/session/".length)
+      return json({
+        id,
+        title: "",
+        slug: id,
+        projectID: "proj_test",
+        directory,
+        version: "0.0.0-test",
+        time: { created: 0, updated: 0 },
+      })
+    }
     if (url.pathname === "/vcs") return json({ branch: "main" })
     throw new Error(`unexpected request: ${url.pathname}`)
+    } finally {
+      inflight--
+    }
   }) as typeof globalThis.fetch
-  return { fetch, session }
+  return {
+    fetch,
+    session,
+    get inflight() {
+      return inflight
+    },
+  }
 }

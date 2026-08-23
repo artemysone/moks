@@ -7,7 +7,7 @@ import { Flag } from "@moks/core/flag/flag"
 import { InstallationVersion } from "@moks/core/installation/version"
 import { ClipboardProvider, useClipboard } from "./context/clipboard"
 import { ExitProvider, useExit } from "./context/exit"
-import { EpilogueProvider } from "./context/epilogue"
+import { EpilogueProvider, useEpilogue } from "./context/epilogue"
 import * as Selection from "./util/selection"
 import { createCliRenderer, MouseButton } from "@opentui/core"
 import { RouteProvider, useRoute } from "./context/route"
@@ -57,7 +57,8 @@ import { FrecencyProvider } from "./component/prompt/frecency"
 import { PromptStashProvider } from "./component/prompt/stash"
 import { DialogAlert } from "./ui/dialog-alert"
 import { DialogConfirm } from "./ui/dialog-confirm"
-import { runCommitFlow, runDecisionsFlow, runPushFlow, runReviewFlow } from "./ui/dialog-decision"
+import { runCommitFlow, runDecisionsFlow, runPushFlow } from "./ui/dialog-decision"
+import { ReviewPane } from "./ui/review-pane"
 import { ToastProvider, useToast } from "./ui/toast"
 import { isDefaultTitle } from "./util/session"
 import { KVProvider, useKV } from "./context/kv"
@@ -85,7 +86,10 @@ import { createTuiAttention } from "./attention"
 import * as TuiAudio from "./audio"
 import { win32DisableProcessedInput, win32FlushInputBuffer } from "./terminal-win32"
 import { destroyRenderer } from "./util/renderer"
+import { requireInteractiveTty } from "./util/tty"
 import { cliErrorMessage, errorFormat } from "./util/error"
+import { sessionEpilogue } from "./util/presentation"
+import { Locale } from "./util/locale"
 
 registerMoksSpinner()
 
@@ -118,6 +122,7 @@ const appBindingCommands = [
   "variant.list",
   "provider.connect",
   "decision.list",
+  "decision.review",
   "moks.system",
   "moks.debug",
   "theme.switch",
@@ -184,8 +189,9 @@ function isVersionGreater(left: string, right: string) {
 }
 
 export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
+  requireInteractiveTty()
   const global = yield* Global.Service
-  const exit = { epilogue: undefined as string | undefined, reason: undefined as unknown }
+  const exit = { epilogue: undefined as string | undefined, reason: undefined as unknown, sealed: false }
   const result = yield* Effect.scoped(
     Effect.gen(function* () {
       const renderer = yield* Effect.acquireRelease(
@@ -248,10 +254,15 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               exit={(reason) => {
                 if (renderer.isDestroyed) return
                 exit.reason = reason
+                exit.sealed = true
                 destroyRenderer(renderer)
               }}
             >
-              <EpilogueProvider set={(value) => (exit.epilogue = value)}>
+              <EpilogueProvider
+                set={(value) => {
+                  if (!exit.sealed) exit.epilogue = value
+                }}
+              >
                 <ErrorBoundary fallback={(error, reset) => <ErrorComponent error={error} reset={reset} mode={mode} />}>
                   <TuiPathsProvider
                     value={{
@@ -280,7 +291,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                       >
                         <ClipboardProvider>
                           <MoksKeymapProvider keymap={keymap}>
-                            <ArgsProvider {...input.args}>
+                            <ArgsProvider value={input.args}>
                               <KVProvider>
                                 <ToastProvider>
                                   <RouteProvider
@@ -366,6 +377,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
   const startup = useTuiStartup()
   const tuiConfig = useTuiConfig()
   const route = useRoute()
+  const setEpilogue = useEpilogue()
   const dimensions = useTerminalDimensions()
   const renderer = useRenderer()
   const dialog = useDialog()
@@ -384,6 +396,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
   const pluginRuntime = usePluginRuntime()
   const attention = createTuiAttention({ renderer, config: tuiConfig, kv })
   const clipboard = useClipboard()
+  const [reviewOpen, setReviewOpen] = createSignal(false)
+
 
   const api = createTuiApi(
     createTuiApiAdapters({
@@ -783,16 +797,12 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       },
       {
         name: "decision.review",
-        title: "Review changeset",
-        // No slashName: "/review" belongs to the packet-review server command.
-        // Ledger approve/reject stays reachable from the palette and the CLI.
+        title: "Taste staged changesets",
+        slashName: "review",
         category: "Decision",
         run: () => {
-          void runReviewFlow({
-            dialog,
-            toast,
-            cwd: project.instance.directory() || sdk.directory || undefined,
-          })
+          setReviewOpen(true)
+          dialog.clear()
         },
       },
       {
@@ -869,7 +879,21 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         title: "Exit the app",
         slashName: "exit",
         slashAliases: ["quit", "q"],
-        run: () => exit(),
+        run: () => {
+          const data = route.data
+          if (data.type === "session") {
+            const current = sync.session.get(data.sessionID)
+            if (current) {
+              setEpilogue(
+                sessionEpilogue({
+                  title: Locale.truncate(current.title ?? "", 50),
+                  sessionID: current.id,
+                }),
+              )
+            }
+          }
+          exit()
+        },
         category: "System",
       },
       {
@@ -1147,8 +1171,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       <Show when={Flag.MOKS_SHOW_TTFD}>
         <TimeToFirstDraw />
       </Show>
-      <Show when={ready()}>
-        <box flexGrow={1} minHeight={0} flexDirection="column">
+      <box flexGrow={1} minHeight={0} flexDirection="column">
           <Switch>
             <Match when={route.data.type === "home"}>
               <Home />
@@ -1160,12 +1183,14 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
             </Match>
           </Switch>
           {plugin()}
+          <Show when={reviewOpen()}>
+            <ReviewPane onClose={() => setReviewOpen(false)} />
+          </Show>
         </box>
         <box flexShrink={0}>
           <pluginRuntime.Slot name="app_bottom" />
         </box>
         <pluginRuntime.Slot name="app" />
-      </Show>
       <Show when={!startup.skipInitialLoading}>
         <StartupLoading ready={ready} />
       </Show>
