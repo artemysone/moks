@@ -8,3 +8,11 @@ export const HiringFixtures = {
   hiring: path.join(HiringFixturesDir, "HIRING.md"),
   card: path.join(HiringFixturesDir, "candidates", "jordan-lee.md"),
 } as const
+
+export const CompanyToneFixturesDir = path.join(import.meta.dir, "fixtures", "company")
+
+export const CompanyToneFixtures = {
+  dir: CompanyToneFixturesDir,
+  warm: path.join(CompanyToneFixturesDir, "warm.md"),
+  terse: path.join(CompanyToneFixturesDir, "terse.md"),
+} as const

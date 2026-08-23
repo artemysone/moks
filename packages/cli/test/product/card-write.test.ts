@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import path from "path"
 import { CandidateCard } from "../../src/product/candidate-card"
 import { CardWrite } from "../../src/product/card-write"
-import { HiringFixtures } from "../../src/product/fixtures"
+import { CompanyToneFixtures, HiringFixtures } from "../../src/product/fixtures"
 import { ReqWorkspace } from "../../src/product/req-workspace"
 import { tmpdir } from "../fixture/fixture"
 
@@ -213,6 +213,63 @@ test("same card + two COMPANY.md bars change score and draft", async () => {
   expect(b?.body).toContain("Warm and specific")
   expect(a?.body).toContain("COMPANY.md")
   expect(a?.body).not.toContain("Acme Corp")
+  expect(a?.body).not.toContain("We hire against:")
+  expect(b?.body).not.toContain("We hire against:")
+})
+
+function outreachEmail(body: string) {
+  return (body.split("## Email")[1] ?? "").split("## LinkedIn")[0] ?? ""
+}
+
+test("same card + two COMPANY.md tones change greeting, voice, and ask", async () => {
+  const hiring = [
+    "# Staff Platform",
+    "",
+    "## Scorecard",
+    "| Dimension | Bar | Notes |",
+    "|-----------|-----|-------|",
+    "| Systems design | owns a service | |",
+    "",
+  ].join("\n")
+  await using first = await tmpdir({
+    init: async (dir) => {
+      await companyReq(dir, await Bun.file(CompanyToneFixtures.terse).text(), hiring)
+    },
+  })
+  await using second = await tmpdir({
+    init: async (dir) => {
+      await companyReq(dir, await Bun.file(CompanyToneFixtures.warm).text(), hiring)
+    },
+  })
+  await CardWrite.writeOnCard(first.path, { kind: "draft", hint: "kenji-okada" })
+  await CardWrite.writeOnCard(second.path, { kind: "draft", hint: "kenji-okada" })
+  const a = await CandidateCard.read(path.join(first.path, "staff-platform"), "kenji-okada")
+  const b = await CandidateCard.read(path.join(second.path, "staff-platform"), "kenji-okada")
+  const terse = outreachEmail(a?.body ?? "")
+  const warm = outreachEmail(b?.body ?? "")
+  expect(terse).toContain("Okada,")
+  expect(terse).not.toContain("Hi Kenji")
+  expect(warm).toContain("Hi Kenji —")
+  expect(warm).not.toContain("Okada,")
+  expect(terse).toContain("15 minutes on the role. Yes or no is fine.")
+  expect(warm).toContain("If a short conversation would be useful, I'm around this week — no pitch deck.")
+  expect(terse).not.toContain("Would you be open to a short conversation about the role?")
+  expect(warm).not.toContain("Would you be open to a short conversation about the role?")
+  expect(terse).toContain("Regards,")
+  expect(warm).toContain("Talk soon if that's useful,")
+  expect(terse).not.toContain("Talk soon if that's useful,")
+  expect(warm).not.toContain("Regards,")
+  expect(terse).not.toContain("We hire against")
+  expect(warm).not.toContain("We hire against")
+  expect(terse).not.toContain("industry-leading")
+  expect(warm).not.toContain("industry-leading")
+  expect(terse).not.toContain("Bar: Written operators")
+  expect(warm).not.toContain("Ship weekly in public")
+  expect(terse).not.toBe(warm)
+  expect(a?.body).toContain("Payments edge and on-call")
+  expect(b?.body).toContain("Payments edge and on-call")
+  expect(a?.body).not.toContain("Acme Corp")
+  expect(a?.body).not.toContain("Meridian Fleet")
 })
 
 test("same card + two HIRING.md tables change score rows", async () => {
