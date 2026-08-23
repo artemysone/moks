@@ -456,3 +456,36 @@ test("slateBlock caps cards at 20 and omits body", async () => {
   expect(block).not.toContain("Meridian Fleet")
   expect(block?.split("\n").filter((line) => line.startsWith("  ")).length).toBe(20)
 })
+
+test("/open-req B leaves A's HIRING.md, candidates, and company-wide COMPANY.md", async () => {
+  await using tmp = await tmpdir()
+  const first = await ReqWorkspace.scaffoldReq(tmp.path, "Staff Platform")
+  expect(first.relative).toBe("staff-platform")
+  const hiringA = "# Staff Platform (edited)\n"
+  await Bun.write(path.join(tmp.path, "staff-platform", "HIRING.md"), hiringA)
+  await CandidateCard.write(path.join(tmp.path, "staff-platform"), {
+    id: "kenji-okada",
+    stage: "sourced",
+    extra: {},
+    body: "Payments edge\n",
+  })
+  await ReqWorkspace.writeFocus(tmp.path, "staff-platform")
+  const company = await Bun.file(path.join(tmp.path, "COMPANY.md")).text()
+
+  const second = await ReqWorkspace.scaffoldReq(tmp.path, "Senior Backend")
+  expect(second.relative).toBe("senior-backend")
+  await ReqWorkspace.writeFocus(tmp.path, "senior-backend")
+
+  expect(await ReqWorkspace.listReqs(tmp.path)).toEqual(["senior-backend", "staff-platform"])
+  expect(await Bun.file(path.join(tmp.path, "HIRING.md")).exists()).toBe(false)
+  expect(await Bun.file(path.join(tmp.path, "COMPANY.md")).text()).toBe(company)
+  expect(await Bun.file(path.join(tmp.path, "staff-platform", "HIRING.md")).text()).toBe(hiringA)
+  expect(await Bun.file(path.join(tmp.path, "staff-platform", "candidates", "kenji-okada.md")).exists()).toBe(true)
+  expect(await Bun.file(path.join(tmp.path, "senior-backend", "HIRING.md")).text()).toBe(
+    ReqWorkspace.stubFor("Senior Backend"),
+  )
+  expect(await Bun.file(path.join(tmp.path, "senior-backend", "candidates", ".gitkeep")).exists()).toBe(true)
+  expect(await ReqWorkspace.readFocus(tmp.path)).toBe("senior-backend")
+  expect(await ReqWorkspace.focusedReq(tmp.path)).toBe(path.join(tmp.path, "senior-backend"))
+  expect(await Bun.file(path.join(tmp.path, ".moks", "ledger.sqlite")).exists()).toBe(true)
+})

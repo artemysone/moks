@@ -84,7 +84,7 @@ async function computeSnapshot(company: string, opened: string): Promise<Session
   const packet = await ReqWorkspace.focusedReq(opened)
   const slug = packet ? path.basename(packet) : ((await ReqWorkspace.readFocus(company)) ?? null)
   const focused = slug && slug !== "." ? slug : null
-  const stagedIds = await listStagedIds(company)
+  const stagedIds = await listStagedIds(company, focused)
   const leftover = packet ? await leftoverOnPacket(packet) : null
   return {
     v: 1,
@@ -104,7 +104,16 @@ async function leftoverOnPacket(packet: string): Promise<LeftoverKind | null> {
   return null
 }
 
-async function listStagedIds(company: string) {
+function stagedReqSlug(meta: unknown) {
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return
+  const req = (meta as { req?: unknown }).req
+  if (typeof req !== "string") return
+  const slug = path.basename(req.trim())
+  if (!slug || slug === "." || slug === "..") return
+  return slug
+}
+
+async function listStagedIds(company: string, focused: string | null) {
   let api: Awaited<ReturnType<typeof importLedger>>
   try {
     api = await importLedger()
@@ -116,7 +125,12 @@ async function listStagedIds(company: string) {
   const db = api.openSqlite(paths.workspaceDb)
   try {
     api.migrateWorkspace(db)
-    return api.listChangesets(db, "staged").map((row) => row.id)
+    return api.listChangesets(db, "staged").flatMap((row) => {
+      if (!focused) return [row.id]
+      const slug = stagedReqSlug(row.agent_meta)
+      if (slug && slug !== focused) return []
+      return [row.id]
+    })
   } finally {
     db.close()
   }
