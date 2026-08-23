@@ -4,16 +4,16 @@ import { CandidateAdd } from "@/product/candidate-add"
 import { UI } from "../ui"
 
 export const AddCandidateCommand = effectCmd({
-  command: "add-candidate <file>",
+  command: "add-candidate [file..]",
   aliases: ["add-local-candidate"],
-  describe: "write a Sourced card from a local resume into the focused req",
+  describe: "write Sourced card(s) from local resumes into the focused req",
   instance: false,
   builder: (yargs) =>
     yargs
       .positional("file", {
         type: "string",
-        describe: "local resume or markdown path",
-        demandOption: true,
+        array: true,
+        describe: "local resume, markdown path, or directory of resumes",
       })
       .option("json", {
         type: "boolean",
@@ -21,15 +21,25 @@ export const AddCandidateCommand = effectCmd({
         describe: "print JSON only",
       }),
   handler: Effect.fn("Cli.add-candidate")(function* (args) {
-    const result = yield* Effect.tryPromise({
-      try: () => CandidateAdd.addFromFile(process.cwd(), args.file),
+    const files = Array.isArray(args.file) ? args.file : args.file ? [args.file] : []
+    const added = yield* Effect.tryPromise({
+      try: () => CandidateAdd.addPile(process.cwd(), { files: files.length ? files : [""], names: [] }),
       catch: (error) =>
         new CliError({ message: error instanceof Error ? error.message : String(error) }),
     })
     if (args.json) {
-      console.log(JSON.stringify({ command: "add-candidate", ...result }, null, 2))
+      const first = added[0]
+      console.log(
+        JSON.stringify(
+          added.length === 1 ? { command: "add-candidate", ...first, added } : { command: "add-candidate", added },
+          null,
+          2,
+        ),
+      )
       return
     }
-    UI.println(`add-candidate: wrote ${result.relative} (${result.id}, stage ${result.stage})`)
+    for (const result of added) {
+      UI.println(`add-candidate: wrote ${result.relative} (${result.id}, stage ${result.stage})`)
+    }
   }),
 })

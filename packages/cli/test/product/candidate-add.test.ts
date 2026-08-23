@@ -9,13 +9,25 @@ import { tmpdir } from "../fixture/fixture"
 import { withLedger } from "../../src/decision/session"
 
 test("parseAddIntent detects add-candidate command and prose", () => {
-  expect(CandidateAdd.parseAddIntent("add-candidate", "sam-chen.md")).toEqual({ file: "sam-chen.md" })
-  expect(CandidateAdd.parseAddIntent("add-candidate", "", [" /tmp/resume.md "])).toEqual({ file: "/tmp/resume.md" })
+  expect(CandidateAdd.parseAddIntent("add-candidate", "sam-chen.md")).toEqual({
+    files: ["sam-chen.md"],
+    names: [],
+  })
+  expect(CandidateAdd.parseAddIntent("add-candidate", "", [" /tmp/resume.md "])).toEqual({
+    files: ["/tmp/resume.md"],
+    names: [],
+  })
   expect(CandidateAdd.parseAddIntent(undefined, "Add candidate from resumes/sam-chen.md")).toEqual({
-    file: "resumes/sam-chen.md",
+    files: ["resumes/sam-chen.md"],
+    names: [],
+  })
+  expect(CandidateAdd.parseAddIntent(undefined, "add Kenji Sato and Nora Voss")).toEqual({
+    files: [],
+    names: ["Kenji Sato", "Nora Voss"],
   })
   expect(CandidateAdd.parseAddIntent(undefined, "Who is the hiring manager")).toBeUndefined()
   expect(CandidateAdd.parseAddIntent("score", "resume.md")).toBeUndefined()
+  expect(CandidateAdd.parseAddIntent(undefined, "add a note on Priya")).toBeUndefined()
 })
 
 test("addFromFile writes a Sourced card from a local resume only", async () => {
@@ -247,6 +259,86 @@ test("pull adopts a disk card so commit --target-id matches Score", async () => 
   expect(st.report.candidates).toBeGreaterThanOrEqual(6)
 })
 
+
+test("addPile writes two file cards and two name cards into the focused req", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await ReqWorkspace.scaffoldReq(dir, "Staff Platform")
+      await ReqWorkspace.writeFocus(dir, "staff-platform")
+      await Bun.write(path.join(dir, "kenji-sato.md"), "# Kenji Sato\n\nStaff platform.\n")
+      await Bun.write(path.join(dir, "nora-voss.md"), "# Nora Voss\n\nPlatform engineer.\n")
+    },
+  })
+  const fromFiles = await CandidateAdd.addPile(tmp.path, {
+    files: ["kenji-sato.md", "nora-voss.md"],
+    names: [],
+  })
+  expect(fromFiles.map((row) => row.id)).toEqual(["kenji-sato", "nora-voss"])
+  const packet = path.join(tmp.path, "staff-platform")
+  expect((await CandidateCard.read(packet, "kenji-sato"))?.body).toContain("Staff platform.")
+  expect((await CandidateCard.read(packet, "nora-voss"))?.body).toContain("Platform engineer.")
+  await withLedger(tmp.path, async (handle) => {
+    expect(handle.mockDb.prepare("SELECT id FROM candidates WHERE id = ?").get("kenji-sato")).toBeDefined()
+    expect(handle.mockDb.prepare("SELECT id FROM candidates WHERE id = ?").get("nora-voss")).toBeDefined()
+    expect(handle.api.readMirrorEntity(handle.db, "candidate", "kenji-sato")).toBeDefined()
+    expect(handle.api.readMirrorEntity(handle.db, "candidate", "nora-voss")).toBeDefined()
+  })
+})
+
+test("addFromName writes a minimal card and does not invent employment", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await ReqWorkspace.scaffoldReq(dir, "Staff Platform")
+      await ReqWorkspace.writeFocus(dir, "staff-platform")
+    },
+  })
+  const added = await CandidateAdd.addPile(tmp.path, { files: [], names: ["Kenji Sato", "Nora Voss"] })
+  expect(added.map((row) => row.id)).toEqual(["kenji-sato", "nora-voss"])
+  const packet = path.join(tmp.path, "staff-platform")
+  const kenji = await CandidateCard.read(packet, "kenji-sato")
+  expect(kenji?.body).toBe("# Kenji Sato\n")
+  expect(kenji?.source).toBe("name")
+  expect(kenji?.body).not.toContain("Meridian")
+  expect(kenji?.body).not.toContain("Northline")
+  expect((await CandidateCard.read(packet, "nora-voss"))?.body).toBe("# Nora Voss\n")
+  await withLedger(tmp.path, async (handle) => {
+    expect(handle.mockDb.prepare("SELECT name FROM candidates WHERE id = ?").get("kenji-sato")).toEqual({
+      name: "Kenji Sato",
+    })
+    expect(handle.mockDb.prepare("SELECT name FROM candidates WHERE id = ?").get("nora-voss")).toEqual({
+      name: "Nora Voss",
+    })
+  })
+})
+
+test("addPile expands a resume directory", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await ReqWorkspace.scaffoldReq(dir, "Staff Platform")
+      await ReqWorkspace.writeFocus(dir, "staff-platform")
+      await Bun.write(path.join(dir, "resumes", "kenji-sato.md"), "# Kenji Sato\n\nStaff.\n")
+      await Bun.write(path.join(dir, "resumes", "nora-voss.md"), "# Nora Voss\n\nStaff.\n")
+    },
+  })
+  const added = await CandidateAdd.addPile(tmp.path, { files: ["resumes"], names: [] })
+  expect(added.map((row) => row.id).toSorted()).toEqual(["kenji-sato", "nora-voss"])
+})
+
+test("addPile leftover-ledger and empty cwd fail loud", async () => {
+  await using empty = await tmpdir()
+  await expect(CandidateAdd.addPile(empty.path, { files: [], names: ["Kenji Sato"] })).rejects.toThrow(
+    /no focused req|not a company directory|leftover/,
+  )
+  await using leftover = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "COMPANY.md"), "# Acme\n")
+    },
+  })
+  await expect(CandidateAdd.addPile(leftover.path, { files: [], names: ["Kenji Sato"] })).rejects.toThrow(
+    /no focused req|not a company directory|leftover/,
+  )
+})
+
 const entry = path.join(import.meta.dir, "../../src/index.ts")
 
 async function moks(args: string[], cwd: string) {
@@ -298,4 +390,68 @@ test("headless add-candidate then commit --action note --target-id exits 0", asy
   expect(status.code).toBe(0)
   const json = JSON.parse(status.stdout) as { report: { candidates: number } }
   expect(json.report.candidates).toBeGreaterThanOrEqual(6)
+}, 20_000)
+
+async function moksRun(args: string[], cwd: string) {
+  const proc = Bun.spawn([process.execPath, entry, "run", ...args, "--json"], {
+    cwd,
+    env: {
+      ...process.env,
+      MOKS_PURE: "1",
+      MOKS_DISABLE_PROJECT_CONFIG: "1",
+      MOKS_TEST_HOME: Global.Path.home,
+      HOME: Global.Path.home,
+      XDG_DATA_HOME: process.env.XDG_DATA_HOME,
+      XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME,
+      XDG_STATE_HOME: process.env.XDG_STATE_HOME,
+      XDG_CACHE_HOME: process.env.XDG_CACHE_HOME,
+    },
+    stdout: "pipe",
+    stderr: "pipe",
+  })
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ])
+  return { code, stdout, stderr, combined: stdout + stderr }
+}
+
+test("recruit two names via language writes two cards and ledger rows", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await ReqWorkspace.scaffoldReq(dir, "Staff Platform")
+      await ReqWorkspace.writeFocus(dir, "staff-platform")
+    },
+  })
+  const result = await moksRun(["--agent", "recruit", "add Kenji Sato and Nora Voss"], tmp.path)
+  expect(result.code).toBe(0)
+  expect(result.combined).toContain("kenji-sato")
+  expect(result.combined).toContain("nora-voss")
+  const packet = path.join(tmp.path, "staff-platform")
+  expect(await CandidateCard.read(packet, "kenji-sato")).toMatchObject({ id: "kenji-sato", stage: "Sourced" })
+  expect(await CandidateCard.read(packet, "nora-voss")).toMatchObject({ id: "nora-voss", stage: "Sourced" })
+  await withLedger(tmp.path, async (handle) => {
+    expect(handle.api.readMirrorEntity(handle.db, "candidate", "kenji-sato")).toBeDefined()
+    expect(handle.api.readMirrorEntity(handle.db, "candidate", "nora-voss")).toBeDefined()
+  })
+}, 20_000)
+
+test("recruit two --file resumes writes two cards", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await ReqWorkspace.scaffoldReq(dir, "Staff Platform")
+      await ReqWorkspace.writeFocus(dir, "staff-platform")
+      await Bun.write(path.join(dir, "kenji-sato.md"), "# Kenji Sato\n\nStaff.\n")
+      await Bun.write(path.join(dir, "nora-voss.md"), "# Nora Voss\n\nStaff.\n")
+    },
+  })
+  const result = await moksRun(
+    ["--agent", "recruit", "--file", "kenji-sato.md", "--file", "nora-voss.md", "add these"],
+    tmp.path,
+  )
+  expect(result.code).toBe(0)
+  const packet = path.join(tmp.path, "staff-platform")
+  expect(await CandidateCard.read(packet, "kenji-sato")).toBeDefined()
+  expect(await CandidateCard.read(packet, "nora-voss")).toBeDefined()
 }, 20_000)
