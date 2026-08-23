@@ -731,8 +731,11 @@ test("push dry-run with staged and zero approved names review first", async () =
     })
     expect(pushed.ok).toBe(true)
     if (pushed.ok) {
-      expect(pushed.pushed[0]?.status).toBe("applied")
-      expect(pushed.pushed[0]?.reason).not.toBe("illegal_transition")
+      const item = pushed.pushed[0]
+      expect(item?.status).toBe("applied")
+      if (item && (item.status === "stale" || "reason" in item)) {
+        expect(item.reason).not.toBe("illegal_transition")
+      }
     }
     expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Screen" })
     const after = await DecisionVerbs.status({ cwd: tmp.path })
