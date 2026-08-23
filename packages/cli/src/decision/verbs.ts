@@ -48,6 +48,25 @@ export type ReviewInput = {
   cwd?: string
 }
 
+export type LogDecision = {
+  id: string
+  action: string
+  target: string
+  status: string
+  reason: string
+  reviewed_by?: string | null
+  line: string
+}
+
+export type LogResult = {
+  decisions: LogDecision[]
+  lines: string[]
+  next?: string
+  focused?: string | null
+  path: string
+  compliance?: unknown
+}
+
 const ADVERSE_MUTATIONS = new Set(["Reject", "ExtendOffer"])
 const ACTION_MUTATION: Record<string, string> = {
   note: "AddNote",
@@ -462,12 +481,12 @@ export function formatDecisionLine(row: {
   return `${row.action}  ${row.target}  ${bless}${reason}`
 }
 
-export async function log(input: { cwd?: string; compliance?: boolean; limit?: number } = {}) {
+export async function log(input: { cwd?: string; compliance?: boolean; limit?: number } = {}): Promise<LogResult> {
   await requireCompanyDirectory(input.cwd)
   return withLedger(input.cwd, async (handle) => {
     const { api } = handle
     if (input.compliance) {
-      return { compliance: api.readComplianceLog(handle.db, handle.policy.hash), path: handle.company }
+      return { compliance: api.readComplianceLog(handle.db, handle.policy.hash), path: handle.company, decisions: [], lines: [] }
     }
     const focused = focusedReqSlug(handle)
     const listed = api.listChangesets(handle.db)
