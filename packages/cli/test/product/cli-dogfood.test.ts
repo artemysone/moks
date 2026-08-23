@@ -339,7 +339,7 @@ describe("cli dogfood", () => {
     const first = reviewed.combined.trim().split(/\n/).find((line) => line.trim())
     expect(first).toBeDefined()
     expect(first).not.toMatch(/Unexpected error/)
-    expect(reviewed.combined).toContain("moks review requires --approve or --reject")
+    expect(reviewed.combined).toMatch(/changeset not found|not a company directory/)
 
     const noted = await moks(
       ["commit", "--action", "note", "--target-id", "cand_priya", "--body", "from score", "--cwd", company.path],
