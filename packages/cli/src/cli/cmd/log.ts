@@ -5,7 +5,7 @@ import { UI } from "../ui"
 
 export const LogCommand = effectCmd({
   command: "log",
-  describe: "show the hash-chained decision log",
+  describe: "show recent decisions on the focused req",
   instance: false,
   builder: (yargs) =>
     yargs
@@ -36,29 +36,23 @@ export const LogCommand = effectCmd({
       console.log(JSON.stringify(result, null, 2))
       return
     }
-    if (!("entries" in result) || !result.entries || !result.chain) {
+    if ("compliance" in result) {
       console.log(JSON.stringify(result, null, 2))
       return
     }
-    const entries = result.entries
-    const chain = result.chain
-    if (entries.length === 0) {
-      UI.println(`${UI.Style.TEXT_DIM}log empty${UI.Style.TEXT_NORMAL}`)
-      UI.println(`${UI.Style.TEXT_DIM}${result.path}${UI.Style.TEXT_NORMAL}`)
+    if (!("lines" in result) || !result.lines) {
+      console.log(JSON.stringify(result, null, 2))
       return
     }
-    if (!chain.ok) {
-      const at = chain.changesetId
-      UI.println(
-        `${UI.Style.TEXT_WARNING}chain ${chain.reason}${at ? ` at ${at}` : ""}${UI.Style.TEXT_NORMAL}`,
-      )
+    if (result.lines.length === 0) {
+      UI.println(`${UI.Style.TEXT_DIM}no decisions on ${result.focused ?? "this req"}${UI.Style.TEXT_NORMAL}`)
+    } else {
+      for (const line of result.lines) {
+        UI.println(line)
+      }
     }
-    for (const row of entries) {
-      const reviewer = row.reviewed_by ? ` reviewed_by=${row.reviewed_by}` : ""
-      const audit = row.audit ? "  sampled for audit" : ""
-      UI.println(
-        `${row.id}  ${row.status}  ${row.hash.slice(0, 12)}  ${row.author_id}${reviewer}${audit}  ${row.rationale.split("\n")[0]}`,
-      )
+    if (result.next) {
+      UI.println(`${UI.Style.TEXT_DIM}next: ${result.next}${UI.Style.TEXT_NORMAL}`)
     }
     UI.println(`${UI.Style.TEXT_DIM}${result.path}${UI.Style.TEXT_NORMAL}`)
   }),
