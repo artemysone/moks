@@ -513,6 +513,19 @@ test("push dry-run with staged and zero approved names review first", async () =
     await expect(DecisionVerbs.push({ cwd: stub.path })).rejects.toThrow(/not a company directory|no ledger|pass --cwd\/--dir|empty company/)
   })
 
+  test("leftover-ledger and empty cwd fail loud on log", async () => {
+    await using empty = await tmpdir()
+    await expect(DecisionVerbs.log({ cwd: empty.path })).rejects.toThrow(/not a company directory|no ledger|empty company/)
+
+    await using leftover = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "COMPANY.md"), ReqWorkspace.COMPANY_STUB)
+        await Bun.write(path.join(dir, ".moks", "ledger.sqlite"), "")
+      },
+    })
+    await expect(DecisionVerbs.log({ cwd: leftover.path })).rejects.toThrow(/not a company directory|leftover|pass --cwd\/--dir/)
+  })
+
 
   test("pull without a company directory fails and does not write a ledger", async () => {
     await using empty = await tmpdir()
@@ -817,6 +830,68 @@ test("push dry-run with staged and zero approved names review first", async () =
       expect(message).not.toBe("rebase_not_found")
       expect(message).toMatch(/moks status/)
     }
+  })
+
+  test("log on the focused req reconstructs action, target, bless, and reason", async () => {
+    await using company = await companyWorkspace()
+    const req = path.join(company.path, "senior-backend")
+    const other = path.join(company.path, "staff-platform")
+    await Bun.write(path.join(other, "HIRING.md"), "# SP\n")
+    await CandidateCard.write(other, {
+      id: "cand_other",
+      stage: "Sourced",
+      extra: { name: "Other" },
+      body: "# Other\n",
+    })
+    await pull(req)
+    const note = await DecisionVerbs.commit({
+      action: "note",
+      target: { kind: "candidate", id: "cand_priya" },
+      reason: "spoke to HM",
+      cwd: req,
+    })
+    await DecisionVerbs.review({
+      id: note.changeset.id,
+      action: "approve",
+      by: "you",
+      cwd: req,
+    })
+    const reject = await DecisionVerbs.commit({
+      action: "reject",
+      target: { kind: "candidate", id: "cand_priya" },
+      reason: "weak systems evidence",
+      cwd: req,
+    })
+    await DecisionVerbs.review({
+      id: reject.changeset.id,
+      action: "reject",
+      by: "you",
+      reason: "no systems depth",
+      cwd: req,
+    })
+    await DecisionVerbs.commit({
+      action: "note",
+      target: { kind: "candidate", id: "cand_other" },
+      reason: "other req only",
+      cwd: other,
+    })
+
+    const result = await DecisionVerbs.log({ cwd: req })
+    const blob = result.lines.join("\n")
+    expect(blob).toContain("reject")
+    expect(blob).toContain("cand_priya")
+    expect(blob).toMatch(/rejected by you/)
+    expect(blob).toContain("no systems depth")
+    expect(blob).toContain("note")
+    expect(blob).toMatch(/blessed by you|approved/)
+    expect(blob).toContain("spoke to HM")
+    expect(blob).not.toContain("other req only")
+    expect(blob).not.toContain("cand_other")
+    expect(result.next).toBeTruthy()
+    const priya = result.decisions.filter((row) => row.target === "cand_priya")
+    expect(priya.map((row) => row.action)).toEqual(expect.arrayContaining(["reject", "note"]))
+    expect(priya.some((row) => row.status === "rejected" && row.reason.includes("no systems depth"))).toBe(true)
+    expect(priya.some((row) => row.status === "approved" && row.reason.includes("spoke to HM"))).toBe(true)
   })
 
   test("MOKS_ATS=ashby is unwired and fails loud instead of a green mock pull", async () => {

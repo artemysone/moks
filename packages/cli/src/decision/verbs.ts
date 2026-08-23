@@ -48,6 +48,25 @@ export type ReviewInput = {
   cwd?: string
 }
 
+export type LogDecision = {
+  id: string
+  action: string
+  target: string
+  status: string
+  reason: string
+  reviewed_by?: string | null
+  line: string
+}
+
+export type LogResult = {
+  decisions: LogDecision[]
+  lines: string[]
+  next?: string
+  focused?: string | null
+  path: string
+  compliance?: unknown
+}
+
 const ADVERSE_MUTATIONS = new Set(["Reject", "ExtendOffer"])
 const ACTION_MUTATION: Record<string, string> = {
   note: "AddNote",
@@ -409,14 +428,108 @@ export async function push(input: PushInput) {
   })
 }
 
-export async function log(input: { cwd?: string; compliance?: boolean } = {}) {
+function reqSlugFromMeta(meta: unknown) {
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return
+  const req = (meta as { req?: unknown }).req
+  if (typeof req !== "string") return
+  const slug = path.basename(req.trim())
+  if (!slug || slug === "." || slug === "..") return
+  return slug
+}
+
+function focusedReqSlug(handle: LedgerHandle) {
+  if (!handle.req) return
+  const slug = path.basename(handle.req)
+  if (!slug || slug === "." || handle.req === handle.company) return
+  return slug
+}
+
+function logTargetId(handle: LedgerHandle, change: { entity_type: string; entity_ref: string } | undefined) {
+  if (!change) return ""
+  if (change.entity_type !== "application") return change.entity_ref
+  const hit = handle.api.listApplications(handle.db).find((row) => row.id === change.entity_ref)
+  return hit?.candidateId ?? change.entity_ref
+}
+
+function logReason(row: { rationale: string; agent_meta: unknown }) {
+  const meta = row.agent_meta && typeof row.agent_meta === "object" && !Array.isArray(row.agent_meta)
+    ? (row.agent_meta as { review_reason?: unknown })
+    : {}
+  const review = typeof meta.review_reason === "string" ? meta.review_reason.trim() : ""
+  if (review) return review
+  return (row.rationale.split(/\n/)[0] ?? "").trim()
+}
+
+export function formatDecisionLine(row: {
+  action: string
+  target: string
+  status: string
+  reason: string
+  reviewed_by?: string | null
+}) {
+  const bless =
+    row.status === "rejected"
+      ? row.reviewed_by
+        ? `rejected by ${row.reviewed_by}`
+        : "rejected"
+      : row.status === "approved" || row.status === "applied"
+        ? row.reviewed_by
+          ? `blessed by ${row.reviewed_by}`
+          : row.status
+        : row.status
+  const reason = row.reason ? `  ${row.reason}` : ""
+  return `${row.action}  ${row.target}  ${bless}${reason}`
+}
+
+export async function log(input: { cwd?: string; compliance?: boolean; limit?: number } = {}): Promise<LogResult> {
   await requireCompanyDirectory(input.cwd)
   return withLedger(input.cwd, async (handle) => {
     const { api } = handle
     if (input.compliance) {
-      return { compliance: api.readComplianceLog(handle.db, handle.policy.hash), path: handle.company }
+      return { compliance: api.readComplianceLog(handle.db, handle.policy.hash), path: handle.company, decisions: [], lines: [] }
     }
-    return { entries: api.readLog(handle.db), chain: api.verifyChain(handle.db), path: handle.company }
+    const focused = focusedReqSlug(handle)
+    const listed = api.listChangesets(handle.db)
+    const scoped = listed.filter((row) => {
+      if (!focused) return true
+      const slug = reqSlugFromMeta(row.agent_meta)
+      return !slug || slug === focused
+    })
+    const limit = input.limit ?? 20
+    const decisions = scoped.slice(0, limit).map((row) => {
+      const detail = api.getChangeset(handle.db, handle.vault, row.id)
+      const change = detail.changes[0]
+      const meta =
+        detail.agent_meta && typeof detail.agent_meta === "object" && !Array.isArray(detail.agent_meta)
+          ? (detail.agent_meta as { action?: string; review_reason?: string })
+          : {}
+      const action = meta.action ?? change?.mutation ?? "change"
+      const target = logTargetId(handle, change)
+      const reason = logReason(detail)
+      return {
+        id: row.id,
+        action,
+        target,
+        status: row.status,
+        reason,
+        reviewed_by: row.reviewed_by,
+        line: formatDecisionLine({
+          action,
+          target,
+          status: row.status,
+          reason,
+          reviewed_by: row.reviewed_by,
+        }),
+      }
+    })
+    const session = await HiringSession.loadSnapshot(input.cwd)
+    return {
+      decisions,
+      lines: decisions.map((row) => row.line),
+      next: session.next,
+      focused: session.focused,
+      path: handle.company,
+    }
   })
 }
 
