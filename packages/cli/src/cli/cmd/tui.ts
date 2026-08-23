@@ -247,6 +247,16 @@ export const TuiThreadCommand = cmd({
       return
     }
     const noReplay = args.replay === false || args.noReplay === true
+    const unsupported = [
+      ["--no-replay", noReplay],
+      ["--replay-limit", args.replayLimit !== undefined],
+      ["--demo", args.demo !== undefined],
+    ].find((entry) => entry[1])?.[0]
+    if (!args.mini && unsupported) {
+      UI.error(`${unsupported} requires --mini`)
+      process.exitCode = 1
+      return
+    }
 
     const directoryGuess = resolveThreadDirectory(args.project)
     const liveCompany = await isLiveCompany(directoryGuess)
@@ -286,17 +296,6 @@ export const TuiThreadCommand = cmd({
         replayLimit: args.replayLimit,
         demo: args.demo,
       })
-      return
-    }
-
-    const unsupported = [
-      ["--no-replay", noReplay],
-      ["--replay-limit", args.replayLimit !== undefined],
-      ["--demo", args.demo !== undefined],
-    ].find((entry) => entry[1])?.[0]
-    if (unsupported) {
-      UI.error(`${unsupported} requires --mini`)
-      process.exitCode = 1
       return
     }
 
