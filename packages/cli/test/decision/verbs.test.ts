@@ -566,20 +566,45 @@ test("push dry-run with staged and zero approved names review first", async () =
     )
     expect(hiringDoc.stages).toEqual(["Sourced", "Screen", "Phone", "Onsite", "Offer", "Hired"])
     expect(isStage("Phone")).toBe(true)
-    try {
-      const phoneHop = await DecisionVerbs.commit({
-        action: "advance",
-        target: { kind: "candidate", id: "cand_priya" },
-        to: "Phone",
-        reason: "HIRING next",
-        cwd: tmp.path,
-      })
-      expect(phoneHop.changeset.changes[0].mutation).toBe("AdvanceStage")
-      expect(phoneHop.changeset.changes[0].payload).toEqual(expect.objectContaining({ to: "Phone" }))
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      expect(message).not.toMatch(/invalid_payload/)
-      expect(message).toMatch(/illegal_transition|legal next|not a legal next/)
-    }
+    const phoneHop = await DecisionVerbs.commit({
+      action: "advance",
+      target: { kind: "candidate", id: "cand_priya" },
+      to: "Phone",
+      reason: "HIRING next",
+      cwd: tmp.path,
+    })
+    expect(phoneHop.changeset.changes[0].mutation).toBe("AdvanceStage")
+    expect(phoneHop.changeset.changes[0].payload).toEqual(expect.objectContaining({ to: "Phone" }))
+  })
+
+  test("HIRING staged Screen hop makes --to Phone legal at commit", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(
+          path.join(dir, "HIRING.md"),
+          "# Role\n## Process\n- Stages: sourced → screen → phone → onsite → offer → hire\n",
+        )
+        await Bun.write(path.join(dir, "candidates", ".gitkeep"), "")
+      },
+    })
+    await pull(tmp.path)
+    const screen = await DecisionVerbs.commit({
+      action: "advance",
+      target: { kind: "candidate", id: "cand_priya" },
+      to: "Screen",
+      reason: "HIRING next",
+      cwd: tmp.path,
+    })
+    expect(screen.changeset.status).toBe("staged")
+    const phone = await DecisionVerbs.commit({
+      action: "advance",
+      target: { kind: "candidate", id: "cand_priya" },
+      to: "Phone",
+      reason: "HIRING next",
+      cwd: tmp.path,
+    })
+    expect(phone.changeset.status === "staged" || phone.changeset.status === "approved").toBe(true)
+    expect(phone.changeset.changes[0].mutation).toBe("AdvanceStage")
+    expect(phone.changeset.changes[0].payload).toEqual(expect.objectContaining({ to: "Phone" }))
   })
 })

@@ -184,6 +184,29 @@ function validatePayload(mutation: Mutation, payload: unknown): void {
   }
 }
 
+/** Applied stage plus last staged/approved AdvanceStage.to for this entity (changeset order). */
+export function pendingAdvanceStage(
+  db: SqliteDb,
+  vault: Vault,
+  entityRef: string,
+  applied: string,
+): ApplicationStage | undefined {
+  let stage = isStage(applied) ? applied : undefined;
+  const pending = db
+    .prepare("SELECT id FROM changesets WHERE status IN ('staged', 'approved') ORDER BY rowid ASC")
+    .all() as Array<{ id: string }>;
+  for (const { id } of pending) {
+    for (const row of loadChangeRows(db, id)) {
+      if (row.mutation !== "AdvanceStage" || row.entity_ref !== entityRef) continue;
+      const payload = toChangeRecord(row, vault).payload;
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) continue;
+      const to = (payload as { to?: unknown }).to;
+      if (typeof to === "string" && isStage(to)) stage = to;
+    }
+  }
+  return stage;
+}
+
 /** Throws LedgerError if payload or transition would be rejected at commit. */
 export function assertMutationLegal(
   mutation: Mutation,
@@ -413,7 +436,15 @@ export function commitChangeset(
           throw new LedgerError(`precondition_mismatch: ${change.entity_type}:${entityRef}`);
         }
       }
-      validateTransition(change.mutation, change.entity_type, state, change.payload, options?.stages);
+      let transitionState = state;
+      if (change.mutation === "AdvanceStage" && !prior) {
+        const application = asApplication(state);
+        if (application) {
+          const from = pendingAdvanceStage(db, vault, entityRef, application.stage);
+          if (from) transitionState = { ...application, stage: from };
+        }
+      }
+      validateTransition(change.mutation, change.entity_type, transitionState, change.payload, options?.stages);
 
       prepared.push({
         entity_type: change.entity_type,

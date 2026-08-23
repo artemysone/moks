@@ -19,6 +19,7 @@ export {
   isLegalAdvance,
   isLegalAdvanceOnPath,
   isMutation,
+  isStage,
   nextStage,
   nextStageOnPath,
 } from "./domain.ts";
@@ -42,6 +43,7 @@ export {
   loadChangesetRow,
   markChangesetApplied,
   markChangesetStatus,
+  pendingAdvanceStage,
   readLog,
   reviewChangeset,
   setChangeRemoteResult,
