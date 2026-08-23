@@ -55,7 +55,7 @@ export const ReviewCommand = effectCmd({
         return
       }
       if (listed.rows.length === 0) {
-        UI.println("no staged or approved changesets")
+        UI.println("nothing to review — commit a change first (moks commit), then moks review")
         UI.println(`${UI.Style.TEXT_DIM}${listed.path}${UI.Style.TEXT_NORMAL}`)
         return
       }

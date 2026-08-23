@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { effectCmd } from "../effect-cmd"
+import { CliError, effectCmd } from "../effect-cmd"
 import { DecisionVerbs } from "@/decision/verbs"
 import { UI } from "../ui"
 
@@ -25,7 +25,13 @@ export const RebaseCommand = effectCmd({
         describe: "company directory (alias: --dir; same as moks run --dir)",
       }),
   handler: Effect.fn("Cli.rebase")(function* (args) {
-    const result = yield* Effect.promise(() => DecisionVerbs.rebase({ cwd: args.cwd, id: args.id }))
+    const result = yield* Effect.tryPromise({
+      try: () => DecisionVerbs.rebase({ cwd: args.cwd, id: args.id }),
+      catch: (error) =>
+        new CliError({
+          message: error instanceof Error ? error.message : "rebase failed",
+        }),
+    })
     if (args.json) {
       console.log(JSON.stringify(result, null, 2))
       return
