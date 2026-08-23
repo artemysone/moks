@@ -308,13 +308,73 @@ function scored(card: Card, req: ReturnType<typeof parseReq>, packet: string) {
   return { ...card, score: overall, body: upsertSection(card.body, "Score", section) }
 }
 
-function drafted(card: Card, req: ReturnType<typeof parseReq>, packet: string) {
-  const source = path.relative(packet, CandidateCard.filePath(packet, card.id)).replaceAll(path.sep, "/")
+function voiceOf(tone: string[]): "warm" | "terse" | "plain" {
+  if (tone.length === 0) return "plain"
+  const blob = tone.join(" ").toLowerCase()
+  const terse = /\b(terse|formal|direct|crisp|brief|no fluff|no-fluff)\b/.test(blob)
+  const warm = /\b(warm|specific|friendly|personal|human)\b/.test(blob)
+  if (terse && !warm) return "terse"
+  if (warm && !terse) return "warm"
+  if (terse) return "terse"
+  return "warm"
+}
+
+function letter(card: Card, req: ReturnType<typeof parseReq>) {
   const name = card.extra.name || card.id
   const first = name.split(/\s+/)[0] ?? name
   const hook = quoteFor(card, tokens(`${card.extra.name ?? ""} ${req.title}`)) ?? quoteFor(card, tokens(card.body))
   const where = req.location ? ` (${req.location})` : ""
   const who = req.company ? `${req.company} is hiring` : "We're hiring"
+  const voice = voiceOf(req.tone)
+  const bar = req.companyBar[0]
+  const about = req.about[0]
+  if (voice === "plain") {
+    return {
+      greeting: `Hi ${first},`,
+      opening: hook ? `${who} a ${req.title}${where}. Your card notes: "${hook}"` : `${who} a ${req.title}${where}.`,
+      register: undefined as string | undefined,
+      ask: "Would you be open to a short conversation about the role?",
+      linkedin: `Hi ${first} — ${who.toLowerCase()} a ${req.title}${where}. Open to a quick chat?`,
+      hook,
+    }
+  }
+  if (voice === "warm") {
+    const shop = about ? ` ${about}` : ""
+    const opening = hook
+      ? `I keep coming back to this on your card: "${hook}"`
+      : `${who} a ${req.title}${where}.`
+    const register = bar
+      ? `That sits next to how we hire${shop ? ` (${shop.trim()})` : ""} — ${bar}, not a generic rec-screen.`
+      : about
+        ? `We're the${shop} team hiring a ${req.title}${where}.`
+        : undefined
+    return {
+      greeting: `Hi ${first} —`,
+      opening,
+      register,
+      ask: "If a short conversation would be useful, I'm around this week — no pitch deck.",
+      linkedin: `Hi ${first} — your card stuck with me. Open to a real conversation about ${req.title}?`,
+      hook,
+    }
+  }
+  const opening = hook
+    ? `${req.company ?? "We"}: ${req.title}${where}. "${hook}"`
+    : `${req.company ?? "We"}: ${req.title}${where}.`
+  const register = bar ? `Bar: ${bar}.` : undefined
+  return {
+    greeting: `${first},`,
+    opening,
+    register,
+    ask: "15 minutes on the role. Yes or no is fine.",
+    linkedin: `${first} — ${req.title}${where}. 15 minutes?`,
+    hook,
+  }
+}
+
+function drafted(card: Card, req: ReturnType<typeof parseReq>, packet: string) {
+  const source = path.relative(packet, CandidateCard.filePath(packet, card.id)).replaceAll(path.sep, "/")
+  const name = card.extra.name || card.id
+  const copy = letter(card, req)
   const emailNote = /@/.test(card.body) ? "Recipient email is on the card; do not send." : "Recipient email is unset; draft only."
   const section = [
     `# Outreach`,
@@ -325,19 +385,18 @@ function drafted(card: Card, req: ReturnType<typeof parseReq>, packet: string) {
     `Subject: ${req.title} — ${name}`,
     "",
     "Body:",
-    `Hi ${first},`,
+    copy.greeting,
     "",
-    hook ? `${who} a ${req.title}${where}. Your card notes: "${hook}"` : `${who} a ${req.title}${where}.`,
-    ...(req.companyBar.length ? ["", `We hire against: ${req.companyBar.join(", ")}.`] : []),
-    ...(req.tone.length ? ["", req.tone[0]] : []),
+    copy.opening,
+    ...(copy.register ? ["", copy.register] : []),
     "",
-    "Would you be open to a short conversation about the role?",
+    copy.ask,
     "",
     "## LinkedIn",
-    `Hi ${first} — ${who.toLowerCase()} a ${req.title}${where}. Open to a quick chat?`,
+    copy.linkedin,
     "",
     "## Personalization hooks",
-    hook ? `- "${hook}" (${source})` : `- No extra facts on ${source} beyond the name`,
+    copy.hook ? `- "${copy.hook}" (${source})` : `- No extra facts on ${source} beyond the name`,
     `- Role title from ${HIRING_FILE}: ${req.title}`,
     ...(req.companyBar.length ? [`- Company bar from ${COMPANY_FILE}: ${req.companyBar.join("; ")}`] : []),
     ...(req.tone.length ? [`- Tone from ${COMPANY_FILE}: ${req.tone.join("; ")}`] : []),
