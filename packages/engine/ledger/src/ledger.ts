@@ -5,11 +5,12 @@ import {
   isAuthorKind,
   isEffectClass,
   isEntityType,
-  isLegalAdvance,
+  isLegalAdvanceOnPath,
   isMutation,
   isStage,
   nextEntityState,
   requiredEffectClass,
+  type ApplicationStage,
   type AuthorKind,
   type ChangesetStatus,
   type EffectClass,
@@ -35,6 +36,7 @@ const CHANGESET_COLS =
 
 export type CommitPolicyOptions = {
   policy?: Policy;
+  stages?: ApplicationStage[];
   rng?: () => number;
 };
 
@@ -188,12 +190,19 @@ export function assertMutationLegal(
   entityType: EntityType,
   state: unknown,
   payload: unknown,
+  stages?: ApplicationStage[],
 ): void {
   validatePayload(mutation, payload);
-  validateTransition(mutation, entityType, state, payload);
+  validateTransition(mutation, entityType, state, payload, stages);
 }
 
-function validateTransition(mutation: Mutation, entityType: EntityType, state: unknown, payload: unknown): void {
+function validateTransition(
+  mutation: Mutation,
+  entityType: EntityType,
+  state: unknown,
+  payload: unknown,
+  stages?: ApplicationStage[],
+): void {
   if (mutation === "AddNote" || mutation === "AddTag" || mutation === "SendOutreach") {
     return;
   }
@@ -219,7 +228,7 @@ function validateTransition(mutation: Mutation, entityType: EntityType, state: u
   }
   if (mutation === "AdvanceStage") {
     const to = (payloadRecord(payload).to as string) ?? "";
-    if (!isLegalAdvance(application.stage, isStage(to) ? to : application.stage) || !isStage(to)) {
+    if (!isLegalAdvanceOnPath(application.stage, isStage(to) ? to : application.stage, stages) || !isStage(to)) {
       throw new LedgerError(`illegal_transition: ${application.stage} → ${to}`);
     }
     return;
@@ -404,7 +413,7 @@ export function commitChangeset(
           throw new LedgerError(`precondition_mismatch: ${change.entity_type}:${entityRef}`);
         }
       }
-      validateTransition(change.mutation, change.entity_type, state, change.payload);
+      validateTransition(change.mutation, change.entity_type, state, change.payload, options?.stages);
 
       prepared.push({
         entity_type: change.entity_type,

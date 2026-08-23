@@ -1,4 +1,5 @@
-import { isMutation, requiredEffectClass, type Mutation } from "./domain.ts";
+import { isMutation, requiredEffectClass, type ApplicationStage, type Mutation } from "./domain.ts";
+import { isStage } from "./domain.ts";
 
 export type Gate = "auto" | "batch" | "always";
 
@@ -15,6 +16,8 @@ export type HiringDoc = {
   comp: string;
   tone: string;
   policy: Policy;
+  /** Recognized ledger stages from ## Process, in order. Empty = use the default machine. */
+  stages: ApplicationStage[];
   warnings: string[];
 };
 
@@ -40,6 +43,7 @@ export function parseHiringMarkdown(text: string): HiringDoc {
     comp: sections.get("comp") ?? "",
     tone: findTone(sections),
     policy: parsePolicy(sections.get("policy") ?? "", warnings),
+    stages: parseProcessStages(sections.get("process") ?? ""),
     warnings,
   };
 }
@@ -95,6 +99,34 @@ function findTone(sections: Map<string, string>): string {
     if (name === "tone" || name.startsWith("tone")) return body;
   }
   return "";
+}
+
+const STAGE_ALIAS: Record<string, ApplicationStage> = {
+  sourced: "Sourced",
+  contacted: "Contacted",
+  replied: "Replied",
+  screen: "Screen",
+  interview: "Interview",
+  offer: "Offer",
+  hire: "Hired",
+  hired: "Hired",
+};
+
+/** Stages named by the req. Unknown tokens (phone, onsite, …) are dropped, not invented. */
+export function parseProcessStages(body: string): ApplicationStage[] {
+  const stages: ApplicationStage[] = [];
+  for (const rawLine of body.split(/\r?\n/)) {
+    const line = stripComment(rawLine).trim().replace(/^[-*]\s*/, "");
+    const match = line.match(/^stages\s*:\s*(.+)$/i);
+    if (!match) continue;
+    for (const token of match[1]!.split(/\s*(?:\u2192|->|\|)\s*/)) {
+      const key = token.trim().toLowerCase();
+      if (!key) continue;
+      const mapped = STAGE_ALIAS[key] ?? (isStage(token.trim()) ? token.trim() : undefined);
+      if (mapped && !stages.includes(mapped)) stages.push(mapped);
+    }
+  }
+  return stages;
 }
 
 function parsePolicy(body: string, warnings: string[]): Policy {

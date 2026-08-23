@@ -163,7 +163,7 @@ async function commitWithHandle(handle: LedgerHandle, input: CommitInput) {
       },
       changes,
     },
-    { policy: handle.policy.policy },
+    { policy: handle.policy.policy, stages: handle.policy.stages },
   )
   await projectCard(handle, input, changeset.changes)
   const adverse = changeset.changes.some((change) => isAdverseMutation(change.mutation, change.payload))
@@ -199,7 +199,7 @@ function legalNextFor(handle: LedgerHandle, id: string) {
   const applications = handle.api.listApplications(handle.db)
   const row = applications.find((item) => item.candidateId === id || item.id === id)
   if (!row) return
-  return handle.api.nextStage(row.stage) ?? undefined
+  return nextOnReq(handle, row.stage)
 }
 
 function suggestRejectableTarget(handle: LedgerHandle, failedId: string, mutation?: string) {
@@ -548,7 +548,13 @@ function payloadFor(handle: LedgerHandle, mutation: string, input: CommitInput, 
 function nextStageFor(handle: LedgerHandle, entityRef: string) {
   const application = handle.api.listApplications(handle.db).find((row) => row.id === entityRef)
   if (!application) return
-  return handle.api.nextStage(application.stage) ?? undefined
+  return nextOnReq(handle, application.stage)
+}
+
+function nextOnReq(handle: LedgerHandle, stage: string) {
+  const path = handle.policy.stages
+  if (path.length >= 2) return handle.api.nextStageOnPath(stage, path) ?? undefined
+  return handle.api.nextStage(stage) ?? undefined
 }
 
 // The mirror owns stage (dispositions flow through commit/push); score, notes,

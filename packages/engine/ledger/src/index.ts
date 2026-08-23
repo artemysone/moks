@@ -17,8 +17,10 @@ export {
   MUTATION_EFFECT_CLASS,
   MUTATIONS,
   isLegalAdvance,
+  isLegalAdvanceOnPath,
   isMutation,
   nextStage,
+  nextStageOnPath,
 } from "./domain.ts";
 export {
   canonicalJson,

@@ -5,7 +5,9 @@ import {
   canExitToTerminal,
   canExtendOffer,
   isLegalAdvance,
+  isLegalAdvanceOnPath,
   nextStage,
+  nextStageOnPath,
   requiredEffectClass,
 } from "./domain.ts";
 
@@ -64,5 +66,21 @@ describe("requiredEffectClass", () => {
     expect(requiredEffectClass("Reject")).toBe("irreversible");
     expect(requiredEffectClass("SendOutreach")).toBe("irreversible");
     expect(requiredEffectClass("ExtendOffer")).toBe("irreversible");
+  });
+});
+
+describe("nextStageOnPath / isLegalAdvanceOnPath", () => {
+  const path = ["Sourced", "Screen", "Offer", "Hired"] as const;
+
+  test("path of length >= 2 uses the req order", () => {
+    expect(nextStageOnPath("Sourced", path)).toBe("Screen");
+    expect(isLegalAdvanceOnPath("Sourced", "Screen", path)).toBe(true);
+    expect(isLegalAdvanceOnPath("Sourced", "Contacted", path)).toBe(false);
+  });
+
+  test("missing or short path falls back to the default machine", () => {
+    expect(isLegalAdvanceOnPath("Sourced", "Contacted")).toBe(true);
+    expect(isLegalAdvanceOnPath("Sourced", "Screen")).toBe(false);
+    expect(isLegalAdvanceOnPath("Sourced", "Screen", ["Sourced"])).toBe(false);
   });
 });

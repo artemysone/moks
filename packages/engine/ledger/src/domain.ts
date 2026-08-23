@@ -152,6 +152,24 @@ export function isLegalAdvance(from: ApplicationStage, to: ApplicationStage): bo
   return nextStage(from) === to;
 }
 
+export function nextStageOnPath(
+  stage: ApplicationStage,
+  path: readonly ApplicationStage[],
+): ApplicationStage | null {
+  const index = path.indexOf(stage);
+  if (index === -1 || index >= path.length - 1) return null;
+  return path[index + 1] ?? null;
+}
+
+export function isLegalAdvanceOnPath(
+  from: ApplicationStage,
+  to: ApplicationStage,
+  path?: readonly ApplicationStage[],
+): boolean {
+  if (path && path.length >= 2) return nextStageOnPath(from, path) === to;
+  return isLegalAdvance(from, to);
+}
+
 export function canExitToTerminal(from: ApplicationStage): boolean {
   return isActiveStage(from);
 }
