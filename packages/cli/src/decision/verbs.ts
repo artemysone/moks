@@ -659,6 +659,10 @@ function resolveEntity(handle: LedgerHandle, input: CommitInput, mutation: strin
     }
     return { entity_type: "application" as const, entity_ref: forCandidate.id }
   }
+  const piled = handle.api.readMirrorEntity(handle.db, "candidate", id)
+  if (piled && (mutation === "AddNote" || mutation === "AddTag" || mutation === "SendOutreach")) {
+    return { entity_type: "candidate" as const, entity_ref: id }
+  }
   throw new Error(`unknown entity: ${id} — run moks pull and check the id`)
 }
 
@@ -712,8 +716,8 @@ function nextOnReq(handle: LedgerHandle, stage: string) {
   return handle.api.nextStage(stage) ?? undefined
 }
 
-// The mirror owns stage (dispositions flow through commit/push); score, notes,
-// and body on an existing card are local drafts and stay untouched.
+// The folder is the pile. Pull never invents people from the mock ATS.
+// Existing cards take stage from the mirror; score/notes/body stay local.
 async function projectPulledCards(handle: LedgerHandle) {
   const dir = handle.req ?? ((await ReqWorkspace.isPacket(handle.company)) ? handle.company : undefined)
   if (!dir) return { dir: null, created: [] as string[], updated: [] as string[] }
@@ -721,18 +725,7 @@ async function projectPulledCards(handle: LedgerHandle) {
   const updated: string[] = []
   for (const listing of handle.api.listApplications(handle.db)) {
     const existing = await CandidateCard.read(dir, listing.candidateId)
-    if (!existing) {
-      const name = listing.candidateName ?? listing.candidateId
-      await CandidateCard.write(dir, {
-        id: listing.candidateId,
-        stage: listing.stage,
-        source: handle.adapter.id,
-        extra: { name },
-        body: listing.candidateHeadline ? `# ${name}\n\n${listing.candidateHeadline}\n` : `# ${name}\n`,
-      })
-      created.push(listing.candidateId)
-      continue
-    }
+    if (!existing) continue
     if (existing.stage === listing.stage) continue
     await CandidateCard.write(dir, { ...existing, stage: listing.stage })
     updated.push(listing.candidateId)

@@ -14,7 +14,12 @@ async function workspace() {
   return tmpdir({
     init: async (dir) => {
       await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
-      await Bun.write(path.join(dir, "candidates", ".gitkeep"), "")
+      await CandidateCard.write(dir, {
+        id: "cand_priya",
+        stage: "Sourced",
+        extra: { name: "Priya" },
+        body: "# Priya\n",
+      })
     },
   })
 }
@@ -334,21 +339,20 @@ describe("decision/verbs", () => {
     expect(await Bun.file(path.join(tmp.path, "candidates")).exists()).toBe(false)
   })
 
-  test("pull projects candidate cards into the focused req", async () => {
+  test("fresh pull does not invent mock people onto the pile", async () => {
     await using tmp = await companyWorkspace()
     await ReqWorkspace.writeFocus(tmp.path, "senior-backend")
     const result = await pull(tmp.path)
     expect(result.cards.dir).toBe(path.join("senior-backend", "candidates"))
-    expect(result.cards.created.toSorted()).toEqual(["cand_amira", "cand_devon", "cand_jane", "cand_marcus"])
-    expect(await CandidateCard.read(tmp.extra, "cand_jane")).toMatchObject({
-      stage: "Screen",
-      source: "mock",
-      extra: { name: "Jane Ortega" },
-    })
+    expect(result.cards.created).toEqual([])
+    expect(await CandidateCard.read(tmp.extra, "cand_jane")).toBeUndefined()
+    expect(await CandidateCard.read(tmp.extra, "cand_amira")).toBeUndefined()
     expect(await CandidateCard.read(tmp.extra, "cand_priya")).toMatchObject({
       stage: "Sourced",
       extra: { name: "Priya" },
     })
+    const listed = await CandidateCard.list(tmp.extra)
+    expect(listed.map((card) => card.id)).toEqual(["cand_priya"])
     expect(await Bun.file(path.join(tmp.path, "candidates")).exists()).toBe(false)
   })
 
@@ -360,7 +364,7 @@ describe("decision/verbs", () => {
     expect(await CandidateCard.read(tmp.extra, "cand_jane")).toBeUndefined()
   })
 
-  test("pull projects cards into a single-req packet root", async () => {
+  test("pull on empty candidates/ writes no mock cards", async () => {
     await using tmp = await tmpdir({
       init: async (dir) => {
         await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
@@ -369,21 +373,20 @@ describe("decision/verbs", () => {
     })
     const result = await pull(tmp.path)
     expect(result.cards.dir).toBe("candidates")
-    expect(result.cards.created).toHaveLength(5)
-    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
+    expect(result.cards.created).toEqual([])
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toBeUndefined()
+    expect(await CandidateCard.list(tmp.path)).toEqual([])
   })
 
   test("second pull preserves recruiter edits and syncs stage from the mirror", async () => {
     await using tmp = await companyWorkspace()
     await ReqWorkspace.writeFocus(tmp.path, "senior-backend")
-    await pull(tmp.path)
-    const card = await CandidateCard.read(tmp.extra, "cand_jane")
-    if (!card) throw new Error("expected projected card")
     await CandidateCard.write(tmp.extra, {
-      ...card,
-      score: 3,
+      id: "cand_jane",
       stage: "Sourced",
+      extra: { name: "Jane Ortega" },
       body: "# Jane Ortega\n\nscored notes\n",
+      score: 3,
     })
     const again = await pull(tmp.path)
     expect(again.cards.created).toEqual([])
@@ -556,7 +559,12 @@ test("push dry-run with staged and zero approved names review first", async () =
           path.join(dir, "HIRING.md"),
           "# Role\n## Process\n- Stages: sourced → screen → phone → onsite → offer → hire\n",
         )
-        await Bun.write(path.join(dir, "candidates", ".gitkeep"), "")
+        await CandidateCard.write(dir, {
+          id: "cand_priya",
+          stage: "Sourced",
+          extra: { name: "Priya" },
+          body: "# Priya\n",
+        })
       },
     })
     await pull(tmp.path)
@@ -682,7 +690,12 @@ test("push dry-run with staged and zero approved names review first", async () =
           path.join(dir, "HIRING.md"),
           "# Role\n## Process\n- Stages: sourced → screen → phone → onsite → offer → hire\n",
         )
-        await Bun.write(path.join(dir, "candidates", ".gitkeep"), "")
+        await CandidateCard.write(dir, {
+          id: "cand_priya",
+          stage: "Sourced",
+          extra: { name: "Priya" },
+          body: "# Priya\n",
+        })
       },
     })
     await pull(tmp.path)
@@ -734,7 +747,12 @@ test("push dry-run with staged and zero approved names review first", async () =
           path.join(dir, "HIRING.md"),
           "# Role\n## Process\n- Stages: sourced → screen → phone → onsite → offer → hire\n",
         )
-        await Bun.write(path.join(dir, "candidates", ".gitkeep"), "")
+        await CandidateCard.write(dir, {
+          id: "cand_priya",
+          stage: "Sourced",
+          extra: { name: "Priya" },
+          body: "# Priya\n",
+        })
       },
     })
     await pull(tmp.path)
@@ -765,7 +783,12 @@ test("push dry-run with staged and zero approved names review first", async () =
           path.join(dir, "HIRING.md"),
           "# Role\n## Process\n- Stages: sourced → screen → phone → onsite → offer → hire\n",
         )
-        await Bun.write(path.join(dir, "candidates", ".gitkeep"), "")
+        await CandidateCard.write(dir, {
+          id: "cand_priya",
+          stage: "Sourced",
+          extra: { name: "Priya" },
+          body: "# Priya\n",
+        })
       },
     })
     await pull(tmp.path)

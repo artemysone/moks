@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import path from "path"
 import { CandidateCard } from "../../src/product/candidate-card"
 import { CardWrite } from "../../src/product/card-write"
+import { DecisionVerbs } from "../../src/decision/verbs"
 import { CompanyToneFixtures, HiringFixtures } from "../../src/product/fixtures"
 import { ReqWorkspace } from "../../src/product/req-workspace"
 import { tmpdir } from "../fixture/fixture"
@@ -505,4 +506,22 @@ test("score persists COMPANY.md and HIRING.md fingerprints", async () => {
   expect(card?.extra.company_hash).toMatch(/^[0-9a-f]{64}$/)
   expect(card?.extra.hiring_hash).toMatch(/^[0-9a-f]{64}$/)
   expect(card?.extra.company_hash).not.toBe(card?.extra.hiring_hash)
+})
+
+test("score then draft leave a staged changeset for review", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await companyReq(dir, "# Acme\n\n## Bar\n- Written operators\n", "# Staff Platform\n")
+    },
+  })
+  await DecisionVerbs.pull({ cwd: tmp.path })
+  const before = await DecisionVerbs.listStagedReviews({ cwd: tmp.path })
+  expect(before.rows).toEqual([])
+  await CardWrite.writeOnCard(tmp.path, { kind: "score", hint: "kenji-okada" })
+  const afterScore = await DecisionVerbs.listStagedReviews({ cwd: tmp.path })
+  expect(afterScore.rows.length).toBeGreaterThan(0)
+  expect(afterScore.rows.some((row) => row.target.includes("kenji-okada"))).toBe(true)
+  await CardWrite.writeOnCard(tmp.path, { kind: "draft", hint: "kenji-okada" })
+  const afterDraft = await DecisionVerbs.listStagedReviews({ cwd: tmp.path })
+  expect(afterDraft.rows.length).toBeGreaterThan(afterScore.rows.length)
 })

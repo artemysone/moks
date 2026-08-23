@@ -125,7 +125,28 @@ export async function writeOnCard(cwd: string, intent: WriteIntent) {
       ? scored(card, req, packet, Constitutions.fingerprintsOf(companyMd, hiring))
       : drafted(card, req, packet)
   const file = await CandidateCard.write(packet, next)
+  await stageCardWrite(cwd, intent.kind, next)
   return { kind: intent.kind, id: next.id, file, score: next.score, relative: path.relative(cwd, file) || file }
+}
+
+async function stageCardWrite(cwd: string, kind: WriteKind, card: Card) {
+  const { DecisionVerbs } = await import("@/decision/verbs")
+  const rationale =
+    kind === "score"
+      ? typeof card.score === "number"
+        ? `score ${card.score} on ${card.id}`
+        : `score ${card.id}`
+      : `draft outreach for ${card.id}`
+  await DecisionVerbs.pull({ cwd })
+  await DecisionVerbs.commit({
+    action: "note",
+    target: { kind: "candidate", id: card.id },
+    rationale,
+    reason: rationale,
+    body: rationale,
+    source: kind,
+    cwd,
+  })
 }
 
 function namedCardId(hint: string) {

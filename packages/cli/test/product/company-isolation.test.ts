@@ -52,6 +52,8 @@ test("two company folders: B does not see A's COMPANY.md, cards, or ledger", asy
   expect(cardsA.length).toBeGreaterThan(0)
   const id = cardsA[0]?.id ?? CARD
   await CardWrite.writeOnCard(a, { kind: "score", hint: id })
+  const stagedA = await DecisionVerbs.listStagedReviews({ cwd: a })
+  expect(stagedA.rows.length).toBeGreaterThan(0)
   await DecisionVerbs.pull({ cwd: a })
   await DecisionVerbs.commit({
     action: "note",
