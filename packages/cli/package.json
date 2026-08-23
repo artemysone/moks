@@ -95,6 +95,8 @@
     "@opentui/core": "catalog:",
     "@opentui/keymap": "catalog:",
     "@opentui/solid": "catalog:",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
     "@parcel/watcher": "2.5.1",
     "@silvia-odwyer/photon-node": "0.3.4",
     "@solid-primitives/event-bus": "1.1.2",

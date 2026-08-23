@@ -76,6 +76,21 @@ export function resolveThreadDirectory(project?: string, envPWD = process.env.PW
   return Filesystem.resolve(cwd)
 }
 
+
+export const RECRUIT_COMPOSER_LANDING = "recruit-composer"
+
+/** Default `moks --pure` in a company folder is the TUI recruit composer, not a no-op. */
+export function selectDefaultInteractiveLaunch(input: { agent?: string; mini?: boolean } = {}) {
+  if (input.mini) {
+    return { kind: "mini" as const, landing: undefined, agent: input.agent }
+  }
+  return {
+    kind: "tui" as const,
+    landing: RECRUIT_COMPOSER_LANDING,
+    agent: input.agent ?? "recruit",
+  }
+}
+
 export const TuiThreadCommand = cmd({
   command: "$0 [project]",
   describe: "start moks tui",
@@ -157,7 +172,8 @@ export const TuiThreadCommand = cmd({
     }
     const noReplay = args.replay === false || args.noReplay === true
 
-    if (args.mini) {
+    const launch = selectDefaultInteractiveLaunch({ agent: args.agent, mini: args.mini })
+    if (launch.kind === "mini") {
       const network = ["--port", "--hostname", "--mdns", "--no-mdns", "--mdns-domain", "--cors"].find((option) =>
         process.argv.some((arg) => arg === option || arg.startsWith(option + "=")),
       )
@@ -296,7 +312,7 @@ export const TuiThreadCommand = cmd({
             args: {
               continue: args.continue,
               sessionID: args.session,
-              agent: args.agent ?? "recruit",
+              agent: launch.agent,
               model: args.model,
               prompt,
               fork: args.fork,

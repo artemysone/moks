@@ -8,6 +8,8 @@
         "@moks/plugin": "workspace:*",
         "@moks/script": "workspace:*",
         "@moks/sdk": "workspace:*",
+        "react": "19.2.0",
+        "react-dom": "19.2.0",
         "typescript": "catalog:",
       },
       "devDependencies": {
@@ -103,6 +105,8 @@
         "open": "10.1.2",
         "opentui-spinner": "catalog:",
         "partial-json": "0.1.7",
+        "react": "19.2.0",
+        "react-dom": "19.2.0",
         "remeda": "catalog:",
         "semver": "^7.6.3",
         "solid-js": "catalog:",

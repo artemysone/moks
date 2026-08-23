@@ -66,6 +66,8 @@
     "@moks/plugin": "workspace:*",
     "@moks/script": "workspace:*",
     "@moks/sdk": "workspace:*",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
     "typescript": "catalog:"
   },
   "repository": {
