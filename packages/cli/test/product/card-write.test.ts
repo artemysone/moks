@@ -481,3 +481,28 @@ test("workOnCard outside a company fails loud", async () => {
   )
 })
 
+
+test("score persists COMPANY.md and HIRING.md fingerprints", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await companyReq(
+        dir,
+        "# Acme\n\n## Bar\n- Written operators\n",
+        [
+          "# Staff Platform",
+          "",
+          "## Scorecard",
+          "| Dimension | Bar | Notes |",
+          "|-----------|-----|-------|",
+          "| Systems design | owns a service | |",
+          "",
+        ].join("\n"),
+      )
+    },
+  })
+  await CardWrite.writeOnCard(tmp.path, { kind: "score", hint: "kenji-okada" })
+  const card = await CandidateCard.read(path.join(tmp.path, "staff-platform"), "kenji-okada")
+  expect(card?.extra.company_hash).toMatch(/^[0-9a-f]{64}$/)
+  expect(card?.extra.hiring_hash).toMatch(/^[0-9a-f]{64}$/)
+  expect(card?.extra.company_hash).not.toBe(card?.extra.hiring_hash)
+})

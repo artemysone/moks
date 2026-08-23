@@ -1,5 +1,6 @@
 import path from "path"
 import { CandidateCard, type Card } from "./candidate-card"
+import { Constitutions } from "./constitutions"
 import { COMPANY_FILE, HIRING_FILE, ReqWorkspace } from "./req-workspace"
 
 export type WriteKind = "score" | "draft"
@@ -119,7 +120,10 @@ export async function writeOnCard(cwd: string, intent: WriteIntent) {
   }
   const card = resolveCard(cards, intent.hint)
   const req = parseReq(hiring, companyMd)
-  const next = intent.kind === "score" ? scored(card, req, packet) : drafted(card, req, packet)
+  const next =
+    intent.kind === "score"
+      ? scored(card, req, packet, Constitutions.fingerprintsOf(companyMd, hiring))
+      : drafted(card, req, packet)
   const file = await CandidateCard.write(packet, next)
   return { kind: intent.kind, id: next.id, file, score: next.score, relative: path.relative(cwd, file) || file }
 }
@@ -257,7 +261,12 @@ function scoreRows(card: Card, labels: string[], source: string) {
   })
 }
 
-function scored(card: Card, req: ReturnType<typeof parseReq>, packet: string) {
+function scored(
+  card: Card,
+  req: ReturnType<typeof parseReq>,
+  packet: string,
+  fingerprints: { company_hash: string; hiring_hash: string },
+) {
   const source = path.relative(packet, CandidateCard.filePath(packet, card.id)).replaceAll(path.sep, "/")
   const rows = [
     ...scoreRows(card, req.labels, source),
@@ -305,7 +314,12 @@ function scored(card: Card, req: ReturnType<typeof parseReq>, packet: string) {
     ...(req.companyBar.length ? [`- ${COMPANY_FILE}`] : []),
     "",
   ].join("\n")
-  return { ...card, score: overall, body: upsertSection(card.body, "Score", section) }
+  return {
+    ...card,
+    score: overall,
+    extra: { ...card.extra, ...fingerprints },
+    body: upsertSection(card.body, "Score", section),
+  }
 }
 
 const SEND_POLICY = /draft only\.?\s*never sent/i
