@@ -69,24 +69,43 @@ export function registerLocalCandidate(
   input: { id: string; name: string; headline: string; stage: string },
   opts: { collide?: "throw" | "skip" } = {},
 ) {
-  const taken = handle.api.readMirrorEntity(handle.db, "candidate", input.id)
+  handle.adapter.prepare?.()
   const mockJob = handle.mockDb.prepare("SELECT id FROM jobs ORDER BY id ASC LIMIT 1").get() as { id: string } | undefined
-  if (taken) {
+  if (!mockJob) {
+    throw new Error("mock ATS has no jobs — pull or seed before add-candidate")
+  }
+  const taken = handle.api.readMirrorEntity(handle.db, "candidate", input.id)
+  const inMock = handle.mockDb.prepare("SELECT id FROM candidates WHERE id = ?").get(input.id) as { id: string } | undefined
+  if (inMock && taken) {
     if (opts.collide !== "skip") {
       throw new Error(`candidate already in ledger: ${input.id} — pick a name that is not a mock ATS id`)
     }
-    const inMock = handle.mockDb.prepare("SELECT id FROM candidates WHERE id = ?").get(input.id) as { id: string } | undefined
-    if (!inMock && mockJob) {
-      const appId = `app_${input.id}`
-      handle.mockDb
-        .prepare("INSERT OR IGNORE INTO candidates (id, remote_id, name, email, headline) VALUES (?, ?, ?, ?, ?)")
-        .run(input.id, input.id, input.name, "", input.headline)
-      handle.mockDb
-        .prepare("INSERT OR IGNORE INTO applications (id, remote_id, job_id, candidate_id, stage) VALUES (?, ?, ?, ?, ?)")
-        .run(appId, appId, mockJob.id, input.id, "Sourced")
+    return
+  }
+  if (inMock && !taken) {
+    if (opts.collide !== "skip") {
+      throw new Error(`candidate already in ledger: ${input.id} — pick a name that is not a mock ATS id`)
     }
     return
   }
+  if (taken && opts.collide !== "skip") {
+    throw new Error(`candidate already in ledger: ${input.id} — pick a name that is not a mock ATS id`)
+  }
+  insertLocalIntoMockAts(handle, input, mockJob.id)
+}
+
+function insertLocalIntoMockAts(
+  handle: LedgerHandle,
+  input: { id: string; name: string; headline: string; stage: string },
+  jobId: string,
+) {
+  const appId = `app_${input.id}`
+  handle.mockDb
+    .prepare("INSERT OR IGNORE INTO candidates (id, remote_id, name, email, headline) VALUES (?, ?, ?, ?, ?)")
+    .run(input.id, input.id, input.name, "", input.headline)
+  handle.mockDb
+    .prepare("INSERT OR IGNORE INTO applications (id, remote_id, job_id, candidate_id, stage) VALUES (?, ?, ?, ?, ?)")
+    .run(appId, appId, jobId, input.id, input.stage || "Sourced")
   const now = Date.now()
   const upsert = handle.db.prepare(`
     INSERT INTO remote_mirror (entity_type, entity_ref, ats, remote_id, state, synced_at)
@@ -96,35 +115,12 @@ export function registerLocalCandidate(
       state = excluded.state,
       synced_at = excluded.synced_at
   `)
-  const jobId = mockJob?.id ?? (
-    handle.db
-      .prepare("SELECT entity_ref FROM remote_mirror WHERE entity_type = 'job' ORDER BY entity_ref ASC LIMIT 1")
-      .get() as { entity_ref: string } | undefined
-  )?.entity_ref ?? "job_file"
-  const ats = mockJob ? "mock" : "file"
-  if (!mockJob) {
-    upsert.run(
-      "job",
-      jobId,
-      ats,
-      jobId,
-      JSON.stringify({ id: jobId, remoteId: jobId, title: "Local", team: "", location: "", status: "open" }),
-      now,
-    )
-  }
   const candidate = { id: input.id, remoteId: input.id, name: input.name, email: "", headline: input.headline }
-  const appId = `app_${input.id}`
-  const application = { id: appId, remoteId: appId, jobId, candidateId: input.id, stage: "Sourced" }
-  upsert.run("candidate", input.id, ats, input.id, JSON.stringify(candidate), now)
-  upsert.run("application", appId, ats, appId, JSON.stringify(application), now)
-  if (mockJob) {
-    handle.mockDb
-      .prepare("INSERT OR IGNORE INTO candidates (id, remote_id, name, email, headline) VALUES (?, ?, ?, ?, ?)")
-      .run(input.id, input.id, input.name, "", input.headline)
-    handle.mockDb
-      .prepare("INSERT OR IGNORE INTO applications (id, remote_id, job_id, candidate_id, stage) VALUES (?, ?, ?, ?, ?)")
-      .run(appId, appId, mockJob.id, input.id, "Sourced")
-  }
+  const application = { id: appId, remoteId: appId, jobId, candidateId: input.id, stage: input.stage || "Sourced" }
+  upsert.run("candidate", input.id, LOCAL_ATS, input.id, JSON.stringify(candidate), now)
+  upsert.run("application", appId, LOCAL_ATS, appId, JSON.stringify(application), now)
+  handle.db.prepare("DELETE FROM remote_mirror WHERE entity_type = 'candidate' AND entity_ref = ? AND ats != ?").run(input.id, LOCAL_ATS)
+  handle.db.prepare("DELETE FROM remote_mirror WHERE entity_type = 'application' AND entity_ref = ? AND ats != ?").run(appId, LOCAL_ATS)
 }
 
 export async function adoptLocalCards(handle: LedgerHandle) {
