@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
 import path from "path"
 import { Global } from "@moks/core/global"
+import { CandidateCard } from "../../src/product/candidate-card"
 import { DecisionVerbs } from "../../src/decision/verbs"
 import { tmpdir } from "../fixture/fixture"
 
@@ -95,4 +96,37 @@ test("review --approve still applies", async () => {
   expect(cli.combined).toContain("approved")
   const shown = await DecisionVerbs.inspectReview({ id: committed.changeset.id, cwd: tmp.path })
   expect(shown.changeset.status).toBe("approved")
+})
+
+test("review shows AdvanceStage hop without rewriting the card", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "HIRING.md"),
+        "# Role\n## Process\n- Stages: sourced → screen → phone → onsite → offer → hire\n",
+      )
+      await Bun.write(path.join(dir, "candidates", ".gitkeep"), "")
+    },
+  })
+  await DecisionVerbs.pull({ cwd: tmp.path })
+  const committed = await DecisionVerbs.commit({
+    action: "advance",
+    target: { kind: "candidate", id: "cand_priya" },
+    to: "Screen",
+    reason: "HIRING next",
+    cwd: tmp.path,
+  })
+  expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
+  const shown = await DecisionVerbs.inspectReview({ id: committed.changeset.id, cwd: tmp.path })
+  expect(shown.changeset.changes[0]?.mutation).toBe("AdvanceStage")
+  expect(shown.changeset.changes[0]?.payload).toEqual(expect.objectContaining({ to: "Screen" }))
+  expect(shown.cards[0]).toMatchObject({ id: "cand_priya", stage: "Sourced" })
+
+  const cli = await moks(["review", committed.changeset.id], tmp.path)
+  expect(cli.code).toBe(0)
+  expect(cli.combined).toContain("AdvanceStage")
+  expect(cli.combined).toContain("to Screen")
+  expect(cli.combined).toContain("stage=Sourced")
+  expect(cli.combined).toContain("approve will bless")
+  expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
 })

@@ -525,6 +525,90 @@ test("push dry-run with staged and zero approved names review first", async () =
     await expect(DecisionVerbs.push({ cwd: empty.path, dry_run: true })).rejects.toThrow(/not a company directory|no ledger|empty company/)
   })
 
+
+  test("staged AdvanceStage keeps card and status on applied stage until push", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(
+          path.join(dir, "HIRING.md"),
+          "# Role\n## Process\n- Stages: sourced → screen → phone → onsite → offer → hire\n",
+        )
+        await Bun.write(path.join(dir, "candidates", ".gitkeep"), "")
+      },
+    })
+    await pull(tmp.path)
+    const before = await DecisionVerbs.status({ cwd: tmp.path })
+    expect(before.report.pipeline.Sourced).toBe(1)
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
+
+    const committed = await DecisionVerbs.commit({
+      action: "advance",
+      target: { kind: "candidate", id: "cand_priya" },
+      to: "Screen",
+      reason: "HIRING next",
+      cwd: tmp.path,
+    })
+    expect(committed.changeset.changes[0].payload).toEqual(expect.objectContaining({ to: "Screen" }))
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
+    const stagedStatus = await DecisionVerbs.status({ cwd: tmp.path })
+    expect(stagedStatus.report.pipeline.Sourced).toBe(1)
+    expect(stagedStatus.report.pipeline.Screen).toBe(before.report.pipeline.Screen)
+
+    const inspected = await DecisionVerbs.inspectReview({ cwd: tmp.path, id: committed.changeset.id })
+    expect(inspected.changeset.changes[0].payload).toEqual(expect.objectContaining({ to: "Screen" }))
+    expect(inspected.cards[0]).toMatchObject({ id: "cand_priya", stage: "Sourced" })
+
+    if (committed.changeset.status === "staged") {
+      await DecisionVerbs.review({
+        id: committed.changeset.id,
+        action: "approve",
+        by: "you",
+        cwd: tmp.path,
+      })
+    }
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
+
+  })
+
+  test("applied AdvanceStage moves card and status together", async () => {
+    await using tmp = await workspace()
+    await pull(tmp.path)
+    const before = await DecisionVerbs.status({ cwd: tmp.path })
+    expect(before.report.pipeline.Sourced).toBe(1)
+    const committed = await DecisionVerbs.commit({
+      action: "advance",
+      target: { kind: "candidate", id: "cand_priya" },
+      to: "Contacted",
+      reason: "next hop",
+      cwd: tmp.path,
+    })
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
+    const stagedStatus = await DecisionVerbs.status({ cwd: tmp.path })
+    expect(stagedStatus.report.pipeline.Sourced).toBe(1)
+    if (committed.changeset.status === "staged") {
+      await DecisionVerbs.review({
+        id: committed.changeset.id,
+        action: "approve",
+        by: "you",
+        cwd: tmp.path,
+      })
+    }
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
+    const pushed = await DecisionVerbs.push({
+      id: committed.changeset.id,
+      cwd: tmp.path,
+      dry_run: false,
+    })
+    expect(pushed.ok).toBe(true)
+    if (pushed.ok) {
+      expect(pushed.pushed[0]?.status).toBe("applied")
+    }
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Contacted" })
+    const after = await DecisionVerbs.status({ cwd: tmp.path })
+    expect(after.report.pipeline.Sourced ?? 0).toBe(0)
+    expect(after.report.pipeline.Contacted).toBe((before.report.pipeline.Contacted ?? 0) + 1)
+  })
+
   test("HIRING Process path makes Sourced → Screen legal and reviewable", async () => {
     await using tmp = await tmpdir({
       init: async (dir) => {

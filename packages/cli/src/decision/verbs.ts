@@ -335,6 +335,7 @@ export async function push(input: PushInput) {
       }
       const result = api.pushApproved(handle.db, handle.adapter, handle.vault, id)
       api.refreshAfterPush(handle.db, handle.adapter, result)
+      await projectPulledCards(handle)
       return { ok: true as const, dry_run: false, pushed: result.pushed, path: handle.company, adverse }
     }
 
@@ -368,6 +369,7 @@ export async function push(input: PushInput) {
     }
     const result = api.pushApproved(handle.db, handle.adapter, handle.vault)
     api.refreshAfterPush(handle.db, handle.adapter, result)
+    await projectPulledCards(handle)
     return { ok: true as const, dry_run: false, pushed: result.pushed, path: handle.company, adverse }
   })
 }
@@ -611,19 +613,13 @@ async function projectCard(
   await CandidateCard.write(dir, { ...existing, stage })
 }
 
+// AdvanceStage stays on the changeset until apply/push. Card + status
+// keep the applied/mirror stage so review can show the bless hop without
+// rewriting the file.
 function stageFromChanges(changes: Array<{ mutation: string; payload: unknown }>) {
   for (const change of changes) {
     if (change.mutation === "Reject") return "Rejected"
     if (change.mutation === "Withdraw") return "Withdrawn"
-    if (
-      change.mutation === "AdvanceStage" &&
-      change.payload &&
-      typeof change.payload === "object" &&
-      "to" in change.payload
-    ) {
-      const to = (change.payload as { to?: unknown }).to
-      if (typeof to === "string") return to
-    }
   }
 }
 
