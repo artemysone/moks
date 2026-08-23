@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { Application, AtsSnapshot, Candidate, Job, JobStatus } from "../domain.ts";
+import type { Application, ApplicationStage, AtsSnapshot, Candidate, Job, JobStatus } from "../domain.ts";
 import type { SqliteDb } from "../db.ts";
 import { JOB_STATUSES, isStage } from "../domain.ts";
 import { createChangeApplier } from "./apply.ts";
@@ -66,8 +66,15 @@ export function seedMockAts(db: SqliteDb, fixturePath: string): boolean {
   return true;
 }
 
-export function createMockAdapter(db: SqliteDb, options: { fixturePath: string }): AtsAdapter {
-  const applyChange = createChangeApplier(db, { prefix: "", unknownEntityReason: "unknown_entity" });
+export function createMockAdapter(
+  db: SqliteDb,
+  options: { fixturePath: string; stages?: readonly ApplicationStage[] },
+): AtsAdapter {
+  const applyChange = createChangeApplier(db, {
+    prefix: "",
+    unknownEntityReason: "unknown_entity",
+    stages: options.stages,
+  });
   return {
     id: "mock",
     prepare() {

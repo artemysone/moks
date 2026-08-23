@@ -66,12 +66,13 @@ export function openWorkspace(cwd: string = process.cwd(), options: OpenWorkspac
   const workspaceDb = openSqlite(paths.workspaceDb);
   migrateWorkspace(workspaceDb);
 
+  const workspacePolicy = () => readWorkspacePolicy({ cwd: paths.cwd });
   const closers: Array<() => void> = [() => workspaceDb.close()];
   let adapter;
   let sourcing;
   let vault;
   try {
-    adapter = openAtsAdapter(ats, paths, closers);
+    adapter = openAtsAdapter(ats, paths, closers, workspacePolicy().stages);
     sourcing = openSourcingAdapter(sourcingId, paths, closers);
     vault = openVault(workspaceDb, paths.vaultKey);
   } catch (error) {
@@ -85,7 +86,10 @@ export function openWorkspace(cwd: string = process.cwd(), options: OpenWorkspac
     throw error;
   }
 
-  const policyOpts = () => ({ policy: readWorkspacePolicy({ cwd: paths.cwd }).policy });
+  const policyOpts = () => {
+    const resolved = workspacePolicy();
+    return { policy: resolved.policy, stages: resolved.stages };
+  };
 
   return {
     paths,
