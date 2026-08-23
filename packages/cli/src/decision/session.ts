@@ -7,6 +7,7 @@ export type LedgerHandle = {
   company: string
   req: string | undefined
   db: ReturnType<LedgerModule["openSqlite"]>
+  mockDb: ReturnType<LedgerModule["openSqlite"]>
   vault: ReturnType<LedgerModule["openVault"]>
   adapter: ReturnType<LedgerModule["createMockAdapter"]>
   paths: ReturnType<LedgerModule["workspacePaths"]>
@@ -103,6 +104,7 @@ export async function openLedger(cwd?: string): Promise<LedgerHandle> {
       company,
       req,
       db,
+      mockDb,
       vault,
       adapter,
       paths,
