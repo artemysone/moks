@@ -73,9 +73,9 @@ export const PushCommand = effectCmd({
       return
     }
     if (result.pushed.length === 0) {
-      UI.println(`${UI.Style.TEXT_DIM}nothing to push${UI.Style.TEXT_NORMAL}`)
-      UI.println(`${UI.Style.TEXT_DIM}${result.path}${UI.Style.TEXT_NORMAL}`)
-      return
+      return yield* fail(
+        "nothing to push — there is no approved changeset. Review a staged one (moks review <id> --approve), then push",
+      )
     }
     const verb = result.dry_run ? "would push" : "pushed"
     for (const item of result.pushed) {

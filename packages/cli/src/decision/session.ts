@@ -24,6 +24,17 @@ export async function importLedger(): Promise<LedgerModule> {
   return import("@moks/ledger")
 }
 
+export function unwiredAtsMessage(ats: string) {
+  return `${ats} is not a live ATS in this build — only the mock ATS is wired. Unset MOKS_ATS or set MOKS_ATS=mock, then moks pull`
+}
+
+export function requireWiredAts(api: LedgerModule) {
+  const ats = api.resolveAtsId()
+  if (ats === "mock") return ats
+  throw new Error(unwiredAtsMessage(ats))
+}
+
+
 export async function ledgerDbExists(cwd?: string) {
   let api: LedgerModule
   try {
@@ -81,6 +92,7 @@ export async function withLedger<T>(cwd: string | undefined, fn: (handle: Ledger
 
 export async function openLedger(cwd?: string): Promise<LedgerHandle> {
   const api = await importLedger()
+  requireWiredAts(api)
   const opened = cwd ?? process.cwd()
   const company = (await ReqWorkspace.companyRoot(opened)) ?? opened
   const req = await ReqWorkspace.focusedReq(opened)

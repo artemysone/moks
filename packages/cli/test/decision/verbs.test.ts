@@ -795,4 +795,42 @@ test("push dry-run with staged and zero approved names review first", async () =
     expect(after.report.pipeline.Sourced ?? 0).toBe(0)
     expect(after.report.pipeline.Screen).toBe((before.report.pipeline.Screen ?? 0) + 1)
   })
+
+  test("rebase of a not-stale changeset uses recruiter language, not rebase_not_stale", async () => {
+    await using tmp = await workspace()
+    await pull(tmp.path)
+    const committed = await DecisionVerbs.commit({
+      action: "note",
+      target: { kind: "candidate", id: "cand_priya" },
+      reason: "still open",
+      cwd: tmp.path,
+    })
+    await expect(DecisionVerbs.rebase({ cwd: tmp.path, id: committed.changeset.id })).rejects.toThrow(
+      /cannot rebase .* not stale/,
+    )
+    try {
+      await DecisionVerbs.rebase({ cwd: tmp.path, id: committed.changeset.id })
+      throw new Error("expected rebase to fail")
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      expect(message).not.toBe("rebase_not_stale")
+      expect(message).not.toBe("rebase_not_found")
+      expect(message).toMatch(/moks status/)
+    }
+  })
+
+  test("MOKS_ATS=ashby is unwired and fails loud instead of a green mock pull", async () => {
+    await using tmp = await workspace()
+    await pull(tmp.path)
+    const prev = process.env.MOKS_ATS
+    process.env.MOKS_ATS = "ashby"
+    try {
+      await expect(DecisionVerbs.pull({ cwd: tmp.path })).rejects.toThrow(/ashby is not a live ATS/i)
+      await expect(DecisionVerbs.status({ cwd: tmp.path })).rejects.toThrow(/ashby is not a live ATS/i)
+      await expect(DecisionVerbs.push({ cwd: tmp.path, dry_run: true })).rejects.toThrow(/ashby is not a live ATS/i)
+    } finally {
+      if (prev === undefined) delete process.env.MOKS_ATS
+      else process.env.MOKS_ATS = prev
+    }
+  })
 })

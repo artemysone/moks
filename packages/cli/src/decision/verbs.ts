@@ -295,12 +295,30 @@ export async function review(input: ReviewInput) {
   })
 }
 
+export function explainRebaseError(id: string, error: unknown) {
+  const raw = error instanceof Error ? error.message : String(error)
+  if (raw === "rebase_not_stale") {
+    return `cannot rebase ${id}: it is not stale (the ATS has not moved under it). Run moks status — review or push what is already open`
+  }
+  if (raw === "rebase_not_found" || raw === "changeset_not_found") {
+    return `cannot rebase ${id}: no changeset with that id. Run moks status and copy a stale changeset id`
+  }
+  if (raw === "rebase_empty") {
+    return `cannot rebase ${id}: nothing left that still applies. Run moks status; drop or recommit the change`
+  }
+  return raw
+}
+
 export async function rebase(input: { cwd?: string; id: string }) {
   return withLedger(input.cwd, async (handle) => {
-    const result = handle.api.rebaseChangeset(handle.db, handle.vault, input.id, {
-      policy: handle.policy.policy,
-    })
-    return { ...result, path: handle.company }
+    try {
+      const result = handle.api.rebaseChangeset(handle.db, handle.vault, input.id, {
+        policy: handle.policy.policy,
+      })
+      return { ...result, path: handle.company }
+    } catch (error) {
+      throw new Error(explainRebaseError(input.id, error))
+    }
   })
 }
 
@@ -355,7 +373,7 @@ export async function push(input: PushInput) {
           `0 approved, ${staged.length} staged — review first`,
         )
       }
-      return failPush(handle.company, "nothing_to_push", "nothing to push")
+      return failPush(handle.company, "nothing_to_push", "nothing to push — there is no approved changeset. Review a staged one (moks review <id> --approve), then push")
     }
     const details = approved.map((row) => api.getChangeset(handle.db, handle.vault, row.id))
     const adverse = details.some((row) =>

@@ -48,7 +48,7 @@ test("review with no staged changesets is an honest empty", async () => {
   expect(listed.rows).toEqual([])
   const cli = await moks(["review"], tmp.path)
   expect(cli.code).toBe(0)
-  expect(cli.combined).toContain("no staged or approved changesets")
+  expect(cli.combined).toContain("nothing to review")
   expect(cli.combined).not.toMatch(/reviewed /)
 })
 
