@@ -205,4 +205,41 @@ describe("createMockAdapter", () => {
       }),
     ).toEqual({ ok: false, reason: "illegal_transition" });
   });
+
+  test("HIRING path apply accepts Sourced → Screen; default machine rejects it", () => {
+    const sourced = {
+      ...validFixture,
+      applications: [{ ...validFixture.applications[0], stage: "Sourced" }],
+    };
+    const hiring = ["Sourced", "Screen", "Phone", "Onsite", "Offer", "Hired"] as const;
+
+    const defaultDb = openSqlite(":memory:");
+    migrateMockAts(defaultDb);
+    const defaultAdapter = createMockAdapter(defaultDb, { fixturePath: writeFixture(sourced) });
+    defaultAdapter.prepare?.();
+    expect(
+      defaultAdapter.apply({
+        entityType: "application",
+        entityRef: "app_a",
+        mutation: "AdvanceStage",
+        precondition: { stage: "Sourced" },
+        payload: { to: "Screen" },
+      }),
+    ).toEqual({ ok: false, reason: "illegal_transition" });
+    expect(defaultAdapter.pull().applications[0]?.stage).toBe("Sourced");
+
+    const pathDb = openSqlite(":memory:");
+    migrateMockAts(pathDb);
+    const pathAdapter = createMockAdapter(pathDb, { fixturePath: writeFixture(sourced), stages: hiring });
+    pathAdapter.prepare?.();
+    const advanced = pathAdapter.apply({
+      entityType: "application",
+      entityRef: "app_a",
+      mutation: "AdvanceStage",
+      precondition: { stage: "Sourced" },
+      payload: { to: "Screen" },
+    });
+    expect(advanced.ok).toBe(true);
+    expect(pathAdapter.pull().applications[0]?.stage).toBe("Screen");
+  });
 });

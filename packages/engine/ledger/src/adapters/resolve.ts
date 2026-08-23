@@ -6,7 +6,7 @@ import type { SourcedCandidate, SourcingAdapter } from "./sourcing.ts";
 import type { AtsAdapter } from "./types.ts";
 import { readMcpConfig, type SourcingId } from "../config.ts";
 import { openSqlite } from "../db.ts";
-import type { AtsId } from "../domain.ts";
+import type { ApplicationStage, AtsId } from "../domain.ts";
 import { LedgerError } from "../errors.ts";
 import type { WorkspacePaths } from "../paths.ts";
 import { migrateMockAts } from "../schema.ts";
@@ -17,6 +17,7 @@ export function openAtsAdapter(
   ats: AtsId,
   paths: WorkspacePaths,
   closers: Array<() => void>,
+  stages?: readonly ApplicationStage[],
 ): AtsAdapter {
   if (ats === "greenhouse") {
     const db = openSqlite(paths.greenhouseAtsDb);
@@ -36,7 +37,7 @@ export function openAtsAdapter(
   const db = openSqlite(paths.mockAtsDb);
   migrateMockAts(db);
   closers.push(() => db.close());
-  return createMockAdapter(db, { fixturePath: paths.fixtureFile });
+  return createMockAdapter(db, { fixturePath: paths.fixtureFile, stages });
 }
 
 export function openSourcingAdapter(

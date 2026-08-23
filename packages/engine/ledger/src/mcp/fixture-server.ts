@@ -7,10 +7,11 @@ import type { SourcedCandidate } from "../adapters/sourcing.ts";
 import {
   canExitToTerminal,
   isEntityType,
-  isLegalAdvance,
+  isLegalAdvanceOnPath,
   isMutation,
   isStage,
   type Application,
+  type ApplicationStage,
   type AtsId,
   type AtsSnapshot,
   type Candidate,
@@ -85,7 +86,7 @@ function payloadRecord(payload: unknown): Record<string, unknown> {
 }
 
 /** In-memory ATS with the same apply semantics as the mock/greenhouse adapters. */
-export function createFixtureState(dataset: FixtureDataset) {
+export function createFixtureState(dataset: FixtureDataset, options?: { stages?: readonly ApplicationStage[] }) {
   const ats: AtsId = dataset.ats ?? "ashby";
   const jobs = dataset.jobs.map((job) => ({ ...job }));
   const candidates = dataset.candidates.map((candidate) => ({ ...candidate }));
@@ -153,7 +154,7 @@ export function createFixtureState(dataset: FixtureDataset) {
         if (typeof payload.to !== "string" || !isStage(payload.to)) {
           return { ok: false, reason: "unsupported" };
         }
-        if (!isLegalAdvance(application.stage, payload.to)) {
+        if (!isLegalAdvanceOnPath(application.stage, payload.to, options?.stages)) {
           return { ok: false, reason: "illegal_transition" };
         }
         application.stage = payload.to;

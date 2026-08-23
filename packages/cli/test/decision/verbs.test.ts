@@ -691,4 +691,55 @@ test("push dry-run with staged and zero approved names review first", async () =
     expect(phone.changeset.changes[0].mutation).toBe("AdvanceStage")
     expect(phone.changeset.changes[0].payload).toEqual(expect.objectContaining({ to: "Phone" }))
   })
+
+  test("approved HIRING Screen hop applies on push; card and status become Screen", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(
+          path.join(dir, "HIRING.md"),
+          "# Role\n## Process\n- Stages: sourced → screen → phone → onsite → offer → hire\n",
+        )
+        await Bun.write(path.join(dir, "candidates", ".gitkeep"), "")
+      },
+    })
+    await pull(tmp.path)
+    const before = await DecisionVerbs.status({ cwd: tmp.path })
+    expect(before.report.pipeline.Sourced).toBe(1)
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
+
+    const committed = await DecisionVerbs.commit({
+      action: "advance",
+      target: { kind: "candidate", id: "cand_priya" },
+      to: "Screen",
+      reason: "HIRING next",
+      cwd: tmp.path,
+    })
+    if (committed.changeset.status === "staged") {
+      await DecisionVerbs.review({
+        id: committed.changeset.id,
+        action: "approve",
+        by: "you",
+        cwd: tmp.path,
+      })
+    }
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
+
+    const pushed = await DecisionVerbs.push({
+      id: committed.changeset.id,
+      cwd: tmp.path,
+      dry_run: false,
+    })
+    expect(pushed.ok).toBe(true)
+    if (pushed.ok) {
+      const item = pushed.pushed[0]
+      expect(item?.status).toBe("applied")
+      if (item && (item.status === "stale" || "reason" in item)) {
+        expect(item.reason).not.toBe("illegal_transition")
+      }
+    }
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Screen" })
+    const after = await DecisionVerbs.status({ cwd: tmp.path })
+    expect(after.report.pipeline.Sourced ?? 0).toBe(0)
+    expect(after.report.pipeline.Screen).toBe((before.report.pipeline.Screen ?? 0) + 1)
+  })
 })

@@ -95,10 +95,10 @@ export async function openLedger(cwd?: string): Promise<LedgerHandle> {
     const mockDb = api.openSqlite(paths.mockAtsDb)
     api.migrateMockAts(mockDb)
     closers.push(() => mockDb.close())
-    const adapter = api.createMockAdapter(mockDb, { fixturePath: paths.fixtureFile })
+    const policy = readPolicy(api, company, req)
+    const adapter = api.createMockAdapter(mockDb, { fixturePath: paths.fixtureFile, stages: policy.stages })
     if (adapter.close) closers.push(() => adapter.close?.())
     const vault = api.openVault(db, paths.vaultKey)
-    const policy = readPolicy(api, company, req)
     return {
       api,
       company,

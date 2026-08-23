@@ -1,13 +1,13 @@
 import type { Application, ApplicationStage, Candidate, Job } from "../domain.ts";
 import type { SqliteDb } from "../db.ts";
-import { canExitToTerminal, isLegalAdvance, isStage } from "../domain.ts";
+import { canExitToTerminal, isLegalAdvanceOnPath, isStage } from "../domain.ts";
 import { casProjection, isEmptyPrecondition, matchesPrecondition } from "../precondition.ts";
 import type { ApplyChange, ApplyResult } from "./types.ts";
 
 /** Fixture-backed adapters share one CAS applier; their tables differ only by prefix. */
 export function createChangeApplier(
   db: SqliteDb,
-  options: { prefix: string; unknownEntityReason: string },
+  options: { prefix: string; unknownEntityReason: string; stages?: readonly ApplicationStage[] },
 ): (change: ApplyChange) => ApplyResult {
   const tables = {
     jobs: `${options.prefix}jobs`,
@@ -50,7 +50,7 @@ export function createChangeApplier(
         if (typeof payload.to !== "string" || !isStage(payload.to)) {
           return { ok: false, reason: "unsupported" };
         }
-        if (!isLegalAdvance(application.stage, payload.to)) {
+        if (!isLegalAdvanceOnPath(application.stage, payload.to, options.stages)) {
           return { ok: false, reason: "illegal_transition" };
         }
         const written = casUpdateStage(db, tables.applications, change.entityRef, application.stage, payload.to);

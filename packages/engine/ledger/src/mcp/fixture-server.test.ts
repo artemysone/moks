@@ -119,3 +119,56 @@ describe("fixture server idempotency", () => {
     expect(second).not.toEqual(first);
   });
 });
+
+describe("fixture server HIRING path apply", () => {
+  test("Sourced → Screen is legal on a named path and illegal on the default machine", () => {
+    const dataset = {
+      ats: "ashby" as const,
+      jobs: [
+        {
+          id: "job_1",
+          remoteId: "R-1",
+          title: "Engineer",
+          team: "Core",
+          location: "Remote",
+          status: "open" as const,
+        },
+      ],
+      candidates: [
+        {
+          id: "cand_a",
+          remoteId: "C-1",
+          name: "Ada",
+          email: "ada@example.com",
+          headline: "Backend",
+        },
+      ],
+      applications: [
+        {
+          id: "app_a",
+          remoteId: "A-1",
+          jobId: "job_1",
+          candidateId: "cand_a",
+          stage: "Sourced" as const,
+        },
+      ],
+    };
+    const change = {
+      entityType: "application",
+      entityRef: "app_a",
+      mutation: "AdvanceStage",
+      precondition: { id: "app_a", remoteId: "A-1", stage: "Sourced" },
+      payload: { to: "Screen" },
+    };
+
+    const def = createFixtureState(dataset);
+    expect(def.apply(change)).toEqual({ ok: false, reason: "illegal_transition" });
+
+    const hiring = createFixtureState(dataset, {
+      stages: ["Sourced", "Screen", "Phone", "Onsite", "Offer", "Hired"],
+    });
+    const applied = hiring.apply(change);
+    expect(applied.ok).toBe(true);
+    expect(hiring.snapshot().applications[0]?.stage).toBe("Screen");
+  });
+});
