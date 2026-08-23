@@ -38,6 +38,8 @@ test("parseAddIntent detects add-candidate command and prose", () => {
     files: ["kenji-sato.md", "nora-voss.md"],
     names: [],
   })
+  expect(CandidateAdd.parseAddIntent(undefined, "get Maya ready", [], "recruit")).toBeUndefined()
+  expect(CandidateAdd.parseAddIntent(undefined, "work this candidate", [], "recruit")).toBeUndefined()
 })
 
 test("addFromFile writes a Sourced card from a local resume only", async () => {

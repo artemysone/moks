@@ -308,18 +308,15 @@ async function runHeadlessRecruitWork(args: {
     process.exit(1)
   })
   const { DecisionVerbs } = await import("@/decision/verbs")
-  const committed = await DecisionVerbs.commit({
-    action: "note",
-    target: { kind: "candidate", id: worked.id },
-    rationale: worked.rationale,
-    reason: raw.trim() || worked.rationale,
-    source: "run",
-    author_kind: "agent",
-    cwd: directory,
-  }).catch((error) => {
+  const staged = await DecisionVerbs.listStagedReviews({ cwd: directory }).catch((error) => {
     UI.error(error instanceof Error ? error.message : String(error))
     process.exit(1)
   })
+  const row = staged.rows.find((item) => item.target.includes(worked.id) && item.status === "staged" && item.action !== "note") ?? staged.rows.find((item) => item.status === "staged" && item.action !== "note")
+  if (!row) {
+    UI.error(`no tasteable staged changeset for ${worked.id}`)
+    process.exit(1)
+  }
   if (args.json || args.format === "json") {
     console.log(
       JSON.stringify(
@@ -328,8 +325,8 @@ async function runHeadlessRecruitWork(args: {
           id: worked.id,
           score: worked.score,
           relative: worked.relative,
-          changeset: committed.changeset.id,
-          rationale: committed.changeset.rationale,
+          changeset: row.id,
+          rationale: row.rationale,
         },
         null,
         2,
@@ -338,7 +335,7 @@ async function runHeadlessRecruitWork(args: {
     return
   }
   UI.println(
-    `ready: ${worked.id} scored and drafted; staged note ${committed.changeset.id} for review`,
+    `ready: ${worked.id} scored and drafted; staged ${row.id} for review`,
   )
   const session = await HiringSession.loadSnapshot(directory)
   for (const line of HiringSession.formatSnapshot(session)) UI.println(line)
@@ -503,6 +500,10 @@ export const RunCommand = effectCmd({
   handler: Effect.fn("Cli.run")(function* (args) {
     if (isHeadlessScaffoldCommand(args)) {
       const message = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
+      if (CardWrite.parseNaturalWorkIntent(args.command, message, args.agent)) {
+        yield* Effect.promise(() => runHeadlessRecruitWork(args))
+        return
+      }
       if (CandidateAdd.parseAddIntent(args.command, message, args.file ?? [], args.agent)) {
         yield* Effect.promise(() => runHeadlessAddCandidate(args))
         return
@@ -513,10 +514,6 @@ export const RunCommand = effectCmd({
       }
       if (CardWrite.parseWriteIntent(args.command, message)) {
         yield* Effect.promise(() => runHeadlessCardWrite(args))
-        return
-      }
-      if (CardWrite.parseNaturalWorkIntent(args.command, message, args.agent)) {
-        yield* Effect.promise(() => runHeadlessRecruitWork(args))
         return
       }
       if (isRecruitResume(args)) {

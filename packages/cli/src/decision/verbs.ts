@@ -673,7 +673,7 @@ function payloadFor(handle: LedgerHandle, mutation: string, input: CommitInput, 
     if (!input.to) {
       const next = nextStageFor(handle, entityRef)
       // Tool callers omit --to; hop the legal next stage. CLI argv still errors.
-      if (input.source === "tool" && next) return { to: next }
+      if ((input.source === "tool" || input.source === "score" || input.source === "draft" || input.source === "run") && next) return { to: next }
       throw new Error(
         next ? `AdvanceStage requires --to (legal next: ${next})` : "AdvanceStage requires --to",
       )

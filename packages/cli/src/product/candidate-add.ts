@@ -37,7 +37,7 @@ const NAME_LIST_FILLER = new Set([
   "directory",
 ])
 
-const NAME_BLOCK = /\b(note|score|draft|review|reject|advance|commit|push|work|hire|offer)\b/i
+const NAME_BLOCK = /\b(note|score|draft|review|reject|advance|commit|push|work|hire|offer|get|make|prep|prepare|ready)\b/i
 const MODEL_OR_QUESTION = /\b(who|what|why|how|when|where|is|are|was|were|using|brief|skill)\b/i
 
 export type AddIntent = {
@@ -72,6 +72,7 @@ export function parseAddIntent(
   }
   // Pile only for add / bare --file / name-list. Model prompts keep --file as LLM context.
   if (recruit && attached.length && !hint) return { files: attached, names: [] }
+  if (recruit && /^(?:please\s+|can you\s+)?(?:get|make|prep(?:are)?|work)\b/i.test(hint)) return
   if (recruit && looksLikeNameList(hint)) {
     const parsed = parsePile(hint, attached)
     if (parsed.files.length || parsed.names.length) return parsed

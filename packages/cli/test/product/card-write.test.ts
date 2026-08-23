@@ -521,7 +521,56 @@ test("score then draft leave a staged changeset for review", async () => {
   const afterScore = await DecisionVerbs.listStagedReviews({ cwd: tmp.path })
   expect(afterScore.rows.length).toBeGreaterThan(0)
   expect(afterScore.rows.some((row) => row.target.includes("kenji-okada"))).toBe(true)
+  expect(afterScore.rows.every((row) => row.status === "staged")).toBe(true)
+  expect(afterScore.rows.every((row) => row.action !== "note")).toBe(true)
   await CardWrite.writeOnCard(tmp.path, { kind: "draft", hint: "kenji-okada" })
   const afterDraft = await DecisionVerbs.listStagedReviews({ cwd: tmp.path })
   expect(afterDraft.rows.length).toBeGreaterThan(afterScore.rows.length)
+  expect(afterDraft.rows.every((row) => row.action !== "note")).toBe(true)
+  expect(afterDraft.rows.some((row) => row.status === "staged")).toBe(true)
+})
+
+
+
+test("get Maya ready scores maya-chen and does not invent get-maya-ready", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "COMPANY.md"), "# Acme\n")
+      const req = path.join(dir, "staff-platform")
+      await Bun.write(path.join(req, "HIRING.md"), "# Staff Platform\n")
+      await CandidateCard.write(req, {
+        id: "maya-chen",
+        stage: "Sourced",
+        extra: { name: "Maya Chen" },
+        body: "# Maya Chen\n\nStaff platform engineer.\n",
+      })
+      await ReqWorkspace.writeFocus(dir, "staff-platform")
+    },
+  })
+  expect(CardWrite.parseNaturalWorkIntent(undefined, "get Maya ready", "recruit")?.hint).toBe("get Maya ready")
+  expect(CardWrite.resolveCard([
+    {
+      id: "maya-chen",
+      stage: "Sourced",
+      extra: { name: "Maya Chen" },
+      body: "# Maya Chen\n",
+    },
+  ], "get Maya ready").id).toBe("maya-chen")
+  expect(CardWrite.resolveCard([
+    {
+      id: "maya-chen",
+      stage: "Sourced",
+      extra: { name: "Maya Chen" },
+      body: "# Maya Chen\n",
+    },
+  ], "work this candidate").id).toBe("maya-chen")
+  const worked = await CardWrite.workOnCard(tmp.path, "get Maya ready")
+  expect(worked.id).toBe("maya-chen")
+  expect(await CandidateCard.read(path.join(tmp.path, "staff-platform"), "get-maya-ready")).toBeUndefined()
+  const card = await CandidateCard.read(path.join(tmp.path, "staff-platform"), "maya-chen")
+  expect(card?.body).toContain("# Score:")
+  expect(card?.body).toContain("# Outreach")
+  const staged = await DecisionVerbs.listStagedReviews({ cwd: tmp.path })
+  expect(staged.rows.some((row) => row.status === "staged" && row.action !== "note")).toBe(true)
+  expect(staged.rows.every((row) => !row.target.includes("get-maya-ready"))).toBe(true)
 })

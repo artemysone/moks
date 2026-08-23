@@ -139,7 +139,7 @@ async function stageCardWrite(cwd: string, kind: WriteKind, card: Card) {
       : `draft outreach for ${card.id}`
   await DecisionVerbs.pull({ cwd })
   await DecisionVerbs.commit({
-    action: "note",
+    action: kind === "draft" ? "outreach" : "advance",
     target: { kind: "candidate", id: card.id },
     rationale,
     reason: rationale,
@@ -154,7 +154,7 @@ function namedCardId(hint: string) {
   if (cand) return cand[1]
   const stripped = stripHintName(hint)
   if (!stripped) return
-  if (/^[a-z0-9][a-z0-9_-]+$/i.test(stripped)) return stripped
+  if (/^(cand[_-][a-z0-9]+|[a-z0-9]+-[a-z0-9-]+)$/i.test(stripped)) return stripped
 }
 
 async function findCardReq(root: string, id: string) {
