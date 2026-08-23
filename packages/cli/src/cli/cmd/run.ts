@@ -127,12 +127,13 @@ async function toolError(part: ToolPart) {
 
 const LOCAL_RUN_COMMANDS = "init / open-req / score / draft / add-candidate"
 
-function isLocalWriteOrScaffold(command?: string, message = "", files: string[] = []) {
+function isLocalWriteOrScaffold(command?: string, message = "", files: string[] = [], agent?: string) {
   return (
     command === "init" ||
     command === "open-req" ||
     command === "add-candidate" ||
     Boolean(CardWrite.parseWriteIntent(command, message)) ||
+    Boolean(CardWrite.parseNaturalWorkIntent(command, message, agent)) ||
     Boolean(CandidateAdd.parseAddIntent(command, message, files))
   )
 }
@@ -143,6 +144,7 @@ function isHeadlessScaffoldCommand(args: {
   message?: string[]
   "--"?: string[]
   file?: string[]
+  agent?: string
 }) {
   if (args.mini) return false
   // Any --command stays local so unknown names fail here instead of OAuth sign-in.
@@ -150,7 +152,8 @@ function isHeadlessScaffoldCommand(args: {
   const message = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
   return Boolean(
     CandidateAdd.parseAddIntent(args.command, message, args.file ?? []) ||
-      CardWrite.parseWriteIntent(args.command, message),
+      CardWrite.parseWriteIntent(args.command, message) ||
+      CardWrite.parseNaturalWorkIntent(args.command, message, args.agent),
   )
 }
 
@@ -250,6 +253,61 @@ async function runHeadlessCardWrite(args: {
     return
   }
   UI.println(`draft: wrote ${result.relative} (not sent)`)
+}
+
+async function runHeadlessRecruitWork(args: {
+  command?: string
+  message?: string[]
+  dir?: string
+  json?: boolean
+  format?: string
+  agent?: string
+  ["--"]?: string[]
+}) {
+  const directory = await resolveRunDirectory(args.dir)
+  const raw = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
+  const intent = CardWrite.parseNaturalWorkIntent(args.command, raw, args.agent)
+  if (!intent) {
+    UI.error("not a local recruit work ask")
+    process.exit(1)
+  }
+  const worked = await CardWrite.workOnCard(directory, intent.hint).catch((error) => {
+    UI.error(error instanceof Error ? error.message : String(error))
+    process.exit(1)
+  })
+  const { DecisionVerbs } = await import("@/decision/verbs")
+  const committed = await DecisionVerbs.commit({
+    action: "note",
+    target: { kind: "candidate", id: worked.id },
+    rationale: worked.rationale,
+    reason: raw.trim() || worked.rationale,
+    source: "run",
+    author_kind: "agent",
+    cwd: directory,
+  }).catch((error) => {
+    UI.error(error instanceof Error ? error.message : String(error))
+    process.exit(1)
+  })
+  if (args.json || args.format === "json") {
+    console.log(
+      JSON.stringify(
+        {
+          command: "recruit-work",
+          id: worked.id,
+          score: worked.score,
+          relative: worked.relative,
+          changeset: committed.changeset.id,
+          rationale: committed.changeset.rationale,
+        },
+        null,
+        2,
+      ),
+    )
+    return
+  }
+  UI.println(
+    `ready: ${worked.id} scored and drafted; staged note ${committed.changeset.id} for review`,
+  )
 }
 
 export const RunCommand = effectCmd({
@@ -402,12 +460,16 @@ export const RunCommand = effectCmd({
         yield* Effect.promise(() => runHeadlessAddCandidate(args))
         return
       }
-      if (args.command && !isLocalWriteOrScaffold(args.command, message, args.file ?? [])) {
+      if (args.command && !isLocalWriteOrScaffold(args.command, message, args.file ?? [], args.agent)) {
         UI.error(`unknown command: ${args.command} — use ${LOCAL_RUN_COMMANDS}`)
         process.exit(1)
       }
       if (CardWrite.parseWriteIntent(args.command, message)) {
         yield* Effect.promise(() => runHeadlessCardWrite(args))
+        return
+      }
+      if (CardWrite.parseNaturalWorkIntent(args.command, message, args.agent)) {
+        yield* Effect.promise(() => runHeadlessRecruitWork(args))
         return
       }
       yield* Effect.promise(() => runHeadlessScaffold(args))
