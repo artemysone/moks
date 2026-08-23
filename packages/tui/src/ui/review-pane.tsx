@@ -15,6 +15,7 @@ import {
   mergeBlockedReason,
   parseInspectReview,
   parseStagedReviews,
+  rejectReasonFromTaste,
   reviewDecisionArgs,
   reviewPushArgs,
   type StagedReviewRow,
@@ -79,7 +80,15 @@ export function ReviewPane(props: { onClose: () => void }) {
       toast.show({ message: "Only staged changesets can be blessed", variant: "warning" })
       return
     }
-    const result = await runDecision(reviewDecisionArgs({ id: row.id, action }), { cwd: cwd() })
+    const reason = action === "reject" ? rejectReasonFromTaste(taste) : ""
+    if (action === "reject" && !reason) {
+      toast.show({
+        message: "review --reject needs --reason (or inspect body already on the changeset)",
+        variant: "error",
+      })
+      return
+    }
+    const result = await runDecision(reviewDecisionArgs({ id: row.id, action, reason: reason || undefined }), { cwd: cwd() })
     const ok = result.code === 0
     toast.show({
       message: reviewToastMessage({ ok, action, id: row.id }),

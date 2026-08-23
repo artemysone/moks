@@ -104,6 +104,30 @@ export async function write(cwd: string, card: Card) {
   return file
 }
 
+
+export function readReason(card: Card) {
+  const field = card.extra.rejection?.trim()
+  if (field) return field
+  const notes = card.body.match(/## Notes\b[^\n]*\n+([\s\S]*?)(?=\n## |\n# |$)/)
+  const line = notes?.[1]?.match(/Rejected:\s*(.+)/)?.[1]?.trim()
+  return line || undefined
+}
+
+export function persistReason(card: Card, reason: string): Card {
+  const trimmed = reason.trim()
+  const extra = { ...card.extra, rejection: trimmed }
+  return { ...card, extra, body: upsertNotes(card.body, trimmed) }
+}
+
+function upsertNotes(body: string, reason: string) {
+  const block = `## Notes\n\nRejected: ${reason}\n`
+  const re = /(?:^|\n)## Notes\b[^\n]*\n[\s\S]*?(?=\n## |\n# |$)/
+  if (re.test(body)) {
+    return body.replace(re, (match) => `${match.startsWith("\n") ? "\n" : ""}${block}`)
+  }
+  return `${body.replace(/\s*$/, "\n\n")}${block}`
+}
+
 export async function list(cwd: string) {
   const dir = path.join(cwd, CANDIDATES_DIR)
   const glob = new Bun.Glob("*.md")

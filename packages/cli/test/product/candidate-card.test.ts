@@ -115,3 +115,14 @@ test("write and read roundtrip a card on disk", async () => {
   const listed = await CandidateCard.list(tmp.path)
   expect(listed).toEqual([sample])
 })
+
+test("persistReason writes rejection field and ## Notes; readReason does not invent", () => {
+  const card = CandidateCard.parse(CandidateCard.stub("jane-doe", { name: "Jane" }))
+  expect(card).toBeDefined()
+  expect(CandidateCard.readReason(card!)).toBeUndefined()
+  const next = CandidateCard.persistReason(card!, "below bar on systems")
+  expect(next.extra.rejection).toBe("below bar on systems")
+  expect(next.body).toContain("## Notes")
+  expect(next.body).toContain("Rejected: below bar on systems")
+  expect(CandidateCard.readReason(next)).toBe("below bar on systems")
+})

@@ -147,3 +147,77 @@ test("review shows AdvanceStage hop without rewriting the card", async () => {
   expect(cli.combined).toContain("approve will bless")
   expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
 })
+
+test("review --reject without --reason fails loud", async () => {
+  await using tmp = await workspace()
+  await DecisionVerbs.pull({ cwd: tmp.path })
+  const committed = await DecisionVerbs.commit({
+    action: "note",
+    target: { kind: "candidate", id: "cand_priya" },
+    reason: "tasting the PR",
+    cwd: tmp.path,
+  })
+  const cli = await moks(["review", committed.changeset.id, "--reject"], tmp.path)
+  expect(cli.code).not.toBe(0)
+  expect(cli.combined).toContain("review --reject needs --reason")
+  const shown = await DecisionVerbs.inspectReview({ id: committed.changeset.id, cwd: tmp.path })
+  expect(shown.changeset.status).toBe("staged")
+})
+
+test("review --reject with a reason lands on the card and come-back next", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "COMPANY.md"), "# Acme\n")
+      const req = path.join(dir, "staff-platform")
+      await Bun.write(path.join(req, "HIRING.md"), "# Staff Platform\n")
+      await CandidateCard.write(req, {
+        id: "cand_priya",
+        stage: "Sourced",
+        extra: { name: "Priya" },
+        body: "# Priya\n",
+      })
+    },
+  })
+  const { ReqWorkspace } = await import("../../src/product/req-workspace")
+  const { HiringSession } = await import("../../src/product/hiring-session")
+  await ReqWorkspace.writeFocus(tmp.path, "staff-platform")
+  await DecisionVerbs.pull({ cwd: tmp.path })
+  const committed = await DecisionVerbs.commit({
+    action: "note",
+    target: { kind: "candidate", id: "cand_priya" },
+    reason: "tasting the PR",
+    cwd: tmp.path,
+  })
+  const cli = await moks(
+    ["review", committed.changeset.id, "--reject", "--reason", "weak systems evidence"],
+    tmp.path,
+  )
+  expect(cli.code).toBe(0)
+  const shown = await DecisionVerbs.inspectReview({ id: committed.changeset.id, cwd: tmp.path })
+  expect(shown.changeset.status).toBe("rejected")
+  expect(shown.changeset.rationale).toContain("weak systems evidence")
+  const card = await CandidateCard.read(path.join(tmp.path, "staff-platform"), "cand_priya")
+  expect(card?.extra.rejection).toBe("weak systems evidence")
+  expect(card?.body).toContain("## Notes")
+  expect(card?.body).toContain("Rejected: weak systems evidence")
+  const comeBack = await HiringSession.loadSnapshot(tmp.path)
+  expect(comeBack.next).toContain("weak systems evidence")
+  expect(comeBack.staged.count).toBe(0)
+})
+
+test("leftover-ledger and empty cwd fail loud on review", async () => {
+  await using empty = await tmpdir()
+  await expect(DecisionVerbs.review({ id: "cs_1", action: "reject", by: "you", reason: "x", cwd: empty.path })).rejects.toThrow(
+    /not a company directory|leftover|--cwd\/--dir/,
+  )
+  const { ReqWorkspace } = await import("../../src/product/req-workspace")
+  await using leftover = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "COMPANY.md"), ReqWorkspace.COMPANY_STUB)
+      await Bun.write(path.join(dir, ".moks", "ledger.sqlite"), "")
+    },
+  })
+  await expect(
+    DecisionVerbs.review({ id: "cs_1", action: "reject", by: "you", reason: "x", cwd: leftover.path }),
+  ).rejects.toThrow(/not a company directory|leftover|--cwd\/--dir/)
+})

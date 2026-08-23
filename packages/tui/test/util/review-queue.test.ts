@@ -7,6 +7,7 @@ import {
   matchSlashCommand,
   parseInspectReview,
   parseStagedReviews,
+  rejectReasonFromTaste,
   reviewDecisionArgs,
   canMergePush,
   canTaste,
@@ -87,6 +88,22 @@ describe("review queue + taste surface", () => {
     expect(approve.join(" ")).not.toContain("push")
     expect(approve.join(" ")).not.toContain("merge")
     expect(reviewDecisionArgs({ id: "cs_1", action: "reject", by: "reviewer" })).toContain("--reject")
+    expect(reviewDecisionArgs({ id: "cs_1", action: "reject", by: "reviewer", reason: "weak systems" })).toEqual([
+      "review",
+      "cs_1",
+      "--reject",
+      "--by",
+      "reviewer",
+      "--json",
+      "--reason",
+      "weak systems",
+    ])
+  })
+
+  test("TUI n uses inspect why as the reject reason and fails loud when empty", () => {
+    expect(rejectReasonFromTaste({ why: "screen Priya" })).toBe("screen Priya")
+    expect(rejectReasonFromTaste({ why: "   " })).toBe("")
+    expect(rejectReasonFromTaste(undefined)).toBe("")
   })
 
   test("merge key is the same path as moks push --execute and only after bless", () => {
