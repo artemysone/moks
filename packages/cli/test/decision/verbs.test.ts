@@ -3,6 +3,8 @@ import path from "path"
 import { CandidateAdd } from "../../src/product/candidate-add"
 import { CandidateCard } from "../../src/product/candidate-card"
 import { DecisionVerbs } from "../../src/decision/verbs"
+import { isStage } from "../../../engine/ledger/src/domain.ts"
+import { parseHiringMarkdown } from "@moks/ledger"
 import { ReqWorkspace } from "../../src/product/req-workspace"
 import { tmpdir } from "../fixture/fixture"
 
@@ -558,6 +560,26 @@ test("push dry-run with staged and zero approved names review first", async () =
     } else {
       const inspected = await DecisionVerbs.inspectReview({ cwd: tmp.path, id: committed.changeset.id })
       expect(inspected.changeset.id).toBe(committed.changeset.id)
+    }
+    const hiringDoc = parseHiringMarkdown(
+      "# Role\n## Process\n- Stages: sourced \u2192 screen \u2192 phone \u2192 onsite \u2192 offer \u2192 hire\n",
+    )
+    expect(hiringDoc.stages).toEqual(["Sourced", "Screen", "Phone", "Onsite", "Offer", "Hired"])
+    expect(isStage("Phone")).toBe(true)
+    try {
+      const phoneHop = await DecisionVerbs.commit({
+        action: "advance",
+        target: { kind: "candidate", id: "cand_priya" },
+        to: "Phone",
+        reason: "HIRING next",
+        cwd: tmp.path,
+      })
+      expect(phoneHop.changeset.changes[0].mutation).toBe("AdvanceStage")
+      expect(phoneHop.changeset.changes[0].payload).toEqual(expect.objectContaining({ to: "Phone" }))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      expect(message).not.toMatch(/invalid_payload/)
+      expect(message).toMatch(/illegal_transition|legal next|not a legal next/)
     }
   })
 })

@@ -3,6 +3,8 @@ export const APPLICATION_STAGES = [
   "Contacted",
   "Replied",
   "Screen",
+  "Phone",
+  "Onsite",
   "Interview",
   "Offer",
   "Hired",
@@ -17,6 +19,8 @@ export const ACTIVE_STAGES = [
   "Contacted",
   "Replied",
   "Screen",
+  "Phone",
+  "Onsite",
   "Interview",
   "Offer",
 ] as const;

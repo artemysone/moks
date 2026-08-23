@@ -51,11 +51,11 @@ describe("parseHiringMarkdown", () => {
     expect(doc.policy.alwaysGate).toEqual(["Reject"]);
   });
 
-  test("parse Process stages drops unknown tokens and keeps ledger order", () => {
+  test("parse Process stages keeps HIRING hops (Phone, Onsite)", () => {
     const doc = parseHiringMarkdown(`## Process
 - Stages: sourced → screen → phone → onsite → offer → hire
 `);
-    expect(doc.stages).toEqual(["Sourced", "Screen", "Offer", "Hired"]);
+    expect(doc.stages).toEqual(["Sourced", "Screen", "Phone", "Onsite", "Offer", "Hired"]);
   });
 
   test("no Process section yields empty stages", () => {

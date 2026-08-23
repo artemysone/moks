@@ -106,13 +106,16 @@ const STAGE_ALIAS: Record<string, ApplicationStage> = {
   contacted: "Contacted",
   replied: "Replied",
   screen: "Screen",
+  phone: "Phone",
+  onsite: "Onsite",
+  "on-site": "Onsite",
   interview: "Interview",
   offer: "Offer",
   hire: "Hired",
   hired: "Hired",
 };
 
-/** Stages named by the req. Unknown tokens (phone, onsite, …) are dropped, not invented. */
+/** Stages named by the req. HIRING hops (phone, onsite, on-site) map to Phone/Onsite; other unknown tokens are dropped. */
 export function parseProcessStages(body: string): ApplicationStage[] {
   const stages: ApplicationStage[] = [];
   for (const rawLine of body.split(/\r?\n/)) {
