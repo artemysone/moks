@@ -18,6 +18,7 @@ import { requireInteractiveTty } from "@moks/tui/util/tty"
 import { DecisionVerbs } from "@/decision/verbs"
 import { withCompanyDirOption } from "@/cli/cmd/agent"
 import { isLiveCompany } from "@/product/req-workspace"
+import { CardWrite } from "@/product/card-write"
 
 declare global {
   const MOKS_WORKER_PATH: string
@@ -249,7 +250,11 @@ export const TuiThreadCommand = cmd({
       exists: args.project ? await Filesystem.exists(resolveThreadDirectory(args.project)) : false,
     })
     if (unknown) {
-      UI.error(`unknown command: ${unknown}`)
+      if (CardWrite.parseSendIntent(unknown, "")) {
+        UI.error(CardWrite.NEVER_SENT)
+      } else {
+        UI.error(`unknown command: ${unknown}`)
+      }
       process.exitCode = 1
       return
     }

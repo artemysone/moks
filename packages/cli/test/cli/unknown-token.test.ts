@@ -22,3 +22,9 @@ test("known verb still reports unknown argument", () => {
   })
   expect(failure).toEqual({ kind: "argument", names: "not-a-real-flag" })
 })
+
+test("send/mail/outreach-for-real is never-sent, not unknown command", () => {
+  for (const token of ["send", "mail", "email", "outreach-for-real"]) {
+    expect(unknownCliFailure({ argv: [token] })).toEqual({ kind: "never-sent", name: token })
+  }
+})

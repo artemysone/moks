@@ -10,6 +10,24 @@ export type WriteIntent = {
   hint: string
 }
 
+const SEND_COMMANDS = new Set(["send", "mail", "email", "outreach-for-real"])
+
+export const NEVER_SENT =
+  "we don't send. drafts stay in the folder — Draft only. Never sent. recruit never emails. the close stays human"
+
+export function parseSendIntent(command?: string, message = ""): { hint: string } | undefined {
+  const hint = message.trim()
+  if (command && SEND_COMMANDS.has(command)) return { hint: hint || command }
+  const text = command ? `${command} ${hint}`.trim() : hint
+  if (!text) return
+  if (/\boutreach[- ]for[- ]real\b/i.test(text)) return { hint: text }
+  if (/\b(?:actually\s+)?(?:send|mail|email)\b/i.test(text) && /\b(?:for[- ]real|for real|actually)\b/i.test(text)) {
+    return { hint: text }
+  }
+  if (/^(?:please\s+|can you\s+)?(?:\/)?(?:send|mail|email)\b/i.test(text)) return { hint: text }
+  if (/\bsend\s+(?:this|it|the\s+)?(?:email|outreach|letter|message)\b/i.test(text)) return { hint: text }
+}
+
 const SCORE_COMMANDS = new Set(["score", "score-candidate"])
 const DRAFT_COMMANDS = new Set(["draft", "draft-outreach"])
 const PLACEHOLDER = /^(tbd|todo|n\/a|none|-)$/i
@@ -46,6 +64,7 @@ export function parseWriteIntent(command?: string, message = ""): WriteIntent | 
   if (command && DRAFT_COMMANDS.has(command)) return { kind: "draft", hint }
   if (command && SCORE_COMMANDS.has(command)) return { kind: "score", hint }
   if (command) return
+  if (parseSendIntent(undefined, hint)) return
   if (/^(?:please\s+|can you\s+)?(?:\/)?draft(?:-outreach)?\b/i.test(hint) || /\bdraft-outreach\b/i.test(hint)) {
     return { kind: "draft", hint }
   }
@@ -64,6 +83,7 @@ export function parseNaturalWorkIntent(
   if (agent && agent !== "recruit") return
   const hint = message.trim()
   if (!hint) return
+  if (parseSendIntent(undefined, hint)) return
   if (parseWriteIntent(undefined, hint)) return
   if (/\bready for review\b/i.test(hint)) return { hint }
   if (/^(?:please\s+|can you\s+)?(?:get|make|prep(?:are)?|work)\b/i.test(hint)) return { hint }
@@ -464,6 +484,7 @@ function upsertSection(body: string, heading: string, section: string) {
 
 
 export async function workOnCard(cwd: string, hint: string) {
+  if (parseSendIntent(undefined, hint)) throw new Error(NEVER_SENT)
   const scored = await writeOnCard(cwd, { kind: "score", hint })
   const drafted = await writeOnCard(cwd, { kind: "draft", hint })
   const card = CandidateCard.parse(await Bun.file(scored.file).text())
