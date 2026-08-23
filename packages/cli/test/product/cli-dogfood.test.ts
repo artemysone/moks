@@ -419,6 +419,34 @@ describe("cli dogfood", () => {
     expect(reviewed.combined).not.toContain("no staged changesets")
   }, 30_000)
 
+  test("second process in a mid-req folder surfaces focused + staged + next without /open-req", async () => {
+    await using company = await tmpdir()
+    await using home = await tmpdir()
+    const env = { ANTHROPIC_API_KEY: "" }
+    expect((await moks(["run", "--command", "init"], company.path, home.path, env)).code).toBe(0)
+    expect((await moks(["run", "--command", "open-req", "--", "Staff Platform"], company.path, home.path, env)).code).toBe(0)
+    const resume = path.join(company.path, "kenji-okada.md")
+    await Bun.write(resume, ["# Kenji Okada", "", "Staff platform engineer. Payments edge.", ""].join("\n"))
+    expect((await moks(["add-candidate", resume], company.path, home.path, env)).code).toBe(0)
+    expect((await moks(["run", "--agent", "recruit", "--", "get kenji ready for review"], company.path, home.path, env)).code).toBe(0)
+
+    const laterHome = await tmpdir()
+    const status = await moks(["status"], company.path, laterHome.path, env)
+    expect(status.code).toBe(0)
+    expect(status.combined).toMatch(/focused staff-platform/)
+    expect(status.combined).toMatch(/staged \d/)
+    expect(status.combined).toMatch(/next: review /)
+    expect(status.combined).not.toMatch(/open-req/)
+
+    const recruit = await moks(["run", "--agent", "recruit"], company.path, laterHome.path, env)
+    expect(recruit.code).toBe(0)
+    expect(recruit.combined).toMatch(/focused staff-platform/)
+    expect(recruit.combined).toMatch(/next: review /)
+    expect(recruit.combined).not.toMatch(/open-req/)
+    expect(recruit.combined).not.toMatch(/sign in \/ connect OAuth or ACP/i)
+    await laterHome[Symbol.asyncDispose]()
+  }, 40_000)
+
   test("natural work outside a company fails loud without OAuth", async () => {
     await using empty = await tmpdir()
     await using home = await tmpdir()

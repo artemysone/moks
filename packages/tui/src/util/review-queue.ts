@@ -38,6 +38,24 @@ export function tuiLanding(input: { headless: boolean; liveCompany: boolean; lef
   return "composer" as const
 }
 
+export function firstFrame(session?: {
+  focused: string | null
+  staged: { count: number; ids: string[] }
+  next: string
+}) {
+  if (!session?.focused) {
+    return { landing: "composer-recruit" as const, openReq: true as const }
+  }
+  return {
+    landing: "composer-recruit" as const,
+    openReq: false as const,
+    focused: session.focused,
+    stagedCount: session.staged.count,
+    stagedIds: session.staged.ids,
+    next: session.next,
+  }
+}
+
 export function listReviewCommandArgs() {
   return ["review", "--json"]
 }

@@ -95,7 +95,7 @@ function configShortcut(api: TuiPluginApi, command: string): TipShortcut {
       .join(", ")
 }
 
-export function Tips(props: { api: TuiPluginApi; connected?: boolean; company?: boolean }) {
+export function Tips(props: { api: TuiPluginApi; connected?: boolean; company?: boolean; sessionNext?: string }) {
   const theme = useTheme().theme
   const tipOffset = Math.random()
   const shortcuts: Shortcuts = {
@@ -135,6 +135,7 @@ export function Tips(props: { api: TuiPluginApi; connected?: boolean; company?: 
   }
   const tip = createMemo(() => {
     if (props.company === false) return EMPTY_COMPANY_TIP
+    if (props.sessionNext) return `{highlight}${props.sessionNext}{/highlight} — pick up where you left off`
     if (props.connected === false) return NO_MODELS_TIP
     const tips = [...TIPS, process.platform !== "win32" ? TERMINAL_SUSPEND_TIP : INPUT_UNDO_TIP].flatMap((item) => {
       const value = typeof item === "string" ? item : item(shortcuts)

@@ -180,6 +180,18 @@ export function Prompt(props: PromptProps) {
     const [title, cards] = await Promise.all([readReqTitle(dir), countCards(dir)])
     return { title, cards }
   })
+  const [session] = createResource(reqDir, async (dir) => {
+    const raw = await Bun.file(path.join(dir, ".moks", "session.json"))
+      .text()
+      .catch(() => "")
+    if (!raw.trim()) return
+    try {
+      const parsed = JSON.parse(raw) as { focused?: string | null; next?: string }
+      return parsed
+    } catch {
+      return
+    }
+  })
   const [ledger, ledgerControl] = createResource(reqDir, countChangesets)
   // The req packet mutates outside this process (moks pull/commit in another
   // terminal, agent edits), so poll like the sidebar packet does. Card and
@@ -213,7 +225,7 @@ export function Prompt(props: PromptProps) {
     })
   })
 
-  const list = createMemo(() => props.placeholders?.normal ?? placeholdersFor({ cards: reqMeta()?.cards }))
+  const list = createMemo(() => props.placeholders?.normal ?? placeholdersFor({ cards: reqMeta()?.cards, focused: session()?.focused, next: session()?.next }))
   const shell = createMemo(() => props.placeholders?.shell ?? DEFAULT_PLACEHOLDERS.shell)
   const fileContextEnabled = createMemo(() => kv.get("file_context_enabled", true))
   const [dismissedEditorSelectionKey, setDismissedEditorSelectionKey] = createSignal<string>()

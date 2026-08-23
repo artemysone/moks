@@ -8,6 +8,7 @@ import {
   parseInspectReview,
   parseStagedReviews,
   reviewDecisionArgs,
+  firstFrame,
   tuiLanding,
 } from "../../src/util/review-queue"
 
@@ -40,6 +41,21 @@ describe("TUI landing", () => {
   test("leftover-ledger and empty-cwd stay fail-loud for headless", () => {
     expect(tuiLanding({ headless: true, liveCompany: false, leftoverOrEmpty: true })).toBe("fail-loud")
     expect(tuiLanding({ headless: false, liveCompany: true, leftoverOrEmpty: false })).not.toBe("fail-loud")
+  })
+
+  test("first frame with a snapshot is focused req + staged + next, not /open-req", () => {
+    const frame = firstFrame({
+      focused: "staff-platform",
+      staged: { count: 1, ids: ["cs_1"] },
+      next: "review cs_1",
+    })
+    expect(frame.landing).toBe("composer-recruit")
+    expect(frame.openReq).toBe(false)
+    expect(frame.focused).toBe("staff-platform")
+    expect(frame.stagedCount).toBe(1)
+    expect(frame.stagedIds).toEqual(["cs_1"])
+    expect(frame.next).toBe("review cs_1")
+    expect(firstFrame(undefined).openReq).toBe(true)
   })
 })
 
