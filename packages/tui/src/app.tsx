@@ -57,7 +57,8 @@ import { FrecencyProvider } from "./component/prompt/frecency"
 import { PromptStashProvider } from "./component/prompt/stash"
 import { DialogAlert } from "./ui/dialog-alert"
 import { DialogConfirm } from "./ui/dialog-confirm"
-import { runCommitFlow, runDecisionsFlow, runPushFlow, runReviewFlow } from "./ui/dialog-decision"
+import { runCommitFlow, runDecisionsFlow, runPushFlow } from "./ui/dialog-decision"
+import { ReviewPane } from "./ui/review-pane"
 import { ToastProvider, useToast } from "./ui/toast"
 import { isDefaultTitle } from "./util/session"
 import { KVProvider, useKV } from "./context/kv"
@@ -118,6 +119,7 @@ const appBindingCommands = [
   "variant.list",
   "provider.connect",
   "decision.list",
+  "decision.review",
   "moks.system",
   "moks.debug",
   "theme.switch",
@@ -384,6 +386,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
   const pluginRuntime = usePluginRuntime()
   const attention = createTuiAttention({ renderer, config: tuiConfig, kv })
   const clipboard = useClipboard()
+  const [reviewOpen, setReviewOpen] = createSignal(false)
+
 
   const api = createTuiApi(
     createTuiApiAdapters({
@@ -783,16 +787,12 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       },
       {
         name: "decision.review",
-        title: "Review changeset",
-        // No slashName: "/review" belongs to the packet-review server command.
-        // Ledger approve/reject stays reachable from the palette and the CLI.
+        title: "Taste staged changesets",
+        slashName: "review",
         category: "Decision",
         run: () => {
-          void runReviewFlow({
-            dialog,
-            toast,
-            cwd: project.instance.directory() || sdk.directory || undefined,
-          })
+          setReviewOpen(true)
+          dialog.clear()
         },
       },
       {
@@ -1160,6 +1160,9 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
             </Match>
           </Switch>
           {plugin()}
+          <Show when={reviewOpen()}>
+            <ReviewPane onClose={() => setReviewOpen(false)} />
+          </Show>
         </box>
         <box flexShrink={0}>
           <pluginRuntime.Slot name="app_bottom" />

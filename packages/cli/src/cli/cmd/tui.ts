@@ -294,7 +294,7 @@ export const TuiThreadCommand = cmd({
             args: {
               continue: args.continue,
               sessionID: args.session,
-              agent: args.agent,
+              agent: args.agent ?? "recruit",
               model: args.model,
               prompt,
               fork: args.fork,
