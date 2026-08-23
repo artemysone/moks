@@ -308,6 +308,18 @@ const waitForBusy = (sessionID: SessionID, duration: Duration.Input = "2 seconds
     duration,
   )
 
+// SessionStatus can flip to busy inside startShell before the runner lock is visible.
+const waitForLock = (sessionID: SessionID, duration: Duration.Input = "2 seconds") =>
+  pollWithTimeout(
+    Effect.gen(function* () {
+      const run = yield* SessionRunState.Service
+      const exit = yield* run.assertNotBusy(sessionID).pipe(Effect.exit)
+      return Exit.isFailure(exit) ? (true as const) : undefined
+    }),
+    `session ${sessionID} never held the run lock`,
+    duration,
+  )
+
 const hasBash = Effect.sync(() => Bun.which("bash") !== null)
 
 const deferredAsPromise = <A>(deferred: Deferred.Deferred<A>): PromiseLike<A> => ({
@@ -2037,9 +2049,9 @@ unixNoLLMServer(
         const a = yield* prompt
           .shell({ sessionID: chat.id, agent: "recruit", command: "sleep 30" })
           .pipe(Effect.forkChild)
-        yield* waitForBusy(chat.id)
+        yield* waitForLock(chat.id)
 
-        const exit = yield* prompt.shell({ sessionID: chat.id, agent: "recruit", command: "echo hi" }).pipe(Effect.exit)
+        const exit = yield* prompt.shell({ sessionID: chat.id, agent: "recruit", command: "echo hi" }).pipe(Effect.timeout("2 seconds"), Effect.exit)
         expect(Exit.isFailure(exit)).toBe(true)
         if (Exit.isFailure(exit)) {
           expect(Cause.squash(exit.cause)).toBeInstanceOf(Session.BusyError)

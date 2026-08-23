@@ -37,7 +37,7 @@ const NAME_LIST_FILLER = new Set([
   "directory",
 ])
 
-const NAME_BLOCK = /\b(note|score|draft|review|reject|advance|commit|push|work|hire|offer)\b/i
+const NAME_BLOCK = /\b(note|score|draft|review|reject|advance|commit|push|work|hire|offer|get|make|prep|prepare|ready)\b/i
 const MODEL_OR_QUESTION = /\b(who|what|why|how|when|where|is|are|was|were|using|brief|skill)\b/i
 
 export type AddIntent = {
@@ -72,6 +72,7 @@ export function parseAddIntent(
   }
   // Pile only for add / bare --file / name-list. Model prompts keep --file as LLM context.
   if (recruit && attached.length && !hint) return { files: attached, names: [] }
+  if (recruit && /^(?:please\s+|can you\s+)?(?:get|make|prep(?:are)?|work)\b/i.test(hint)) return
   if (recruit && looksLikeNameList(hint)) {
     const parsed = parsePile(hint, attached)
     if (parsed.files.length || parsed.names.length) return parsed
@@ -235,6 +236,13 @@ function headlineFromBody(body: string) {
   return ""
 }
 
+function legalStage(handle: LedgerHandle, stage: string) {
+  if (handle.api.isStage(stage)) return stage
+  const titled = stage.slice(0, 1).toUpperCase() + stage.slice(1).toLowerCase()
+  if (handle.api.isStage(titled)) return titled
+  return "Sourced"
+}
+
 export function registerLocalCandidate(
   handle: LedgerHandle,
   input: { id: string; name: string; headline: string; stage: string },
@@ -245,12 +253,18 @@ export function registerLocalCandidate(
   if (!mockJob) {
     throw new Error("mock ATS has no jobs — pull or seed before add-candidate")
   }
+  input = { ...input, stage: legalStage(handle, input.stage) }
   const taken = handle.api.readMirrorEntity(handle.db, "candidate", input.id)
   const inMock = handle.mockDb.prepare("SELECT id FROM candidates WHERE id = ?").get(input.id) as { id: string } | undefined
-  if (inMock && taken) {
+  const hasApp = handle.api.listApplications(handle.db).some((row) => row.candidateId === input.id)
+  if (inMock && taken && hasApp) {
     if (opts.collide !== "skip") {
       throw new Error(`candidate already in ledger: ${input.id} — pick a name that is not a mock ATS id`)
     }
+    return
+  }
+  if (inMock && taken && !hasApp) {
+    insertLocalIntoMockAts(handle, input, mockJob.id)
     return
   }
   if (inMock && !taken) {

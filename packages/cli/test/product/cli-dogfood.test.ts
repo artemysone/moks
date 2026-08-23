@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import path from "path"
 import { tmpdir } from "../fixture/fixture"
+import { CandidateCard } from "../../src/product/candidate-card"
 import { ReqWorkspace } from "../../src/product/req-workspace"
 
 const entry = path.join(import.meta.dir, "../../src/index.ts")
@@ -125,7 +126,15 @@ describe("cli dogfood", () => {
     expect(opened.code).toBe(0)
     const pulled = await moks(["pull", "--cwd", company.path], company.path, home.path, env)
     expect(pulled.code).toBe(0)
-    expect(pulled.combined).toMatch(/5 candidates/)
+    expect(pulled.combined).toMatch(/0 new/)
+    expect(await CandidateCard.list(path.join(company.path, "senior-backend"))).toEqual([])
+    await CandidateCard.write(path.join(company.path, "senior-backend"), {
+      id: "cand_priya",
+      stage: "Sourced",
+      extra: { name: "Priya Shah" },
+      body: "# Priya Shah\n\nBackend engineer, fintech / ledger systems\n",
+    })
+    expect((await moks(["pull", "--cwd", company.path], company.path, home.path, env)).code).toBe(0)
 
     const started = Date.now()
     const scored = await moks(
@@ -223,12 +232,25 @@ describe("cli dogfood", () => {
     expect((await moks(["run", "--command", "init"], company.path, home.path, env)).code).toBe(0)
     expect((await moks(["run", "--command", "open-req", "--", "Senior Backend"], company.path, home.path, env)).code).toBe(0)
     expect((await moks(["pull", "--cwd", company.path], company.path, home.path, env)).code).toBe(0)
+    await CandidateCard.write(path.join(company.path, "senior-backend"), {
+      id: "cand_priya",
+      stage: "Sourced",
+      extra: { name: "Priya Shah" },
+      body: "# Priya Shah\n",
+    })
+    await CandidateCard.write(path.join(company.path, "senior-backend"), {
+      id: "cand_jordan",
+      stage: "Screen",
+      extra: { name: "Jordan" },
+      body: "# Jordan\n",
+    })
+    expect((await moks(["pull", "--cwd", company.path], company.path, home.path, env)).code).toBe(0)
     const before = await snapshotCards(company.path)
 
     const score = await moks(["run", "--", "Score this resume"], company.path, home.path, env)
     expect(score.code).toBe(1)
     expect(score.stderr + score.stdout).toMatch(/no target id — name one of:/)
-    expect(score.combined).toMatch(/cand_/)
+    expect(score.combined).toMatch(/cand_priya|cand_jordan/)
     expect(score.combined).not.toMatch(/Rejected|cand_amira/)
     expect(score.combined).not.toMatch(/score: wrote/)
 
@@ -246,6 +268,13 @@ describe("cli dogfood", () => {
     const env = { ANTHROPIC_API_KEY: "" }
     expect((await moks(["run", "--command", "init"], company.path, home.path, env)).code).toBe(0)
     expect((await moks(["run", "--command", "open-req", "--", "Senior Backend"], company.path, home.path, env)).code).toBe(0)
+    expect((await moks(["pull", "--cwd", company.path], company.path, home.path, env)).code).toBe(0)
+    await CandidateCard.write(path.join(company.path, "senior-backend"), {
+      id: "cand_priya",
+      stage: "Sourced",
+      extra: { name: "Priya Shah" },
+      body: "# Priya Shah\n",
+    })
     expect((await moks(["pull", "--cwd", company.path], company.path, home.path, env)).code).toBe(0)
     const before = await snapshotCards(company.path)
 
@@ -269,6 +298,19 @@ describe("cli dogfood", () => {
     const env = { ANTHROPIC_API_KEY: "" }
     expect((await moks(["run", "--command", "init"], company.path, home.path, env)).code).toBe(0)
     expect((await moks(["run", "--command", "open-req", "--", "Senior Backend"], company.path, home.path, env)).code).toBe(0)
+    expect((await moks(["pull", "--dir", company.path], other.path, home.path, env)).code).toBe(0)
+    await CandidateCard.write(path.join(company.path, "senior-backend"), {
+      id: "cand_priya",
+      stage: "Sourced",
+      extra: { name: "Priya Shah" },
+      body: "# Priya Shah\n",
+    })
+    await CandidateCard.write(path.join(company.path, "senior-backend"), {
+      id: "cand_jordan",
+      stage: "Screen",
+      extra: { name: "Jordan" },
+      body: "# Jordan\n",
+    })
     expect((await moks(["pull", "--dir", company.path], other.path, home.path, env)).code).toBe(0)
 
     const scored = await moks(
@@ -403,7 +445,8 @@ describe("cli dogfood", () => {
     expect(worked.combined).not.toContain("Unexpected error")
     expect(worked.combined).not.toMatch(/sign in \/ connect OAuth or ACP/i)
     expect(worked.combined).toMatch(/ready: kenji-okada/)
-    expect(worked.combined).toMatch(/staged note/)
+    expect(worked.combined).toMatch(/staged /)
+    expect(worked.combined).not.toMatch(/staged note/)
     expect(worked.combined).not.toMatch(/\bpushed\b/)
     expect(Date.now() - started).toBeLessThan(15_000)
     const ledger = await moks(["status"], company.path, home.path, env)
@@ -420,7 +463,8 @@ describe("cli dogfood", () => {
 
     const reviewed = await moks(["review"], company.path, home.path, env)
     expect(reviewed.code).toBe(0)
-    expect(reviewed.combined).toMatch(/AddNote|note/)
+    expect(reviewed.combined).toMatch(/AdvanceStage|SendOutreach|outreach/)
+    expect(reviewed.combined).not.toMatch(/AddNote/)
     expect(reviewed.combined).not.toContain("no staged changesets")
   }, 30_000)
 
