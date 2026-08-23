@@ -404,7 +404,12 @@ describe("cli dogfood", () => {
     expect(worked.combined).not.toMatch(/sign in \/ connect OAuth or ACP/i)
     expect(worked.combined).toMatch(/ready: kenji-okada/)
     expect(worked.combined).toMatch(/staged note/)
+    expect(worked.combined).not.toMatch(/\bpushed\b/)
     expect(Date.now() - started).toBeLessThan(15_000)
+    const ledger = await moks(["status"], company.path, home.path, env)
+    expect(ledger.code).toBe(0)
+    expect(ledger.combined).toMatch(/applied 0/)
+    expect(ledger.combined).toMatch(/staged [1-9]/)
 
     const card = await Bun.file(path.join(company.path, "staff-platform", "candidates", "kenji-okada.md")).text()
     expect(card).toContain("# Score")

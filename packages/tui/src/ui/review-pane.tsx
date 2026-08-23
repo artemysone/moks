@@ -7,16 +7,20 @@ import { useToast } from "./toast"
 import { useProject } from "../context/project"
 import { useSDK } from "../context/sdk"
 import {
+  canMergePush,
+  canTaste,
   formatQueueLine,
   inspectReviewCommandArgs,
   listReviewCommandArgs,
+  mergeBlockedReason,
   parseInspectReview,
   parseStagedReviews,
   reviewDecisionArgs,
+  reviewPushArgs,
   type StagedReviewRow,
   type TasteSurface,
 } from "../util/review-queue"
-import { reviewToastMessage, runDecision } from "../util/decision-cli"
+import { confirmMessage, isDryRun, needsConfirm, pushToastMessage, reviewToastMessage, runDecision } from "../util/decision-cli"
 
 const PANE_WIDTH = 42
 
@@ -70,7 +74,8 @@ export function ReviewPane(props: { onClose: () => void }) {
     const row = current()
     if (!row) return
     const taste = inspected()
-    if (taste && taste.status !== "staged") {
+    const status = taste?.status ?? row.status
+    if (!canTaste(status)) {
       toast.show({ message: "Only staged changesets can be blessed", variant: "warning" })
       return
     }
@@ -78,6 +83,29 @@ export function ReviewPane(props: { onClose: () => void }) {
     const ok = result.code === 0
     toast.show({
       message: reviewToastMessage({ ok, action, id: row.id }),
+      variant: ok ? "success" : "error",
+    })
+    if (ok) setTick((value) => value + 1)
+  }
+
+  const mergePush = async () => {
+    const row = current()
+    if (!row) return
+    const taste = inspected()
+    const status = taste?.status ?? row.status
+    if (!canMergePush(status)) {
+      toast.show({
+        message: mergeBlockedReason(status) ?? "Approve first — push applies only after bless",
+        variant: "warning",
+      })
+      return
+    }
+    const result = await runDecision(reviewPushArgs(row.id), { cwd: cwd() })
+    const ok = result.code === 0
+    toast.show({
+      message: needsConfirm(result.json)
+        ? confirmMessage(result.json)
+        : pushToastMessage({ ok, dryRun: isDryRun(result.json) }),
       variant: ok ? "success" : "error",
     })
     if (ok) setTick((value) => value + 1)
@@ -91,6 +119,7 @@ export function ReviewPane(props: { onClose: () => void }) {
       { key: "k,up", desc: "Previous staged changeset", cmd: () => setSelected((value) => Math.max(0, value - 1)) },
       { key: "y,a", desc: "Approve (bless)", cmd: () => void bless("approve") },
       { key: "n,r", desc: "Reject", cmd: () => void bless("reject") },
+      { key: "p,m", desc: "Push (merge after bless)", cmd: () => void mergePush() },
     ],
   }))
 
@@ -111,13 +140,13 @@ export function ReviewPane(props: { onClose: () => void }) {
       flexDirection="column"
     >
       <text fg={theme.text}>Taste</text>
-      <text fg={theme.textMuted}>staged queue · y bless · n reject</text>
+      <text fg={theme.textMuted}>y bless · n reject · p push after bless</text>
       <box height={1} />
       <Show when={listed.error}>
         <text fg={theme.error}>{String(listed.error)}</text>
       </Show>
       <Show when={!listed.loading && rows().length === 0 && !listed.error}>
-        <text fg={theme.textMuted}>no staged changesets</text>
+        <text fg={theme.textMuted}>no staged or approved changesets</text>
       </Show>
       <For each={rows()}>
         {(row, index) => <QueueRow row={row} active={index() === selected()} />}

@@ -4,7 +4,7 @@ import { CandidateAdd } from "../../src/product/candidate-add"
 import { CandidateCard } from "../../src/product/candidate-card"
 import { DecisionVerbs } from "../../src/decision/verbs"
 import { isStage } from "../../../engine/ledger/src/domain.ts"
-import { parseHiringMarkdown } from "@moks/ledger"
+import { openSqlite, parseHiringMarkdown, workspacePaths } from "@moks/ledger"
 import { ReqWorkspace } from "../../src/product/req-workspace"
 import { tmpdir } from "../fixture/fixture"
 
@@ -38,6 +38,16 @@ async function companyWorkspace() {
 
 async function pull(cwd: string) {
   return DecisionVerbs.pull({ cwd })
+}
+
+function mockAppStage(company: string, appId = "app_priya_142") {
+  const mock = openSqlite(workspacePaths(company).mockAtsDb)
+  try {
+    const app = mock.prepare("SELECT stage FROM applications WHERE id = ?").get(appId) as { stage: string } | undefined
+    return app?.stage
+  } finally {
+    mock.close()
+  }
 }
 
 describe("decision/verbs", () => {
@@ -607,6 +617,49 @@ test("push dry-run with staged and zero approved names review first", async () =
     const after = await DecisionVerbs.status({ cwd: tmp.path })
     expect(after.report.pipeline.Sourced ?? 0).toBe(0)
     expect(after.report.pipeline.Contacted).toBe((before.report.pipeline.Contacted ?? 0) + 1)
+  })
+
+  test("taste approve does not apply; push after approve writes mock ATS and ledger", async () => {
+    await using tmp = await workspace()
+    await pull(tmp.path)
+    const committed = await DecisionVerbs.commit({
+      action: "advance",
+      target: { kind: "candidate", id: "cand_priya" },
+      to: "Contacted",
+      reason: "bless then merge",
+      cwd: tmp.path,
+    })
+    expect(mockAppStage(tmp.path)).toBe("Sourced")
+    const approved = committed.changeset.status === "staged"
+      ? await DecisionVerbs.review({
+          id: committed.changeset.id,
+          action: "approve",
+          by: "reviewer",
+          cwd: tmp.path,
+        })
+      : { changeset: committed.changeset }
+    expect(approved.changeset.status).toBe("approved")
+    expect(mockAppStage(tmp.path)).toBe("Sourced")
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
+    const afterTaste = await DecisionVerbs.status({ cwd: tmp.path })
+    expect(afterTaste.report.changesets.applied).toBe(0)
+    expect(afterTaste.report.changesets.approved).toBe(1)
+
+    const listed = await DecisionVerbs.listStagedReviews({ cwd: tmp.path })
+    expect(listed.rows.some((row) => row.id === committed.changeset.id && row.status === "approved")).toBe(true)
+
+    const pushed = await DecisionVerbs.push({
+      id: committed.changeset.id,
+      cwd: tmp.path,
+      dry_run: false,
+    })
+    expect(pushed.ok).toBe(true)
+    if (pushed.ok) expect(pushed.pushed[0]?.status).toBe("applied")
+    expect(mockAppStage(tmp.path)).toBe("Contacted")
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Contacted" })
+    const afterPush = await DecisionVerbs.status({ cwd: tmp.path })
+    expect(afterPush.report.changesets.applied).toBe(1)
+    expect(afterPush.report.changesets.approved).toBe(0)
   })
 
   test("HIRING Process path makes Sourced → Screen legal and reviewable", async () => {

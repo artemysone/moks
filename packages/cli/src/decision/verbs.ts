@@ -238,7 +238,8 @@ export async function listStagedReviews(input: { cwd?: string } = {}) {
   await requireCompanyDirectory(input.cwd)
   return withLedger(input.cwd, async (handle) => {
     const staged = handle.api.listChangesets(handle.db, "staged")
-    const rows = staged.map((row) => {
+    const approved = handle.api.listChangesets(handle.db, "approved")
+    const rows = [...staged, ...approved].map((row) => {
       const detail = handle.api.getChangeset(handle.db, handle.vault, row.id)
       const change = detail.changes[0]
       const meta = detail.agent_meta && typeof detail.agent_meta === "object" ? (detail.agent_meta as { action?: string }) : {}

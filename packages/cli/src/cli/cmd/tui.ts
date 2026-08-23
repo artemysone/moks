@@ -150,7 +150,7 @@ async function runHeadlessReview(id?: string) {
   if (!id) {
     const listed = await DecisionVerbs.listStagedReviews({})
     if (listed.rows.length === 0) {
-      UI.println("no staged changesets")
+      UI.println("no staged or approved changesets")
       UI.println(listed.path)
       return
     }
