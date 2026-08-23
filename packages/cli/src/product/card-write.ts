@@ -68,11 +68,48 @@ export async function writeOnCard(cwd: string, intent: WriteIntent) {
     .text()
     .catch(() => "")
   const cards = await CandidateCard.list(packet)
+  const named = namedCardId(intent.hint)
+  if (named) {
+    const here = cards.find((card) => card.id.toLowerCase() === named.toLowerCase())
+    if (!here) {
+      const elsewhere = await findCardReq(root, named)
+      if (elsewhere) {
+        throw new Error(
+          `card ${named} is on ${elsewhere} — focus that req (open-req ${elsewhere}) or pass --cwd/--dir to it`,
+        )
+      }
+    }
+  }
   const card = resolveCard(cards, intent.hint)
   const req = parseReq(hiring, companyMd)
   const next = intent.kind === "score" ? scored(card, req, packet) : drafted(card, req, packet)
   const file = await CandidateCard.write(packet, next)
   return { kind: intent.kind, id: next.id, file, score: next.score, relative: path.relative(cwd, file) || file }
+}
+
+function namedCardId(hint: string) {
+  const cand = hint.match(/\b(cand[_-][a-z0-9]+)\b/i)
+  if (cand) return cand[1]
+  const stripped = hint
+    .replace(/^(?:please\s+|can you\s+)?/i, "")
+    .replace(/^(?:\/)?(?:score(?:-candidate)?|draft(?:-outreach)?)\b/i, "")
+    .replace(/\b(?:this|the|a|an|candidate|resume|card|outreach|email|linkedin|for|using|skill|draft)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+  if (!stripped) return
+  if (/^[a-z0-9][a-z0-9_-]+$/i.test(stripped)) return stripped
+}
+
+async function findCardReq(root: string, id: string) {
+  for (const slug of await ReqWorkspace.listReqs(root)) {
+    const dir = path.join(root, slug)
+    const cards = await CandidateCard.list(dir)
+    if (cards.some((card) => card.id.toLowerCase() === id.toLowerCase())) return slug
+  }
+  if (await ReqWorkspace.isPacket(root)) {
+    const cards = await CandidateCard.list(root)
+    if (cards.some((card) => card.id.toLowerCase() === id.toLowerCase())) return path.basename(root)
+  }
 }
 
 function isRejected(card: Card) {

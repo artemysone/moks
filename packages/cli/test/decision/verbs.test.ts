@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import path from "path"
+import { CandidateAdd } from "../../src/product/candidate-add"
 import { CandidateCard } from "../../src/product/candidate-card"
 import { DecisionVerbs } from "../../src/decision/verbs"
 import { ReqWorkspace } from "../../src/product/req-workspace"
@@ -423,7 +424,40 @@ describe("decision/verbs", () => {
     ).rejects.toThrow(/AdvanceStage requires --to \(legal next: Contacted\)/)
   })
 
-  test("push dry-run with staged and zero approved names review first", async () => {
+  
+  test("advance --to Screen names legal next for that id, not another candidate", async () => {
+    await using tmp = await workspace()
+    await pull(tmp.path)
+    await Bun.write(path.join(tmp.path, "kenji-okada.md"), "# Kenji Okada\n\nStaff.\n")
+    await Bun.write(path.join(tmp.path, "nora-voss.md"), "# Nora Voss\n\nStaff.\n")
+    await CandidateAdd.addFromFile(tmp.path, "kenji-okada.md")
+    await CandidateAdd.addFromFile(tmp.path, "nora-voss.md")
+    await expect(
+      DecisionVerbs.commit({
+        action: "advance",
+        target: { kind: "candidate", id: "kenji-okada" },
+        to: "Screen",
+        reason: "HIRING next",
+        cwd: tmp.path,
+      }),
+    ).rejects.toThrow(/cannot advance kenji-okada: Screen is not a legal next stage from Sourced \(legal next: Contacted\)/)
+    try {
+      await DecisionVerbs.commit({
+        action: "advance",
+        target: { kind: "candidate", id: "kenji-okada" },
+        to: "Screen",
+        reason: "HIRING next",
+        cwd: tmp.path,
+      })
+      throw new Error("expected advance to fail")
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      expect(message).not.toContain("nora-voss")
+      expect(message).not.toContain("try --target-id")
+    }
+  })
+
+test("push dry-run with staged and zero approved names review first", async () => {
     await using tmp = await workspace()
     await pull(tmp.path)
     await DecisionVerbs.commit({

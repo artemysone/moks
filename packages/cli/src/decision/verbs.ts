@@ -181,13 +181,25 @@ export function explainCommitError(handle: LedgerHandle, input: CommitInput, err
   const match = raw.match(/^illegal_transition:\s+(\S+)\s+(?:\u2192|->)\s+(\S+)$/)
   if (!match) return asciiCommitMessage(raw)
   const current = match[1] ?? "unknown"
+  const wanted = match[2] ?? ""
   const targetId = input.target?.id ?? input.entity ?? "target"
   const mutation = input.mutation ?? (input.action ? mutationForAction(input.action) : undefined)
-  const suggested = suggestRejectableTarget(handle, targetId, mutation)
   const action = input.action ?? mutation ?? "change"
+  if (mutation === "AdvanceStage" || action === "advance") {
+    const next = legalNextFor(handle, targetId) ?? "none"
+    return `cannot ${action} ${targetId}: ${wanted} is not a legal next stage from ${current} (legal next: ${next})`
+  }
+  const suggested = suggestRejectableTarget(handle, targetId, mutation)
   const lines = [`cannot ${action} ${targetId}: current stage is ${current}`]
   if (suggested) lines.push(`try --target-id ${suggested.id} (stage ${suggested.stage})`)
   return lines.join("\n")
+}
+
+function legalNextFor(handle: LedgerHandle, id: string) {
+  const applications = handle.api.listApplications(handle.db)
+  const row = applications.find((item) => item.candidateId === id || item.id === id)
+  if (!row) return
+  return handle.api.nextStage(row.stage) ?? undefined
 }
 
 function suggestRejectableTarget(handle: LedgerHandle, failedId: string, mutation?: string) {
