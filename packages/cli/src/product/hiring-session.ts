@@ -21,13 +21,17 @@ export function nextStep(input: {
   stagedIds: string[]
   leftover?: LeftoverKind | null
   reason?: string
+  reviewReq?: string | null
+  leftoverReq?: string | null
 }) {
+  if (input.reviewReq) return `review ${input.reviewReq}`
   if (input.stagedIds.length > 0) return `review ${input.stagedIds[0]}`
   let next = ""
-  if (input.leftover === "score") next = input.focused ? `score leftover on ${input.focused}` : "score leftover"
-  else if (input.leftover === "rescore") next = input.focused ? `rescore leftover on ${input.focused}` : "rescore leftover"
-  else if (input.leftover === "draft") next = input.focused ? `draft leftover on ${input.focused}` : "draft leftover"
-  else if (input.leftover === "commit") next = input.focused ? `commit leftover on ${input.focused}` : "commit leftover"
+  const leftoverOn = input.leftoverReq ?? input.focused
+  if (input.leftover === "score") next = leftoverOn ? `score leftover on ${leftoverOn}` : "score leftover"
+  else if (input.leftover === "rescore") next = leftoverOn ? `rescore leftover on ${leftoverOn}` : "rescore leftover"
+  else if (input.leftover === "draft") next = leftoverOn ? `draft leftover on ${leftoverOn}` : "draft leftover"
+  else if (input.leftover === "commit") next = leftoverOn ? `commit leftover on ${leftoverOn}` : "commit leftover"
   else if (input.focused) next = `nothing left on ${input.focused}`
   else next = "open-req"
   const reason = input.reason?.trim()
@@ -91,6 +95,13 @@ export async function refreshSnapshot(cwd?: string) {
 }
 
 async function computeSnapshot(company: string, opened: string): Promise<SessionSnapshot> {
+  const reqs = await ReqWorkspace.listReqs(company)
+  const atCompanyRoot =
+    path.resolve(opened) === path.resolve(company) &&
+    reqs.length >= 2 &&
+    !(await ReqWorkspace.isPacket(company))
+  if (atCompanyRoot) return computeCompanyRootSnapshot(company, reqs)
+
   const packet = await ReqWorkspace.focusedReq(opened)
   const slug = packet ? path.basename(packet) : ((await ReqWorkspace.readFocus(company)) ?? null)
   const focused = slug && slug !== "." ? slug : null
@@ -103,6 +114,59 @@ async function computeSnapshot(company: string, opened: string): Promise<Session
     staged: { count: stagedIds.length, ids: stagedIds },
     leftover,
     next: nextStep({ focused, stagedIds, leftover, reason }),
+  }
+}
+
+async function computeCompanyRootSnapshot(company: string, reqs: string[]): Promise<SessionSnapshot> {
+  const stagedByReq = await listStagedByReq(company)
+  const stagedIds = reqs.flatMap((slug) => stagedByReq.get(slug) ?? [])
+  const leftovers: { slug: string; kind: LeftoverKind }[] = []
+  for (const slug of reqs) {
+    const kind = await leftoverOnPacket(path.join(company, slug))
+    if (kind) leftovers.push({ slug, kind })
+  }
+  const leftoverPick =
+    leftovers.find((row) => row.kind === "rescore") ??
+    leftovers.find((row) => row.kind === "score") ??
+    leftovers.find((row) => row.kind === "draft") ??
+    leftovers.find((row) => row.kind === "commit")
+  const reviewReq = reqs.find((slug) => (stagedByReq.get(slug) ?? []).length > 0) ?? null
+  const leftover = leftoverPick?.kind ?? null
+  const leftoverReq = leftoverPick?.slug ?? null
+  const focus = await ReqWorkspace.readFocus(company)
+  const focused = focus && focus !== "." ? focus : null
+  return {
+    v: 1,
+    focused,
+    staged: { count: stagedIds.length, ids: stagedIds },
+    leftover,
+    next: nextStep({ focused, stagedIds, leftover, reviewReq, leftoverReq }),
+  }
+}
+
+async function listStagedByReq(company: string) {
+  const map = new Map<string, string[]>()
+  let api: Awaited<ReturnType<typeof importLedger>>
+  try {
+    api = await importLedger()
+  } catch {
+    return map
+  }
+  const paths = api.workspacePaths(company)
+  if (!(await Bun.file(paths.workspaceDb).exists())) return map
+  const db = api.openSqlite(paths.workspaceDb)
+  try {
+    api.migrateWorkspace(db)
+    for (const row of api.listChangesets(db, "staged")) {
+      const slug = stagedReqSlug(row.agent_meta)
+      if (!slug) continue
+      const list = map.get(slug) ?? []
+      list.push(row.id)
+      map.set(slug, list)
+    }
+    return map
+  } finally {
+    db.close()
   }
 }
 

@@ -24,6 +24,17 @@ test("nextStep is review when staged, else leftover score/draft/commit", () => {
   expect(HiringSession.nextStep({ focused: "staff-platform", stagedIds: [], leftover: null })).toBe(
     "nothing left on staff-platform",
   )
+  expect(HiringSession.nextStep({ focused: null, stagedIds: ["cs_1"], reviewReq: "founding-engineer" })).toBe(
+    "review founding-engineer",
+  )
+  expect(
+    HiringSession.nextStep({
+      focused: "founding-engineer",
+      stagedIds: [],
+      leftover: "rescore",
+      leftoverReq: "staff-recruiter",
+    }),
+  ).toBe("rescore leftover on staff-recruiter")
 })
 
 test("leftover-ledger and empty cwd fail loud and do not write session.json", async () => {
@@ -160,8 +171,8 @@ test("come back after a second req still names the last focused req and its stag
   const whileB = await HiringSession.loadSnapshot(company.path)
   expect(whileB.focused).toBe("senior-backend")
   expect(whileB.staged.ids).toContain(onB.changeset.id)
-  expect(whileB.staged.ids).not.toContain(onA.changeset.id)
-  expect(whileB.next).toBe(`review ${onB.changeset.id}`)
+  expect(whileB.staged.ids).toContain(onA.changeset.id)
+  expect(whileB.next).toMatch(/^review (senior-backend|staff-platform)$/)
   expect(await Bun.file(path.join(company.path, "staff-platform", "HIRING.md")).exists()).toBe(true)
   expect(await Bun.file(path.join(company.path, "staff-platform", "candidates", "kenji-okada.md")).exists()).toBe(true)
   expect(await Bun.file(path.join(company.path, "COMPANY.md")).text()).toBe("# Acme\n")
@@ -170,8 +181,8 @@ test("come back after a second req still names the last focused req and its stag
   const back = await HiringSession.loadSnapshot(company.path)
   expect(back.focused).toBe("staff-platform")
   expect(back.staged.ids).toContain(onA.changeset.id)
-  expect(back.staged.ids).not.toContain(onB.changeset.id)
-  expect(back.next).toBe(`review ${onA.changeset.id}`)
+  expect(back.staged.ids).toContain(onB.changeset.id)
+  expect(back.next).toMatch(/^review (senior-backend|staff-platform)$/)
   expect(HiringSession.formatSnapshot(back).join("\n")).toContain("staff-platform")
   expect(HiringSession.formatSnapshot(back).join("\n")).toContain(onA.changeset.id)
   expect(await Bun.file(path.join(company.path, "senior-backend", "HIRING.md")).exists()).toBe(true)
@@ -240,4 +251,82 @@ test("score then COMPANY bar or HIRING table change marks status come-back stale
   const afterHiring = await DecisionVerbs.status({ cwd: company.path })
   expect(afterHiring.session.leftover).toBe("rescore")
   expect(afterHiring.session.next).toBe("rescore leftover on staff-platform")
+})
+
+test("company-root status names the req: staged A, stale B", async () => {
+  const hiring = [
+    "# Staff Recruiter",
+    "",
+    "## Scorecard",
+    "| Dimension | Bar | Notes |",
+    "|-----------|-----|-------|",
+    "| Sourcing | owns a pipeline | |",
+    "",
+  ].join("\n")
+  await using company = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "COMPANY.md"), "# Acme\n\n## Bar\n- Written operators\n")
+      await Bun.write(path.join(dir, "founding-engineer", "HIRING.md"), "# Founding Engineer\n")
+      await CandidateCard.write(path.join(dir, "founding-engineer"), {
+        id: "kenji-okada",
+        stage: "Sourced",
+        extra: { name: "Kenji" },
+        body: "# Kenji Okada\n\nFounding engineer. Payments edge.\n",
+      })
+      await Bun.write(path.join(dir, "staff-recruiter", "HIRING.md"), hiring)
+      await CandidateCard.write(path.join(dir, "staff-recruiter"), {
+        id: "priya-shah",
+        stage: "Sourced",
+        extra: { name: "Priya" },
+        body: "# Priya Shah\n\nStaff recruiter. High-volume sourcing.\n",
+      })
+    },
+  })
+  expect(await ReqWorkspace.listReqs(company.path)).toEqual(["founding-engineer", "staff-recruiter"])
+  await DecisionVerbs.pull({ cwd: company.path })
+
+  await ReqWorkspace.writeFocus(company.path, "founding-engineer")
+  const staged = await DecisionVerbs.commit({
+    action: "note",
+    target: { kind: "candidate", id: "kenji-okada" },
+    reason: "taste founding",
+    cwd: company.path,
+  })
+
+  await ReqWorkspace.writeFocus(company.path, "staff-recruiter")
+  await CardWrite.writeOnCard(company.path, { kind: "score", hint: "priya-shah" })
+  await CardWrite.writeOnCard(company.path, { kind: "draft", hint: "priya-shah" })
+  await Bun.write(path.join(company.path, "COMPANY.md"), "# Acme\n\n## Bar\n- Ship weekly in public\n")
+
+  const status = await DecisionVerbs.status({ cwd: company.path })
+  expect(status.session.next).toBe("review founding-engineer")
+  expect(status.session.staged.ids).toContain(staged.changeset.id)
+  expect(status.session.leftover).toBe("rescore")
+  expect(HiringSession.formatSnapshot(status.session).join("\n")).toContain("founding-engineer")
+
+  const listed = await DecisionVerbs.listStagedReviews({ cwd: company.path })
+  expect(listed.rows.map((row) => row.id)).toContain(staged.changeset.id)
+  expect(listed.rows.some((row) => row.rationale.includes("taste founding"))).toBe(true)
+
+  const insideA = await HiringSession.loadSnapshot(path.join(company.path, "founding-engineer"))
+  expect(insideA.next).toBe(`review ${staged.changeset.id}`)
+
+  await DecisionVerbs.review({
+    id: staged.changeset.id,
+    action: "approve",
+    by: "reviewer",
+    cwd: company.path,
+  })
+  const after = await DecisionVerbs.status({ cwd: company.path })
+  expect(after.session.next).toMatch(/rescore.*staff-recruiter/)
+  expect(after.session.leftover).toBe("rescore")
+  expect(after.session.staged.count).toBe(0)
+
+  const sibling = path.join(path.dirname(company.path), "other-co")
+  await Bun.write(path.join(sibling, "COMPANY.md"), "# Other\n\n## Bar\n- SECRET-SIBLING\n")
+  await Bun.write(path.join(sibling, "founding-engineer", "HIRING.md"), "# Other Founding\n")
+  await Bun.write(path.join(sibling, "founding-engineer", "candidates", ".gitkeep"), "")
+  const dumped = JSON.stringify(after)
+  expect(dumped).not.toContain("SECRET-SIBLING")
+  expect(dumped).not.toContain(sibling)
 })
