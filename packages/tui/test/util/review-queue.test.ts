@@ -8,7 +8,11 @@ import {
   parseInspectReview,
   parseStagedReviews,
   reviewDecisionArgs,
+  canMergePush,
+  canTaste,
   firstFrame,
+  mergeBlockedReason,
+  reviewPushArgs,
   tuiLanding,
 } from "../../src/util/review-queue"
 
@@ -83,6 +87,27 @@ describe("review queue + taste surface", () => {
     expect(approve.join(" ")).not.toContain("push")
     expect(approve.join(" ")).not.toContain("merge")
     expect(reviewDecisionArgs({ id: "cs_1", action: "reject", by: "reviewer" })).toContain("--reject")
+  })
+
+  test("merge key is the same path as moks push --execute and only after bless", () => {
+    expect(canTaste("staged")).toBe(true)
+    expect(canTaste("approved")).toBe(false)
+    expect(canMergePush("staged")).toBe(false)
+    expect(canMergePush("approved")).toBe(true)
+    expect(mergeBlockedReason("staged")).toMatch(/Approve first/)
+    expect(mergeBlockedReason("approved")).toBeUndefined()
+    const push = reviewPushArgs("cs_1")
+    expect(push).toEqual(["push", "--json", "--commit-id", "cs_1", "--execute"])
+    expect(reviewDecisionArgs({ id: "cs_1", action: "approve", by: "reviewer" }).join(" ")).not.toContain("--execute")
+  })
+
+  test("approved inspect copy points at push, not another bless", () => {
+    const taste = parseInspectReview({
+      changeset: { id: "cs_1", status: "approved", rationale: "screen Priya", changes: [] },
+      cards: [],
+    })
+    expect(taste?.bless).toContain("moks push --execute")
+    expect(taste?.bless).not.toContain("not apply, not push")
   })
 
   test("composer /review is the local pane slash, not a second app", () => {

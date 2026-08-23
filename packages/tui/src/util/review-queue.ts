@@ -1,4 +1,4 @@
-import { reviewCommandArgs } from "./decision-cli"
+import { pushCommandArgs, reviewCommandArgs } from "./decision-cli"
 
 export type StagedReviewRow = {
   id: string
@@ -116,12 +116,36 @@ export function parseInspectReview(json: unknown): TasteSurface | undefined {
     status,
     what: what.length > 0 ? what : ["(no changes)"],
     why,
-    bless: status === "staged" ? "approve will bless this changeset (not apply, not push)" : `status ${status} — approve/reject only when staged`,
+    bless: tasteBlessCopy(status),
   }
 }
 
 export function formatQueueLine(row: StagedReviewRow) {
   return [row.id, row.action, row.target, row.rationale].filter(Boolean).join("  ")
+}
+
+export function tasteBlessCopy(status: string) {
+  if (status === "staged") return "approve will bless this changeset (not apply, not push)"
+  if (status === "approved") return "p push applies this changeset (same as moks push --execute)"
+  return `status ${status} — approve/reject only when staged; push only when approved`
+}
+
+export function canTaste(status?: string) {
+  return status === "staged"
+}
+
+export function canMergePush(status?: string) {
+  return status === "approved"
+}
+
+export function mergeBlockedReason(status?: string) {
+  if (status === "approved") return
+  if (!status || status === "staged") return "Approve first — push applies only after bless"
+  return `cannot push: ${status}`
+}
+
+export function reviewPushArgs(id: string) {
+  return pushCommandArgs({ id, execute: true })
 }
 
 export function reviewDecisionArgs(input: { id: string; action: "approve" | "reject"; by?: string }) {

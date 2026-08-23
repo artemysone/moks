@@ -5,7 +5,7 @@ import { UI } from "../ui"
 
 export const ReviewCommand = effectCmd({
   command: "review [id]",
-  describe: "taste staged changesets; approve or reject one",
+  describe: "taste staged changesets; approve or reject; push applies after bless",
   instance: false,
   builder: (yargs) =>
     yargs
@@ -55,7 +55,7 @@ export const ReviewCommand = effectCmd({
         return
       }
       if (listed.rows.length === 0) {
-        UI.println("no staged changesets")
+        UI.println("no staged or approved changesets")
         UI.println(`${UI.Style.TEXT_DIM}${listed.path}${UI.Style.TEXT_NORMAL}`)
         return
       }
