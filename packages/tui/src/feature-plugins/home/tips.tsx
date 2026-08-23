@@ -14,6 +14,7 @@ function View(props: {
   show: boolean
   connected: boolean
   company?: boolean
+  sessionNext?: string
 }) {
   useBindings(() => ({
     commands: [
@@ -34,7 +35,7 @@ function View(props: {
   return (
     <box width="100%" maxWidth={75} alignItems="center" paddingTop={3} flexShrink={1}>
       <Show when={props.show}>
-        <Tips api={props.api} connected={props.connected} company={props.company} />
+        <Tips api={props.api} connected={props.connected} company={props.company} sessionNext={props.sessionNext} />
       </Show>
     </box>
   )
@@ -53,11 +54,26 @@ const tui: TuiPlugin = async (api) => {
           const directory = api.state.path.directory || paths.cwd
           return Bun.file(path.join(directory, "HIRING.md")).exists()
         })
+        const [session] = createResource(async () => {
+          const directory = api.state.path.directory || paths.cwd
+          const raw = await Bun.file(path.join(directory, ".moks", "session.json"))
+            .text()
+            .catch(() => "")
+          if (!raw.trim()) return
+          try {
+            const parsed = JSON.parse(raw) as { focused?: string | null; next?: string }
+            if (!parsed.focused || !parsed.next) return
+            return parsed
+          } catch {
+            return
+          }
+        })
         const show = createMemo(() => {
           if (company() === false) return true
+          if (session()?.next) return true
           return (!first() || !connected()) && !hidden()
         })
-        return <View api={api} hidden={hidden()} show={show()} connected={connected()} company={company()} />
+        return <View api={api} hidden={hidden()} show={show()} connected={connected()} company={company()} sessionNext={session()?.next} />
       },
     },
   })

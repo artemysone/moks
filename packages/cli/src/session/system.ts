@@ -9,6 +9,7 @@ import type { Agent } from "@/agent/agent"
 import { Permission } from "@/permission"
 import { Skill } from "@/skill"
 import { ReqWorkspace } from "@/product/req-workspace"
+import { HiringSession } from "@/product/hiring-session"
 import { AbsolutePath } from "@moks/core/schema"
 import { Location } from "@moks/core/location"
 import { LocationServiceMap, locationServiceMapLayer } from "@moks/core/location-services"
@@ -43,6 +44,7 @@ const layer = Layer.effect(
         }).pipe(Effect.provide(locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx.directory) }))))
         const layout = yield* Effect.promise(() => ReqWorkspace.workspaceEnv(ctx.directory))
         const slate = yield* Effect.promise(() => ReqWorkspace.slateBlock(ctx.directory))
+        const session = yield* Effect.promise(() => HiringSession.refreshSnapshot(ctx.directory))
         return [
           [
             `You are powered by the model named ${model.api.id}. The exact model ID is ${model.providerID}/${model.api.id}`,
@@ -53,6 +55,12 @@ const layer = Layer.effect(
             `  Focused req: ${layout.focused}`,
             `  Candidates: ${layout.candidates}`,
             `  Company constitution: ${layout.constitution}`,
+            ...(session
+              ? [
+                  `  Staged: ${session.staged.count}${session.staged.ids.length ? ` ${session.staged.ids.join(",")}` : ""}`,
+                  `  Next step: ${session.next}`,
+                ]
+              : []),
             `  Git audit: ${ctx.project.vcs === "git" ? "yes" : "no"}`,
             `  Platform: ${process.platform}`,
             `  Today's date: ${new Date().toDateString()}`,

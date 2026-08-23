@@ -22,4 +22,11 @@ describe("prompt placeholders", () => {
   test("offers the full set once cards exist", () => {
     expect(placeholdersFor({ cards: 5 })).toEqual(DEFAULT_PLACEHOLDERS.normal)
   })
+
+  test("focused session placeholder is the next step, not /open-req", () => {
+    expect(placeholdersFor({ focused: "staff-platform", next: "review cs_1", cards: 0 })).toEqual(["review cs_1"])
+    expect(placeholdersFor({ focused: "staff-platform", next: "score leftover on staff-platform" })[0]).not.toMatch(
+      /open-req/,
+    )
+  })
 })

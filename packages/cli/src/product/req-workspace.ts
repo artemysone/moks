@@ -137,6 +137,8 @@ export async function writeFocus(company: string, slug: string) {
   const safe = path.basename(slug.trim())
   if (!safe || safe === "." || safe === "..") return
   await Bun.write(path.join(company, FOCUS_FILE), safe)
+  const { HiringSession } = await import("./hiring-session")
+  await HiringSession.refreshSnapshot(company)
 }
 
 export async function focusedReq(opened: string) {

@@ -27,6 +27,7 @@ import { FormatError, FormatUnknownError } from "../error"
 import { INTERACTIVE_INPUT_ERROR, resolveInteractiveStdin } from "./run/runtime.stdin"
 import { CardWrite } from "@/product/card-write"
 import { CandidateAdd } from "@/product/candidate-add"
+import { HiringSession } from "@/product/hiring-session"
 
 type ModelInput = Parameters<MoksClient["session"]["prompt"]>[0]["model"]
 
@@ -138,6 +139,21 @@ function isLocalWriteOrScaffold(command?: string, message = "", files: string[] 
   )
 }
 
+function isRecruitResume(args: {
+  command?: string
+  mini?: boolean
+  message?: string[]
+  "--"?: string[]
+  file?: string[]
+  agent?: string
+}) {
+  if (args.mini || args.command) return false
+  if (args.agent !== "recruit") return false
+  if ((args.file ?? []).length > 0) return false
+  const message = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
+  return !message.trim()
+}
+
 function isHeadlessScaffoldCommand(args: {
   command?: string
   mini?: boolean
@@ -149,6 +165,7 @@ function isHeadlessScaffoldCommand(args: {
   if (args.mini) return false
   // Any --command stays local so unknown names fail here instead of OAuth sign-in.
   if (args.command) return true
+  if (isRecruitResume(args)) return true
   const message = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
   return Boolean(
     CandidateAdd.parseAddIntent(args.command, message, args.file ?? []) ||
@@ -187,6 +204,9 @@ async function runHeadlessScaffold(args: {
       : await ReqWorkspace.scaffoldCompany(directory)
   if (args.command === "open-req" && result.relative !== ".") {
     await ReqWorkspace.writeFocus(directory, result.relative)
+  }
+  if (args.command === "open-req") {
+    await HiringSession.refreshSnapshot(directory)
   }
   if (args.json || args.format === "json") {
     console.log(JSON.stringify({ command: args.command, title: title || undefined, ...result }, null, 2))
@@ -308,6 +328,21 @@ async function runHeadlessRecruitWork(args: {
   UI.println(
     `ready: ${worked.id} scored and drafted; staged note ${committed.changeset.id} for review`,
   )
+  const session = await HiringSession.loadSnapshot(directory)
+  for (const line of HiringSession.formatSnapshot(session)) UI.println(line)
+}
+
+async function runHeadlessRecruitResume(args: { dir?: string; json?: boolean; format?: string }) {
+  const directory = await resolveRunDirectory(args.dir)
+  const session = await HiringSession.loadSnapshot(directory).catch((error) => {
+    UI.error(error instanceof Error ? error.message : String(error))
+    process.exit(1)
+  })
+  if (args.json || args.format === "json") {
+    console.log(JSON.stringify({ command: "recruit-resume", ...session }, null, 2))
+    return
+  }
+  for (const line of HiringSession.formatSnapshot(session)) UI.println(line)
 }
 
 export const RunCommand = effectCmd({
@@ -470,6 +505,10 @@ export const RunCommand = effectCmd({
       }
       if (CardWrite.parseNaturalWorkIntent(args.command, message, args.agent)) {
         yield* Effect.promise(() => runHeadlessRecruitWork(args))
+        return
+      }
+      if (isRecruitResume(args)) {
+        yield* Effect.promise(() => runHeadlessRecruitResume(args))
         return
       }
       yield* Effect.promise(() => runHeadlessScaffold(args))

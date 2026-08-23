@@ -3,6 +3,7 @@ import { CandidateCard } from "@/product/candidate-card"
 import { ReqWorkspace } from "@/product/req-workspace"
 import { CandidateAdd } from "@/product/candidate-add"
 import { requireCompanyDirectory, requireOpenedHiringDir, withLedger, type LedgerHandle } from "./session"
+import { HiringSession } from "@/product/hiring-session"
 
 export type CommitChange = {
   entity_type: string
@@ -120,9 +121,11 @@ export async function status(input: { cwd?: string; id?: string; limit?: number 
     const filtered = listed.filter((row) => !input.id || row.id === input.id || row.id.startsWith(input.id))
     const limit = input.limit ?? 20
     const open = filtered.filter((row) => row.status === "staged" || row.status === "approved")
+    const session = await HiringSession.loadSnapshot(input.cwd)
     return {
       report,
       open,
+      session,
       changesets: filtered.slice(0, limit),
       path: handle.company,
     }
@@ -167,6 +170,7 @@ async function commitWithHandle(handle: LedgerHandle, input: CommitInput) {
   )
   await projectCard(handle, input, changeset.changes)
   const adverse = changeset.changes.some((change) => isAdverseMutation(change.mutation, change.payload))
+  await HiringSession.refreshSnapshot(handle.company)
   return { changeset, path: handle.company, adverse }
 }
 
@@ -285,6 +289,7 @@ export async function review(input: ReviewInput) {
       action: input.action,
       reviewer_id: input.by,
     })
+    await HiringSession.refreshSnapshot(handle.company)
     return { changeset, path: handle.company }
   })
 }

@@ -56,6 +56,12 @@ export const StatusCommand = effectCmd({
     UI.println(
       `changesets: staged ${report.changesets.staged}, approved ${report.changesets.approved}, stale ${report.changesets.stale}, applied ${report.changesets.applied}, rejected ${report.changesets.rejected}`,
     )
+    if (result.session) {
+      const { HiringSession } = yield* Effect.promise(() => import("@/product/hiring-session"))
+      for (const line of HiringSession.formatSnapshot(result.session)) {
+        UI.println(line)
+      }
+    }
     if (result.open.length > 0) {
       UI.println(`${UI.Style.TEXT_NORMAL_BOLD}open${UI.Style.TEXT_NORMAL} (${result.open.length})`)
       for (const row of result.open) {
