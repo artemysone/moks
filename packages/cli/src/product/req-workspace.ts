@@ -220,14 +220,39 @@ export async function resolve(directory: string, stop?: string) {
 }
 
 export async function companyRoot(opened: string) {
-  const top = await gitToplevel(opened)
-  const stop = top ?? path.resolve(opened, "..", "..", "..", "..")
-  const nearest = await resolve(opened, stop)
-  if (!nearest) return
-  if (await hasCompanyFile(nearest)) return nearest
-  const parent = path.dirname(nearest)
-  if (parent !== nearest && (await hasCompanyFile(parent))) return parent
-  if ((await isPacket(nearest)) || (await hasCandidatesDir(nearest))) return nearest
+  const start = path.resolve(opened)
+  if (await hasCompanyFile(start)) return start
+  if ((await isPacket(start)) || (await hasCandidatesDir(start))) {
+    const parent = path.dirname(start)
+    if (parent !== start && (await hasCompanyFile(parent))) return parent
+    return start
+  }
+  if (path.basename(start) === CANDIDATES_DIR) {
+    const parent = path.dirname(start)
+    if ((await isPacket(parent)) || (await hasCompanyFile(parent))) {
+      if (await hasCompanyFile(parent)) return parent
+      const company = path.dirname(parent)
+      if (company !== parent && (await hasCompanyFile(company))) return company
+      return parent
+    }
+  }
+
+  // Nested notes under a req: climb to the packet only. Do not inherit a
+  // parent/sibling COMPANY.md from an empty folder (another company).
+  const top = await gitToplevel(start)
+  const stop = top ?? path.resolve(start, "..", "..", "..", "..")
+  let current = start
+  while (true) {
+    if (await isPacket(current)) {
+      const parent = path.dirname(current)
+      if (parent !== current && (await hasCompanyFile(parent))) return parent
+      return current
+    }
+    if (current === path.resolve(stop)) return
+    const parent = path.dirname(current)
+    if (parent === current) return
+    current = parent
+  }
 }
 
 export function titleFromSlug(slug: string) {
