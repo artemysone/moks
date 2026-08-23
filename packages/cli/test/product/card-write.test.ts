@@ -157,3 +157,107 @@ test("writeOnCard on a COMPANY.md stub points at --cwd/--dir", async () => {
     /not a company directory.*--cwd\/--dir/,
   )
 })
+
+async function companyReq(dir: string, companyMd: string, hiringMd: string) {
+  await Bun.write(path.join(dir, "COMPANY.md"), companyMd)
+  const req = path.join(dir, "staff-platform")
+  await Bun.write(path.join(req, "HIRING.md"), hiringMd)
+  await CandidateCard.write(req, {
+    id: "kenji-okada",
+    stage: "Sourced",
+    extra: { name: "Kenji Okada" },
+    body: "# Kenji Okada\n\nStaff platform engineer. Payments edge and on-call.\n",
+  })
+  await ReqWorkspace.writeFocus(dir, "staff-platform")
+}
+
+test("same card + two COMPANY.md bars change score and draft", async () => {
+  const hiring = [
+    "# Staff Platform",
+    "",
+    "## Scorecard",
+    "| Dimension | Bar | Notes |",
+    "|-----------|-----|-------|",
+    "| Systems design | owns a service | |",
+    "",
+  ].join("\n")
+  await using first = await tmpdir({
+    init: async (dir) => {
+      await companyReq(
+        dir,
+        "# Acme\n\n## Bar\n- Written operators\n\n## Tone & outreach\n- Direct, no fluff\n\n## About\n- Payments infra\n",
+        hiring,
+      )
+    },
+  })
+  await using second = await tmpdir({
+    init: async (dir) => {
+      await companyReq(
+        dir,
+        "# Acme\n\n## Bar\n- Ship weekly in public\n\n## Tone & outreach\n- Warm and specific\n\n## About\n- Consumer apps\n",
+        hiring,
+      )
+    },
+  })
+  await CardWrite.writeOnCard(first.path, { kind: "score", hint: "kenji-okada" })
+  await CardWrite.writeOnCard(first.path, { kind: "draft", hint: "kenji-okada" })
+  await CardWrite.writeOnCard(second.path, { kind: "score", hint: "kenji-okada" })
+  await CardWrite.writeOnCard(second.path, { kind: "draft", hint: "kenji-okada" })
+  const a = await CandidateCard.read(path.join(first.path, "staff-platform"), "kenji-okada")
+  const b = await CandidateCard.read(path.join(second.path, "staff-platform"), "kenji-okada")
+  expect(a?.body).toContain("Written operators")
+  expect(a?.body).not.toContain("Ship weekly in public")
+  expect(b?.body).toContain("Ship weekly in public")
+  expect(b?.body).not.toContain("Written operators")
+  expect(a?.body).toContain("Direct, no fluff")
+  expect(b?.body).toContain("Warm and specific")
+  expect(a?.body).toContain("COMPANY.md")
+  expect(a?.body).not.toContain("Acme Corp")
+})
+
+test("same card + two HIRING.md tables change score rows", async () => {
+  const company = "# Acme\n\n## Bar\n- TBD\n"
+  await using first = await tmpdir({
+    init: async (dir) => {
+      await companyReq(
+        dir,
+        company,
+        [
+          "# Staff Platform",
+          "",
+          "## Scorecard",
+          "| Dimension | Bar | Notes |",
+          "|-----------|-----|-------|",
+          "| Ledger depth | designs a ledger | |",
+          "",
+        ].join("\n"),
+      )
+    },
+  })
+  await using second = await tmpdir({
+    init: async (dir) => {
+      await companyReq(
+        dir,
+        company,
+        [
+          "# Staff Platform",
+          "",
+          "## Scorecard",
+          "| Dimension | Bar | Notes |",
+          "|-----------|-----|-------|",
+          "| Frontend craft | ships UI | |",
+          "",
+        ].join("\n"),
+      )
+    },
+  })
+  await CardWrite.writeOnCard(first.path, { kind: "score", hint: "kenji-okada" })
+  await CardWrite.writeOnCard(second.path, { kind: "score", hint: "kenji-okada" })
+  const a = await CandidateCard.read(path.join(first.path, "staff-platform"), "kenji-okada")
+  const b = await CandidateCard.read(path.join(second.path, "staff-platform"), "kenji-okada")
+  expect(a?.body).toContain("Ledger depth")
+  expect(a?.body).not.toContain("Frontend craft")
+  expect(b?.body).toContain("Frontend craft")
+  expect(b?.body).not.toContain("Ledger depth")
+  expect(a?.body).toContain("not on the card")
+})
