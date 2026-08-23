@@ -6,6 +6,7 @@ import { CandidateAdd } from "../../src/product/candidate-add"
 import { CandidateCard } from "../../src/product/candidate-card"
 import { ReqWorkspace } from "../../src/product/req-workspace"
 import { tmpdir } from "../fixture/fixture"
+import { withLedger } from "../../src/decision/session"
 
 test("parseAddIntent detects add-candidate command and prose", () => {
   expect(CandidateAdd.parseAddIntent("add-candidate", "sam-chen.md")).toEqual({ file: "sam-chen.md" })
@@ -108,6 +109,96 @@ test("pull after add-candidate keeps the local card in status", async () => {
   expect(card?.body).toContain("Kenji Okada")
 })
 
+
+
+test("addFromFile seeds mock ATS and inserts the local candidate (not a seed id)", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await ReqWorkspace.scaffoldReq(dir, "Staff Platform")
+      await ReqWorkspace.writeFocus(dir, "staff-platform")
+      await Bun.write(path.join(dir, "kenji-okada.md"), "# Kenji Okada\n\nStaff platform.\n")
+    },
+  })
+  await CandidateAdd.addFromFile(tmp.path, "kenji-okada.md")
+  await withLedger(tmp.path, async (handle) => {
+    const row = handle.mockDb.prepare("SELECT id, name FROM candidates WHERE id = ?").get("kenji-okada") as
+      | { id: string; name: string }
+      | undefined
+    expect(row).toEqual({ id: "kenji-okada", name: "Kenji Okada" })
+    const app = handle.mockDb.prepare("SELECT id, candidate_id, stage FROM applications WHERE candidate_id = ?").get(
+      "kenji-okada",
+    ) as { id: string; candidate_id: string; stage: string } | undefined
+    expect(app?.id).toBe("app_kenji-okada")
+    expect(app?.stage).toBe("Sourced")
+    expect(handle.mockDb.prepare("SELECT id FROM candidates WHERE id = ?").get("cand_jane")).toBeDefined()
+  })
+})
+
+test("add-candidate refuses a mock seed id", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await ReqWorkspace.scaffoldReq(dir, "Staff Platform")
+      await ReqWorkspace.writeFocus(dir, "staff-platform")
+      await Bun.write(
+        path.join(dir, "jane.md"),
+        ["---", "id: cand_jane", "name: Jane Clone", "---", "", "# Jane Clone", ""].join("\n"),
+      )
+    },
+  })
+  await expect(CandidateAdd.addFromFile(tmp.path, "jane.md")).rejects.toThrow(/not a mock ATS id/)
+})
+
+test("Reviewer path: add-candidate then HIRING Screen hop push apply", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "HIRING.md"),
+        "# Role\n## Process\n- Stages: sourced → screen → phone → onsite → offer → hire\n",
+      )
+      await Bun.write(path.join(dir, "candidates", ".gitkeep"), "")
+      await Bun.write(path.join(dir, "kenji-okada.md"), "# Kenji Okada\n\nStaff platform.\n")
+    },
+  })
+  const added = await CandidateAdd.addFromFile(tmp.path, "kenji-okada.md")
+  expect(added.id).toBe("kenji-okada")
+  const committed = await DecisionVerbs.commit({
+    action: "advance",
+    target: { kind: "candidate", id: "kenji-okada" },
+    to: "Screen",
+    reason: "HIRING next",
+    cwd: tmp.path,
+  })
+  expect(await CandidateCard.read(tmp.path, "kenji-okada")).toMatchObject({ stage: "Sourced" })
+  if (committed.changeset.status === "staged") {
+    await DecisionVerbs.review({
+      id: committed.changeset.id,
+      action: "approve",
+      by: "you",
+      cwd: tmp.path,
+    })
+  }
+  expect(await CandidateCard.read(tmp.path, "kenji-okada")).toMatchObject({ stage: "Sourced" })
+  const pushed = await DecisionVerbs.push({
+    id: committed.changeset.id,
+    cwd: tmp.path,
+    dry_run: false,
+  })
+  expect(pushed.ok).toBe(true)
+  if (pushed.ok) {
+    expect(pushed.pushed[0]?.status).toBe("applied")
+    if (pushed.pushed[0] && "reason" in pushed.pushed[0]) {
+      expect(pushed.pushed[0].reason).not.toMatch(/unknown_entity/)
+    }
+  }
+  expect(await CandidateCard.read(tmp.path, "kenji-okada")).toMatchObject({ stage: "Screen" })
+  const st = await DecisionVerbs.status({ cwd: tmp.path, limit: 50 })
+  expect(st.report.pipeline.Screen).toBeGreaterThanOrEqual(1)
+  await DecisionVerbs.pull({ cwd: tmp.path })
+  expect(await CandidateCard.read(tmp.path, "kenji-okada")).toMatchObject({
+    id: "kenji-okada",
+    stage: "Screen",
+  })
+})
 
 test("add-candidate after pull registers nora-voss for commit", async () => {
   await using tmp = await tmpdir({
