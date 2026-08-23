@@ -42,6 +42,8 @@ import { Locale } from "../../util/locale"
 import { errorMessage } from "../../util/error"
 import { formatDuration } from "../../util/format"
 import { matchSlashCommand } from "../../util/review-queue"
+import { isRecruitLanguage, recruitLanguageArgs, recruitLanguageToast } from "../../util/recruit-language"
+import { runDecision } from "../../util/decision-cli"
 import { createColors, createFrames } from "../../ui/spinner"
 import { useDialog } from "../../ui/dialog"
 import { DialogProvider as DialogProviderConnect } from "../dialog-provider"
@@ -1035,6 +1037,42 @@ export function Prompt(props: PromptProps) {
       input.clear()
       return true
     }
+    const attached = store.prompt.parts
+      .map((part) => {
+        if (!part || typeof part !== "object") return ""
+        const row = part as { type?: string; filename?: string; path?: string; source?: { path?: string } }
+        if (row.type !== "file") return ""
+        return row.source?.path || row.path || row.filename || ""
+      })
+      .filter(Boolean)
+    if (isRecruitLanguage(trimmed, attached)) {
+      const result = await runDecision(recruitLanguageArgs(trimmed, attached), { cwd: reqDir() }).catch((error) => ({
+        code: 1,
+        stdout: "",
+        stderr: error instanceof Error ? error.message : String(error),
+        json: undefined,
+      }))
+      toast.show({
+        message: recruitLanguageToast({ ok: result.code === 0, stdout: result.stdout, stderr: result.stderr }),
+        variant: result.code === 0 ? "success" : "error",
+      })
+      history.append({
+        ...store.prompt,
+        mode: store.mode,
+      })
+      input.extmarks.clear()
+      setStore("prompt", {
+        input: "",
+        parts: [],
+      })
+      setStore("extmarkToPartIndex", new Map())
+      props.onSubmit?.()
+      input.clear()
+      void reqMetaControl.refetch()
+      void ledgerControl.refetch()
+      return true
+    }
+
     const selectedModel = local.model.current()
     if (!selectedModel) {
       void promptModelWarning()

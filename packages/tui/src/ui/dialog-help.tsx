@@ -27,7 +27,7 @@ export function DialogHelp() {
       </box>
       <box paddingBottom={1}>
         <text fg={theme.textMuted}>
-          /init the company · /open-req a role · @ to focus · score onto the card · /review taste queue · /commit · /push
+          Talk to recruit on the landing. /review tastes. /push is the human close. Recruit never emails.
         </text>
         <text fg={theme.textMuted}>Press {commandShortcut()} for every command.</text>
       </box>
