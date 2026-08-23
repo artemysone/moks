@@ -15,6 +15,8 @@ import { ServerAuth } from "@/server/auth"
 import { validateSession } from "../tui/validate-session"
 import { win32InstallCtrlCGuard } from "@moks/tui/terminal-win32"
 import { requireInteractiveTty } from "@moks/tui/util/tty"
+import { DecisionVerbs } from "@/decision/verbs"
+import { isLiveCompany } from "@/product/req-workspace"
 
 declare global {
   const MOKS_WORKER_PATH: string
@@ -79,16 +81,75 @@ export function resolveThreadDirectory(project?: string, envPWD = process.env.PW
 
 export const RECRUIT_COMPOSER_LANDING = "recruit-composer"
 
+function tuiLanding(input: { headless: boolean; liveCompany: boolean; leftoverOrEmpty: boolean }) {
+  if (input.headless && input.leftoverOrEmpty) return "fail-loud" as const
+  if (input.liveCompany) return "composer-recruit" as const
+  return "composer" as const
+}
+
+export const RESERVED_TUI_PROJECTS = new Set([
+  "review",
+  "status",
+  "commit",
+  "push",
+  "pull",
+  "diff",
+  "log",
+  "activity",
+  "run",
+  "rebase",
+])
+
 /** Default `moks --pure` in a company folder is the TUI recruit composer, not a no-op. */
-export function selectDefaultInteractiveLaunch(input: { agent?: string; mini?: boolean } = {}) {
+export function selectDefaultInteractiveLaunch(
+  input: {
+    agent?: string
+    mini?: boolean
+    headless?: boolean
+    liveCompany?: boolean
+    leftoverOrEmpty?: boolean
+  } = {},
+) {
   if (input.mini) {
     return { kind: "mini" as const, landing: undefined, agent: input.agent }
+  }
+  const landing = tuiLanding({
+    headless: Boolean(input.headless),
+    liveCompany: input.liveCompany ?? true,
+    leftoverOrEmpty: Boolean(input.leftoverOrEmpty),
+  })
+  if (landing === "fail-loud") {
+    return { kind: "fail-loud" as const, landing, agent: input.agent }
   }
   return {
     kind: "tui" as const,
     landing: RECRUIT_COMPOSER_LANDING,
     agent: input.agent ?? "recruit",
   }
+}
+
+async function runHeadlessReview(id?: string) {
+  if (!id) {
+    const listed = await DecisionVerbs.listStagedReviews({})
+    if (listed.rows.length === 0) {
+      UI.println("no staged changesets")
+      UI.println(listed.path)
+      return
+    }
+    for (const row of listed.rows) {
+      UI.println(`${row.id}  ${row.action}  ${row.target}  ${row.rationale}`)
+    }
+    UI.println(listed.path)
+    return
+  }
+  const shown = await DecisionVerbs.inspectReview({ id })
+  UI.println(`changeset ${shown.changeset.id}  ${shown.changeset.status}`)
+  UI.println(`why  ${shown.changeset.rationale}`)
+  for (const change of shown.changeset.changes) {
+    UI.println(`${change.mutation}  ${change.entity_ref}`)
+  }
+  UI.println("approve will bless this changeset (not apply, not push)")
+  UI.println(shown.path)
 }
 
 export const TuiThreadCommand = cmd({
@@ -165,6 +226,21 @@ export const TuiThreadCommand = cmd({
       }),
   handler: async (args) => {
     ensureMoksEntry()
+    if (args.project && RESERVED_TUI_PROJECTS.has(args.project)) {
+      if (args.project === "review") {
+        const extra = (args._ ?? []).map(String).filter((item) => item !== "review" && item !== "$0")
+        try {
+          await runHeadlessReview(extra[0])
+        } catch (error) {
+          UI.error(error instanceof Error ? error.message : "review failed")
+          process.exitCode = 1
+        }
+        return
+      }
+      UI.error(`${args.project} is a moks command, not a project path`)
+      process.exitCode = 1
+      return
+    }
     if (args.replay === true) {
       UI.error("--replay is not supported; replay is enabled by default")
       process.exitCode = 1
@@ -172,7 +248,21 @@ export const TuiThreadCommand = cmd({
     }
     const noReplay = args.replay === false || args.noReplay === true
 
-    const launch = selectDefaultInteractiveLaunch({ agent: args.agent, mini: args.mini })
+    const directoryGuess = resolveThreadDirectory(args.project)
+    const liveCompany = await isLiveCompany(directoryGuess)
+    const leftoverOrEmpty = !liveCompany
+    const launch = selectDefaultInteractiveLaunch({
+      agent: args.agent,
+      mini: args.mini,
+      headless: !process.stdout.isTTY,
+      liveCompany,
+      leftoverOrEmpty,
+    })
+    if (launch.kind === "fail-loud") {
+      UI.error("leftover ledger or empty cwd — pass --cwd/--dir to a live company")
+      process.exitCode = 1
+      return
+    }
     if (launch.kind === "mini") {
       const network = ["--port", "--hostname", "--mdns", "--no-mdns", "--mdns-domain", "--cors"].find((option) =>
         process.argv.some((arg) => arg === option || arg.startsWith(option + "=")),

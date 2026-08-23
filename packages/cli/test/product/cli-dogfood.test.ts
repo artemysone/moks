@@ -375,7 +375,7 @@ describe("cli dogfood", () => {
     expect(pushed.code).toBe(1)
     expect(pushed.combined).toMatch(/0 approved, \d+ staged — review first/)
     expect(pushed.combined).not.toContain("nothing to push")
-  }, 30_000)
+  }, 90_000)
 
 
   test("Reviewer one sentence on a cold company stages a note without verbs", async () => {

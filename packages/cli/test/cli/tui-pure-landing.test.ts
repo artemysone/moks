@@ -3,7 +3,7 @@ import path from "path"
 import { mkdir } from "fs/promises"
 import { tmpdir } from "../fixture/fixture"
 import { isCompanyRoot } from "../../src/product/req-workspace"
-import { RECRUIT_COMPOSER_LANDING, selectDefaultInteractiveLaunch, TuiThreadCommand } from "../../src/cli/cmd/tui"
+import { RECRUIT_COMPOSER_LANDING, RESERVED_TUI_PROJECTS, selectDefaultInteractiveLaunch, TuiThreadCommand } from "../../src/cli/cmd/tui"
 
 test("default CLI entry is the TUI thread command", () => {
   expect(TuiThreadCommand.command).toBe("$0 [project]")
@@ -45,4 +45,14 @@ test("CLI package hoists react so bun --conditions=browser can resolve it", asyn
   })
   expect(fromCli.exitCode).toBe(0)
   expect(fromCli.stdout.toString()).toContain("react")
+})
+
+test("leftover-ledger and empty-cwd stay fail-loud for headless default entry", () => {
+  const leftover = selectDefaultInteractiveLaunch({
+    headless: true,
+    liveCompany: false,
+    leftoverOrEmpty: true,
+  })
+  expect(leftover.kind).toBe("fail-loud")
+  expect(RESERVED_TUI_PROJECTS.has("review")).toBe(true)
 })
