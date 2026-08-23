@@ -308,9 +308,16 @@ function scored(card: Card, req: ReturnType<typeof parseReq>, packet: string) {
   return { ...card, score: overall, body: upsertSection(card.body, "Score", section) }
 }
 
+const SEND_POLICY = /draft only\.?\s*never sent/i
+
+function voiceLines(tone: string[]) {
+  return tone.filter((line) => !SEND_POLICY.test(line))
+}
+
 function voiceOf(tone: string[]): "warm" | "terse" | "plain" {
-  if (tone.length === 0) return "plain"
-  const blob = tone.join(" ").toLowerCase()
+  const voice = voiceLines(tone)
+  if (voice.length === 0) return "plain"
+  const blob = voice.join(" ").toLowerCase()
   const terse = /\b(terse|formal|direct|crisp|brief|no fluff|no-fluff)\b/.test(blob)
   const warm = /\b(warm|specific|friendly|personal|human)\b/.test(blob)
   if (terse && !warm) return "terse"
@@ -392,9 +399,6 @@ function drafted(card: Card, req: ReturnType<typeof parseReq>, packet: string) {
     "## Personalization hooks",
     copy.hook ? `- "${copy.hook}" (${source})` : `- No extra facts on ${source} beyond the name`,
     `- Role title from ${HIRING_FILE}: ${req.title}`,
-    ...(req.companyBar.length ? [`- Company bar from ${COMPANY_FILE}: ${req.companyBar.join("; ")}`] : []),
-    ...(req.tone.length ? [`- Tone from ${COMPANY_FILE}: ${req.tone.join("; ")}`] : []),
-    ...(req.about.length ? [`- About from ${COMPANY_FILE}: ${req.about.join("; ")}`] : []),
     "",
     "## Open questions",
     `- ${emailNote}`,

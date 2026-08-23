@@ -209,8 +209,12 @@ test("same card + two COMPANY.md bars change score and draft", async () => {
   expect(a?.body).not.toContain("Ship weekly in public")
   expect(b?.body).toContain("Ship weekly in public")
   expect(b?.body).not.toContain("Written operators")
-  expect(a?.body).toContain("Direct, no fluff")
-  expect(b?.body).toContain("Warm and specific")
+  expect(outreachEmail(a?.body ?? "")).not.toContain("Written operators")
+  expect(outreachEmail(b?.body ?? "")).not.toContain("Ship weekly in public")
+  expect(a?.body).not.toContain("Company bar from")
+  expect(a?.body).not.toContain("Tone from")
+  expect(a?.body).not.toContain("Direct, no fluff")
+  expect(b?.body).not.toContain("Warm and specific")
   expect(a?.body).toContain("COMPANY.md")
   expect(a?.body).not.toContain("Acme Corp")
   expect(a?.body).not.toContain("We hire against:")
@@ -270,6 +274,83 @@ test("same card + two COMPANY.md tones change greeting, voice, and ask", async (
   expect(b?.body).toContain("Payments edge and on-call")
   expect(a?.body).not.toContain("Acme Corp")
   expect(a?.body).not.toContain("Meridian Fleet")
+})
+
+
+test("Kenji Sato + COMPANY constitution does not paste bar or slogan into the draft", async () => {
+  const hiring = [
+    "# Staff Platform",
+    "",
+    "## Scorecard",
+    "| Dimension | Bar | Notes |",
+    "|-----------|-----|-------|",
+    "| Systems design | owns a service | |",
+    "",
+  ].join("\n")
+  const constitution = [
+    "# Company",
+    "",
+    "## About",
+    "- Payments infra",
+    "",
+    "## Bar",
+    "- Written operators who leave a paper trail",
+    "",
+    "## Tone",
+    "- Short. Concrete. No theater.",
+    "- Draft only. Never sent.",
+    "- Warm and specific",
+    "",
+    "## Policy",
+    "- Draft only. Never sent.",
+    "",
+  ].join("\n")
+  await using first = await tmpdir({
+    init: async (dir) => {
+      await companyReq(dir, constitution, hiring)
+    },
+  })
+  await using second = await tmpdir({
+    init: async (dir) => {
+      await companyReq(
+        dir,
+        "# Company\n\n## Tone\n- Terse, formal\n- Direct, no fluff\n\n## Bar\n- Ship weekly in public\n",
+        hiring,
+      )
+    },
+  })
+  await CandidateCard.write(path.join(first.path, "staff-platform"), {
+    id: "kenji-sato",
+    stage: "Sourced",
+    extra: { name: "Kenji Sato" },
+    body: "# Kenji Sato\n\nStaff platform engineer. Payments edge and on-call.\n",
+  })
+  await CandidateCard.write(path.join(second.path, "staff-platform"), {
+    id: "kenji-sato",
+    stage: "Sourced",
+    extra: { name: "Kenji Sato" },
+    body: "# Kenji Sato\n\nStaff platform engineer. Payments edge and on-call.\n",
+  })
+  await CardWrite.writeOnCard(first.path, { kind: "draft", hint: "kenji-sato" })
+  await CardWrite.writeOnCard(second.path, { kind: "draft", hint: "kenji-sato" })
+  const warm = await CandidateCard.read(path.join(first.path, "staff-platform"), "kenji-sato")
+  const terse = await CandidateCard.read(path.join(second.path, "staff-platform"), "kenji-sato")
+  const warmMail = outreachEmail(warm?.body ?? "")
+  const terseMail = outreachEmail(terse?.body ?? "")
+  expect(warm?.body).toContain("Draft only. Never sent.")
+  expect(terse?.body).toContain("Draft only. Never sent.")
+  expect(warmMail).not.toContain("Short. Concrete. No theater.")
+  expect(terseMail).not.toContain("Short. Concrete. No theater.")
+  expect(warm?.body).not.toContain("Short. Concrete. No theater.")
+  expect(warm?.body).not.toContain("Company bar from")
+  expect(warm?.body).not.toContain("## Bar")
+  expect(warmMail).not.toContain("Written operators")
+  expect(terseMail).not.toContain("Ship weekly in public")
+  expect(warmMail).toContain("Hi Kenji —")
+  expect(terseMail).toContain("Sato,")
+  expect(warmMail).toContain("If a short conversation would be useful, I'm around this week — no pitch deck.")
+  expect(terseMail).toContain("15 minutes on the role. Yes or no is fine.")
+  expect(warmMail).not.toBe(terseMail)
 })
 
 test("same card + two HIRING.md tables change score rows", async () => {
