@@ -217,6 +217,55 @@ export async function diff(input: { cwd?: string; id?: string } = {}) {
   })
 }
 
+export async function listStagedReviews(input: { cwd?: string } = {}) {
+  await requireCompanyDirectory(input.cwd)
+  return withLedger(input.cwd, async (handle) => {
+    const staged = handle.api.listChangesets(handle.db, "staged")
+    const rows = staged.map((row) => {
+      const detail = handle.api.getChangeset(handle.db, handle.vault, row.id)
+      const change = detail.changes[0]
+      const meta = detail.agent_meta && typeof detail.agent_meta === "object" ? (detail.agent_meta as { action?: string }) : {}
+      return {
+        id: row.id,
+        action: meta.action ?? change?.mutation ?? "change",
+        target: change?.entity_ref ?? "",
+        rationale: row.rationale.split(/\n/)[0] ?? "",
+        status: row.status,
+      }
+    })
+    return { rows, path: handle.company }
+  })
+}
+
+export async function inspectReview(input: { cwd?: string; id: string }) {
+  await requireCompanyDirectory(input.cwd)
+  return withLedger(input.cwd, async (handle) => {
+    let changeset: ReturnType<typeof handle.api.getChangeset>
+    try {
+      changeset = handle.api.getChangeset(handle.db, handle.vault, input.id)
+    } catch {
+      const listed = handle.api.listChangesets(handle.db)
+      const hit = listed.find((row) => row.id === input.id || row.id.startsWith(input.id))
+      if (!hit) throw new Error(`changeset not found: ${input.id}`)
+      changeset = handle.api.getChangeset(handle.db, handle.vault, hit.id)
+    }
+    const packet = handle.req ?? ((await ReqWorkspace.isPacket(handle.company)) ? handle.company : undefined)
+    const cards = await Promise.all(
+      changeset.changes.map(async (change) => {
+        let id = change.entity_ref
+        if (change.entity_type === "application") {
+          const hit = handle.api.listApplications(handle.db).find((row) => row.id === change.entity_ref)
+          if (hit) id = hit.candidateId
+        }
+        if (!packet) return { id, stage: undefined as string | undefined, score: undefined as number | undefined }
+        const card = await CandidateCard.read(packet, id)
+        return { id, stage: card?.stage, score: card?.score }
+      }),
+    )
+    return { changeset, cards, path: handle.company }
+  })
+}
+
 export async function review(input: ReviewInput) {
   return withLedger(input.cwd, async (handle) => {
     const changeset = handle.api.reviewChangeset(handle.db, handle.vault, input.id, {
