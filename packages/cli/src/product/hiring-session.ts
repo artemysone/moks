@@ -1,11 +1,12 @@
 import path from "path"
 import { CandidateCard, type Card } from "./candidate-card"
+import { Constitutions } from "./constitutions"
 import { ReqWorkspace } from "./req-workspace"
 import { importLedger } from "@/decision/session"
 
 export const SESSION_FILE = path.join(".moks", "session.json")
 
-export type LeftoverKind = "score" | "draft" | "commit"
+export type LeftoverKind = "score" | "rescore" | "draft" | "commit"
 
 export type SessionSnapshot = {
   v: 1
@@ -22,16 +23,21 @@ export function nextStep(input: {
 }) {
   if (input.stagedIds.length > 0) return `review ${input.stagedIds[0]}`
   if (input.leftover === "score") return input.focused ? `score leftover on ${input.focused}` : "score leftover"
+  if (input.leftover === "rescore") return input.focused ? `rescore leftover on ${input.focused}` : "rescore leftover"
   if (input.leftover === "draft") return input.focused ? `draft leftover on ${input.focused}` : "draft leftover"
   if (input.leftover === "commit") return input.focused ? `commit leftover on ${input.focused}` : "commit leftover"
   if (input.focused) return `nothing left on ${input.focused}`
   return "open-req"
 }
 
-export function leftoverOnCard(card: Card): LeftoverKind | null {
+export function leftoverOnCard(
+  card: Card,
+  current?: { company_hash: string; hiring_hash: string },
+): LeftoverKind | null {
   const stage = (card.stage ?? "").trim().toLowerCase()
   if (stage === "rejected" || stage === "withdrawn" || stage === "hired") return null
   if (card.score === undefined && !/^# Score\b/m.test(card.body)) return "score"
+  if (current && Constitutions.scoreIsStale(card, current)) return "rescore"
   if (!/^# Outreach\b/m.test(card.body)) return "draft"
   return "commit"
 }
@@ -97,9 +103,11 @@ async function computeSnapshot(company: string, opened: string): Promise<Session
 
 async function leftoverOnPacket(packet: string): Promise<LeftoverKind | null> {
   const cards = await CandidateCard.list(packet)
-  for (const card of cards) {
-    const leftover = leftoverOnCard(card)
-    if (leftover) return leftover
+  const root = (await ReqWorkspace.companyRoot(packet)) ?? packet
+  const current = await Constitutions.fingerprintsAt(root, packet)
+  const kinds = new Set(cards.map((card) => leftoverOnCard(card, current)).filter(Boolean))
+  for (const kind of ["rescore", "score", "draft", "commit"] as const) {
+    if (kinds.has(kind)) return kind
   }
   return null
 }

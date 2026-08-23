@@ -2,6 +2,7 @@ import { readdir } from "fs/promises"
 import path from "path"
 import { Filesystem } from "@/util/filesystem"
 import { CandidateCard, CANDIDATES_DIR } from "./candidate-card"
+import { Constitutions } from "./constitutions"
 
 export const HIRING_FILE = "HIRING.md"
 export const COMPANY_FILE = "COMPANY.md"
@@ -180,12 +181,15 @@ export async function slateBlock(dir: string) {
   if (focused && (await isPacket(focused))) {
     const cards = (await CandidateCard.list(focused)).slice(0, SLATE_CAP)
     if (cards.length === 0) return
+    const root = (await companyRoot(dir)) ?? focused
+    const fingerprints = await Constitutions.fingerprintsAt(root, focused)
     return [
       "<slate>",
       ...cards.map((card) => {
         const fields = [card.id]
         if (card.stage) fields.push(`stage=${card.stage}`)
-        if (card.score !== undefined) fields.push(`score=${card.score}`)
+        if (Constitutions.scoreIsStale(card, fingerprints)) fields.push("score=stale")
+        else if (card.score !== undefined) fields.push(`score=${card.score}`)
         fields.push(
           `path=${path.relative(focused, CandidateCard.filePath(focused, card.id)).replaceAll(path.sep, "/")}`,
         )
