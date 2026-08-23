@@ -112,7 +112,8 @@ const cli = yargs(args)
   .fail((msg, err) => {
     if (msg?.startsWith("Unknown argument")) {
       if (err) throw err
-      process.stderr.write(msg + EOL)
+      const names = msg.replace(/^Unknown arguments?:\s*/i, "").trim()
+      process.stderr.write(`unknown argument: ${names}` + EOL)
       if (/\b(cwd|dir)\b/i.test(msg)) {
         process.stderr.write(
           "company directory: moks run --dir <company> (alias --cwd); ledger commands accept --cwd or --dir" + EOL,

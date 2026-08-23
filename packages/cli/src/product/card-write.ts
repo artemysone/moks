@@ -71,13 +71,23 @@ export function parseNaturalWorkIntent(
 const NAME_FILLER =
   /\b(?:this|the|a|an|candidate|resume|card|outreach|email|linkedin|for|using|skill|draft|score|get|make|prep|prepare|ready|review|work|please|can|you)\b/gi
 
+function stripCardPunctuation(token: string) {
+  return token
+    .split(/\s+/)
+    .map((part) => part.replace(/[.!?]+$/g, ""))
+    .filter(Boolean)
+    .join(" ")
+}
+
 function stripHintName(hint: string) {
-  return hint
-    .replace(/^(?:please\s+|can you\s+)?/i, "")
-    .replace(/^(?:\/)?(?:score(?:-candidate)?|draft(?:-outreach)?)\b/i, "")
-    .replace(NAME_FILLER, " ")
-    .replace(/\s+/g, " ")
-    .trim()
+  return stripCardPunctuation(
+    hint
+      .replace(/^(?:please\s+|can you\s+)?/i, "")
+      .replace(/^(?:\/)?(?:score(?:-candidate)?|draft(?:-outreach)?)\b/i, "")
+      .replace(NAME_FILLER, " ")
+      .replace(/\s+/g, " ")
+      .trim(),
+  )
 }
 
 export async function writeOnCard(cwd: string, intent: WriteIntent) {

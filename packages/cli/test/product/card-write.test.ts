@@ -324,6 +324,18 @@ test("resolveCard maps kenji / this candidate and refuses a silent pick", () => 
   expect(() => CardWrite.resolveCard([kenji, priya], "get nobody ready for review")).toThrow(/no target id/)
 })
 
+test("resolveCard strips trailing .!? from the card-name token", () => {
+  const kenji = {
+    id: "kenji-sato",
+    stage: "Sourced",
+    extra: { name: "Kenji Sato" },
+    body: "# Kenji\n",
+  }
+  expect(CardWrite.resolveCard([kenji], "get kenji-sato ready.").id).toBe("kenji-sato")
+  expect(CardWrite.resolveCard([kenji], "work kenji-sato!").id).toBe("kenji-sato")
+  expect(CardWrite.resolveCard([kenji], "get kenji-sato ready?").id).toBe("kenji-sato")
+})
+
 test("workOnCard outside a company fails loud", async () => {
   await using empty = await tmpdir()
   await expect(CardWrite.workOnCard(empty.path, "get kenji ready for review")).rejects.toThrow(

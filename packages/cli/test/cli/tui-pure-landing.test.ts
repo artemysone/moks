@@ -3,7 +3,7 @@ import path from "path"
 import { mkdir } from "fs/promises"
 import { tmpdir } from "../fixture/fixture"
 import { isCompanyRoot } from "../../src/product/req-workspace"
-import { RECRUIT_COMPOSER_LANDING, RESERVED_TUI_PROJECTS, selectDefaultInteractiveLaunch, TuiThreadCommand } from "../../src/cli/cmd/tui"
+import { RECRUIT_COMPOSER_LANDING, RESERVED_TUI_PROJECTS, looksLikeProjectPath, selectDefaultInteractiveLaunch, TuiThreadCommand, unknownDefaultToken } from "../../src/cli/cmd/tui"
 
 test("default CLI entry is the TUI thread command", () => {
   expect(TuiThreadCommand.command).toBe("$0 [project]")
@@ -55,4 +55,27 @@ test("leftover-ledger and empty-cwd stay fail-loud for headless default entry", 
   })
   expect(leftover.kind).toBe("fail-loud")
   expect(RESERVED_TUI_PROJECTS.has("review")).toBe(true)
+})
+
+test("unknown tokens on default entry are unknown-command, not TUI", () => {
+  expect(unknownDefaultToken({ project: "foobar" })).toBe("foobar")
+  expect(unknownDefaultToken({ project: "foobar", exists: false })).toBe("foobar")
+  expect(unknownDefaultToken({ project: "foobar", exists: true })).toBeUndefined()
+  expect(unknownDefaultToken({ project: "./acme" })).toBeUndefined()
+  expect(unknownDefaultToken({ project: "/tmp/acme" })).toBeUndefined()
+  expect(unknownDefaultToken({ project: "review" })).toBeUndefined()
+  expect(unknownDefaultToken({})).toBeUndefined()
+  expect(looksLikeProjectPath("foobar")).toBe(false)
+  expect(looksLikeProjectPath("./company")).toBe(true)
+})
+
+test("company-folder TUI launch stays first-frame when there is no unknown token", () => {
+  const launch = selectDefaultInteractiveLaunch({
+    headless: false,
+    liveCompany: true,
+    leftoverOrEmpty: false,
+  })
+  expect(unknownDefaultToken({ project: undefined })).toBeUndefined()
+  expect(launch.kind).toBe("tui")
+  expect(launch.landing).toBe(RECRUIT_COMPOSER_LANDING)
 })
