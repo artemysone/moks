@@ -1,4 +1,5 @@
 import path from "path"
+import { readdir } from "fs/promises"
 import { CandidateCard, CANDIDATES_DIR } from "./candidate-card"
 import { ReqWorkspace } from "./req-workspace"
 import { withLedger, type LedgerHandle } from "@/decision/session"
@@ -7,19 +8,189 @@ const LOCAL_ATS = "mock"
 
 const ADD_COMMANDS = new Set(["add-candidate", "add-local-candidate"])
 
-export function parseAddIntent(command?: string, message = "", files: string[] = []): { file: string } | undefined {
-  const attached = files[0]?.trim()
+const NAME_LIST_FILLER = new Set([
+  "a",
+  "an",
+  "the",
+  "these",
+  "those",
+  "this",
+  "that",
+  "candidate",
+  "candidates",
+  "people",
+  "person",
+  "names",
+  "name",
+  "list",
+  "from",
+  "into",
+  "the",
+  "req",
+  "focused",
+  "resumes",
+  "resume",
+  "files",
+  "file",
+  "pile",
+  "folder",
+  "directory",
+])
+
+const NAME_BLOCK = /\b(note|score|draft|review|reject|advance|commit|push|work|hire|offer)\b/i
+const MODEL_OR_QUESTION = /\b(who|what|why|how|when|where|is|are|was|were|using|brief|skill)\b/i
+
+export type AddIntent = {
+  files: string[]
+  names: string[]
+}
+
+export function parseAddIntent(
+  command?: string,
+  message = "",
+  files: string[] = [],
+  agent?: string,
+): AddIntent | undefined {
+  const attached = files
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .filter((item) => looksLikePath(item) || !/\s/.test(item))
   const hint = message.trim()
+  const recruit = !command && agent === "recruit"
+  if (command && !ADD_COMMANDS.has(command)) return
   if (command && ADD_COMMANDS.has(command)) {
-    const fromHint = lastPathToken(hint)
-    const file = attached || fromHint
-    if (!file) return { file: "" }
-    return { file }
+    const parsed = parsePile(hint, attached)
+    if (parsed.files.length || parsed.names.length) return parsed
+    return { files: attached.length ? attached : [""], names: [] }
   }
   if (command) return
-  const match = hint.match(/^(?:please\s+|can you\s+)?(?:\/)?add(?:-candidate)?(?:\s+candidate)?(?:\s+from)?\s+(\S.+)$/i)
-  if (match) return { file: stripQuotes(match[1].trim()) }
-  if (attached && /^(?:please\s+|can you\s+)?(?:\/)?add(?:-candidate)?\b/i.test(hint)) return { file: attached }
+  if (/^(?:please\s+|can you\s+)?(?:\/)?add(?:-candidate)?\b/i.test(hint)) {
+    const parsed = parsePile(hint, attached)
+    if (parsed.files.length || parsed.names.length) return parsed
+    if (attached.length) return { files: attached, names: [] }
+    return
+  }
+  // Pile only for add / bare --file / name-list. Model prompts keep --file as LLM context.
+  if (recruit && attached.length && !hint) return { files: attached, names: [] }
+  if (recruit && looksLikeNameList(hint)) {
+    const parsed = parsePile(hint, attached)
+    if (parsed.files.length || parsed.names.length) return parsed
+  }
+}
+
+function looksLikeNameList(hint: string) {
+  const rest = stripAddPrefix(hint)
+  if (!rest || /\?/.test(rest) || MODEL_OR_QUESTION.test(rest)) return false
+  const chunks = splitList(rest).map((chunk) => stripQuotes(chunk)).filter(Boolean)
+  if (chunks.length === 0) return false
+  return chunks.every((token) => looksLikePath(token) || isPersonName(token))
+}
+
+function parsePile(hint: string, attached: string[]): AddIntent {
+  const files = [...attached]
+  const names: string[] = []
+  const rest = stripAddPrefix(hint)
+  if (!rest) return { files, names }
+  const chunks = splitList(rest)
+  for (const chunk of chunks) {
+    const token = stripQuotes(chunk)
+    if (!token) continue
+    if (looksLikePath(token)) {
+      files.push(token)
+      continue
+    }
+    if (isPersonName(token)) names.push(token)
+  }
+  return { files: unique(files), names: unique(names) }
+}
+
+function stripAddPrefix(hint: string) {
+  return hint
+    .replace(/^(?:please\s+|can you\s+)?(?:\/)?add(?:-candidate)?(?:\s+candidates?)?(?:\s+from)?\s+/i, "")
+    .replace(/^[:\-]+\s*/, "")
+    .trim()
+}
+
+function splitList(text: string) {
+  return text
+    .split(/\s*(?:,|;|\band\b|\n)\s*/i)
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
+function looksLikePath(token: string) {
+  return /[\\/]/.test(token) || /\.(md|txt|html|pdf|docx|rst)$/i.test(token)
+}
+
+function isPersonName(token: string) {
+  if (NAME_BLOCK.test(token)) return false
+  const parts = token.split(/\s+/).filter((part) => !NAME_LIST_FILLER.has(part.toLowerCase()))
+  if (parts.length === 0 || parts.length > 4) return false
+  return parts.every((part) => /^[A-Za-z][A-Za-z.'-]*$/.test(part))
+}
+
+function unique(values: string[]) {
+  return [...new Set(values)]
+}
+
+export async function addPile(cwd: string, intent: AddIntent) {
+  const files = await expandResumePaths(cwd, intent.files)
+  const added: Array<Awaited<ReturnType<typeof addFromFile>>> = []
+  for (const file of files) added.push(await addFromFile(cwd, file))
+  for (const name of intent.names) added.push(await addFromName(cwd, name))
+  if (added.length === 0) throw new Error("add-candidate requires a local resume path or a name")
+  return added
+}
+
+async function expandResumePaths(cwd: string, files: string[]) {
+  const out: string[] = []
+  for (const file of files) {
+    const trimmed = file.trim()
+    if (!trimmed) throw new Error("add-candidate requires a local resume path")
+    const abs = path.isAbsolute(trimmed) ? trimmed : path.resolve(cwd, trimmed)
+    let entries: import("fs").Dirent[] | undefined
+    try {
+      entries = await readdir(abs, { withFileTypes: true })
+    } catch {
+      out.push(trimmed)
+      continue
+    }
+    const resumes = entries
+      .filter((entry) => entry.isFile() && !entry.name.startsWith(".") && isResumeFile(entry.name))
+      .map((entry) => path.join(trimmed, entry.name))
+      .toSorted()
+    if (resumes.length === 0) throw new Error(`no resumes in directory: ${trimmed}`)
+    out.push(...resumes)
+  }
+  return out
+}
+
+function isResumeFile(name: string) {
+  return /\.(md|txt|html)$/i.test(name)
+}
+
+export async function addFromName(cwd: string, rawName: string) {
+  const packet = (await ReqWorkspace.focusedReq(cwd)) ?? ((await ReqWorkspace.isPacket(cwd)) ? cwd : undefined)
+  if (!packet) throw new Error("no focused req — run /open-req")
+  const name = rawName.trim()
+  if (!name) throw new Error("add-candidate requires a name")
+  const id = CandidateCard.safeId(name)
+  if (!id) throw new Error("could not derive a candidate id from the name")
+  if (await CandidateCard.read(packet, id)) throw new Error(`candidate card already exists: ${id}`)
+  await Bun.write(path.join(packet, CANDIDATES_DIR, ".gitkeep"), "")
+  const body = `# ${name}\n`
+  const card = {
+    id,
+    stage: "Sourced",
+    source: "name",
+    extra: { name },
+    body,
+  }
+  const written = await CandidateCard.write(packet, card)
+  await withLedger(cwd, async (handle) => {
+    registerLocalCandidate(handle, { id, name, headline: name, stage: card.stage })
+  })
+  return { id, name, file: written, relative: path.relative(cwd, written) || written, stage: card.stage }
 }
 
 export async function addFromFile(cwd: string, resumePath: string) {

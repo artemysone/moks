@@ -135,7 +135,7 @@ function isLocalWriteOrScaffold(command?: string, message = "", files: string[] 
     command === "add-candidate" ||
     Boolean(CardWrite.parseWriteIntent(command, message)) ||
     Boolean(CardWrite.parseNaturalWorkIntent(command, message, agent)) ||
-    Boolean(CandidateAdd.parseAddIntent(command, message, files))
+    Boolean(CandidateAdd.parseAddIntent(command, message, files, agent))
   )
 }
 
@@ -168,7 +168,7 @@ function isHeadlessScaffoldCommand(args: {
   if (isRecruitResume(args)) return true
   const message = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
   return Boolean(
-    CandidateAdd.parseAddIntent(args.command, message, args.file ?? []) ||
+    CandidateAdd.parseAddIntent(args.command, message, args.file ?? [], args.agent) ||
       CardWrite.parseWriteIntent(args.command, message) ||
       CardWrite.parseNaturalWorkIntent(args.command, message, args.agent),
   )
@@ -225,24 +225,36 @@ async function runHeadlessAddCandidate(args: {
   json?: boolean
   format?: string
   file?: string[]
+  agent?: string
   ["--"]?: string[]
 }) {
   const directory = await resolveRunDirectory(args.dir)
   const raw = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
-  const intent = CandidateAdd.parseAddIntent(args.command, raw, args.file ?? [])
+  const intent = CandidateAdd.parseAddIntent(args.command, raw, args.file ?? [], args.agent)
   if (!intent) {
     UI.error("not a local add-candidate")
     process.exit(1)
   }
-  const result = await CandidateAdd.addFromFile(directory, intent.file).catch((error) => {
+  const added = await CandidateAdd.addPile(directory, intent).catch((error) => {
     UI.error(error instanceof Error ? error.message : String(error))
     process.exit(1)
   })
   if (args.json || args.format === "json") {
-    console.log(JSON.stringify({ command: "add-candidate", ...result }, null, 2))
+    const first = added[0]
+    console.log(
+      JSON.stringify(
+        added.length === 1
+          ? { command: "add-candidate", ...first, added }
+          : { command: "add-candidate", added },
+        null,
+        2,
+      ),
+    )
     return
   }
-  UI.println(`add-candidate: wrote ${result.relative} (${result.id}, stage ${result.stage})`)
+  for (const result of added) {
+    UI.println(`add-candidate: wrote ${result.relative} (${result.id}, stage ${result.stage})`)
+  }
 }
 
 async function runHeadlessCardWrite(args: {
@@ -491,7 +503,7 @@ export const RunCommand = effectCmd({
   handler: Effect.fn("Cli.run")(function* (args) {
     if (isHeadlessScaffoldCommand(args)) {
       const message = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
-      if (CandidateAdd.parseAddIntent(args.command, message, args.file ?? [])) {
+      if (CandidateAdd.parseAddIntent(args.command, message, args.file ?? [], args.agent)) {
         yield* Effect.promise(() => runHeadlessAddCandidate(args))
         return
       }
