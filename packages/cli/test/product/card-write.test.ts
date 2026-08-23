@@ -261,3 +261,31 @@ test("same card + two HIRING.md tables change score rows", async () => {
   expect(b?.body).not.toContain("Ledger depth")
   expect(a?.body).toContain("not on the card")
 })
+
+test("Score named id on another req points at that req, not pull", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "COMPANY.md"), "# Acme\n")
+      await Bun.write(path.join(dir, "founding-engineer", "HIRING.md"), "# Founding Engineer\n")
+      await CandidateCard.write(path.join(dir, "founding-engineer"), {
+        id: "kenji-okada",
+        stage: "Sourced",
+        extra: { name: "Kenji Okada" },
+        body: "# Kenji Okada\n\nStaff.\n",
+      })
+      await Bun.write(path.join(dir, "staff-recruiter", "HIRING.md"), "# Staff Recruiter\n")
+      await Bun.write(path.join(dir, "staff-recruiter", "candidates", ".gitkeep"), "")
+      await ReqWorkspace.writeFocus(dir, "staff-recruiter")
+    },
+  })
+  await expect(CardWrite.writeOnCard(tmp.path, { kind: "score", hint: "Score kenji-okada" })).rejects.toThrow(
+    /card kenji-okada is on founding-engineer — focus that req \(open-req founding-engineer\)/,
+  )
+  try {
+    await CardWrite.writeOnCard(tmp.path, { kind: "score", hint: "Score kenji-okada" })
+    throw new Error("expected score to fail")
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    expect(message).not.toMatch(/run moks pull/)
+  }
+})
