@@ -129,8 +129,19 @@ export async function writeOnCard(cwd: string, intent: WriteIntent) {
   return { kind: intent.kind, id: next.id, file, score: next.score, relative: path.relative(cwd, file) || file }
 }
 
+function writeExcerpt(kind: WriteKind, card: Card) {
+  const heading = kind === "score" ? "Score" : "Outreach"
+  const match = card.body.match(new RegExp(`(?:^|\\n)(# ${heading}\\b[\\s\\S]*?)(?=\\n# (?!${heading})|$)`))
+  if (match?.[1]?.trim()) return match[1].trim()
+  if (kind === "score") {
+    return typeof card.score === "number" ? `score ${card.score} on ${card.id}` : `score ${card.id}`
+  }
+  return `draft outreach for ${card.id}`
+}
+
 async function stageCardWrite(cwd: string, kind: WriteKind, card: Card) {
   const { DecisionVerbs } = await import("@/decision/verbs")
+  const body = writeExcerpt(kind, card)
   const rationale =
     kind === "score"
       ? typeof card.score === "number"
@@ -139,11 +150,11 @@ async function stageCardWrite(cwd: string, kind: WriteKind, card: Card) {
       : `draft outreach for ${card.id}`
   await DecisionVerbs.pull({ cwd })
   await DecisionVerbs.commit({
-    action: kind === "draft" ? "outreach" : "advance",
+    action: kind === "draft" ? "outreach" : "note",
     target: { kind: "candidate", id: card.id },
     rationale,
     reason: rationale,
-    body: rationale,
+    body,
     source: kind,
     cwd,
   })

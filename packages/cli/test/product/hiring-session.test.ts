@@ -313,7 +313,7 @@ test("company-root status names the req: staged A, stale B", async () => {
   const listed = await DecisionVerbs.listStagedReviews({ cwd: company.path })
   expect(listed.rows.map((row) => row.id)).toContain(staged.changeset.id)
   expect(listed.rows.some((row) => row.rationale.includes("taste founding"))).toBe(true)
-  expect(listed.rows.every((row) => row.action !== "note" || row.rationale.includes("taste founding"))).toBe(true)
+  expect(listed.rows.some((row) => row.action === "note" && row.rationale.includes("score"))).toBe(true)
 
   const insideA = await HiringSession.loadSnapshot(path.join(company.path, "founding-engineer"))
   expect(insideA.next).toBe(`review ${staged.changeset.id}`)

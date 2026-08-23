@@ -300,7 +300,13 @@ export async function inspectReview(input: { cwd?: string; id: string }) {
         return { id, stage: card?.stage, score: card?.score }
       }),
     )
-    return { changeset, cards, path: handle.company }
+    const excerpts = changeset.changes.map((change) => {
+      const payload = change.payload && typeof change.payload === "object" ? (change.payload as Record<string, unknown>) : {}
+      if (typeof payload.body === "string") return payload.body
+      if (typeof payload.to === "string") return `${change.mutation} to ${payload.to}`
+      return change.mutation
+    })
+    return { changeset, cards, excerpts, path: handle.company }
   })
 }
 
