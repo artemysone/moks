@@ -4,15 +4,19 @@ import { ledgerCounts, runDecision, type LedgerCounts } from "../../util/decisio
 
 export async function packetDir(dir: string) {
   let current = dir
+  let seenReq = false
   for (const _ of [0, 1, 2, 3, 4]) {
     const hiring = await Bun.file(path.join(current, "HIRING.md")).exists()
     const packet = hiring && (await isDir(path.join(current, "candidates")))
+    if (hiring || packet) seenReq = true
     if (packet) return current
-    if (hiring || (await Bun.file(path.join(current, "COMPANY.md")).exists())) {
+    const companyMd = await Bun.file(path.join(current, "COMPANY.md")).exists()
+    if (hiring || (companyMd && (current === dir || seenReq))) {
       const slug = await readFocus(current)
       if (slug) return path.join(current, slug)
       return current
     }
+    if (companyMd && current !== dir && !seenReq) return dir
     const parent = path.dirname(current)
     if (parent === current) return dir
     current = parent
@@ -51,8 +55,10 @@ export async function countChangesets(dir: string): Promise<LedgerCounts | undef
 export async function ledgerStamp(dir: string) {
   let current = dir
   for (const _ of [0, 1, 2, 3, 4]) {
+    const companyMd = await Bun.file(path.join(current, "COMPANY.md")).exists()
     const ledger = path.join(current, ".moks", "ledger.sqlite")
     if (await Bun.file(ledger).exists()) {
+      if (current !== dir && companyMd && (await Bun.file(path.join(dir, "COMPANY.md")).exists())) return
       const stats = await Promise.all(
         [ledger, `${ledger}-wal`].map((file) => stat(file).catch(() => undefined)),
       )
