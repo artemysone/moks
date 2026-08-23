@@ -167,18 +167,17 @@ export function Tips(props: { api: TuiPluginApi; connected?: boolean; company?: 
 
 const TIPS: Tip[] = [
   // Hero hiring loop
-  "This folder is the company — {highlight}/init{/highlight} writes {highlight}COMPANY.md{/highlight}, {highlight}/open-req{/highlight} opens a req directory",
+  "This folder is the company — talk to recruit here, not a verb menu",
+  "Drop a pile in language (names or files). Then {highlight}get Maya ready{/highlight}. Taste with {highlight}/review{/highlight}",
   "Use {highlight}/review{/highlight} to slide the staged taste queue — bless or reject, never push from there",
   "Ask for the {highlight}req-context{/highlight} skill to load {highlight}HIRING.md{/highlight}",
-  "Score a resume onto a {highlight}candidates/{/highlight} card with {highlight}score-candidate{/highlight}",
-  "Record decisions with {highlight}moks commit{/highlight}, inspect with {highlight}moks status{/highlight}, apply with {highlight}moks push{/highlight}",
   "Switch to {highlight}Plan{/highlight} agent to draft a hiring strategy before recruit executes",
   (shortcuts) => press(shortcuts.agentCycle(), "to cycle between Recruit and Plan agents"),
   "Watch the Diff panel for {highlight}HIRING.md{/highlight} and {highlight}candidates/{/highlight} changes",
   "Type {highlight}@{/highlight} to attach {highlight}HIRING.md{/highlight} or a candidate card",
   "Drag and drop resumes, JDs, or PDFs into the terminal as context",
-  "Use {highlight}/commit{/highlight} and {highlight}/push{/highlight} in the TUI; inspect with {highlight}/status{/highlight}",
-  "Use {highlight}/skills{/highlight} to run req-context, score-candidate, draft-outreach, or commit-disposition",
+  "Human close: {highlight}/review{/highlight} then {highlight}/push{/highlight}. Recruit never emails.",
+  "Use {highlight}/skills{/highlight} if you want them — recruit language on the landing is enough for the stretch",
   // Small harness set
   (shortcuts) => `Use ${commandText("/models", shortcuts.modelList())} to switch between available AI models`,
   "Run {highlight}/connect{/highlight} to add API keys for LLM providers",
