@@ -11,7 +11,12 @@ async function workspace() {
   return tmpdir({
     init: async (dir) => {
       await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
-      await Bun.write(path.join(dir, "candidates", ".gitkeep"), "")
+      await CandidateCard.write(dir, {
+        id: "cand_priya",
+        stage: "Sourced",
+        extra: { name: "Priya" },
+        body: "# Priya\n",
+      })
     },
   })
 }
@@ -122,7 +127,12 @@ test("review shows AdvanceStage hop without rewriting the card", async () => {
         path.join(dir, "HIRING.md"),
         "# Role\n## Process\n- Stages: sourced → screen → phone → onsite → offer → hire\n",
       )
-      await Bun.write(path.join(dir, "candidates", ".gitkeep"), "")
+      await CandidateCard.write(dir, {
+        id: "cand_priya",
+        stage: "Sourced",
+        extra: { name: "Priya" },
+        body: "# Priya\n",
+      })
     },
   })
   await DecisionVerbs.pull({ cwd: tmp.path })

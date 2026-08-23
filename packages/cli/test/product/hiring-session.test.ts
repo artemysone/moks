@@ -217,23 +217,27 @@ test("score then COMPANY bar or HIRING table change marks status come-back stale
   await CardWrite.writeOnCard(company.path, { kind: "score", hint: "kenji-okada" })
   await CardWrite.writeOnCard(company.path, { kind: "draft", hint: "kenji-okada" })
   const live = await DecisionVerbs.status({ cwd: company.path })
-  expect(live.session.next).not.toMatch(/rescore/)
-  expect(live.session.leftover).not.toBe("rescore")
+  expect(live.session.staged.count).toBeGreaterThan(0)
+  expect(live.session.next).toMatch(/^review /)
+  expect(live.session.next).not.toMatch(/rescore leftover/)
   const card = await CandidateCard.read(path.join(company.path, "staff-platform"), "kenji-okada")
   expect(card?.score).toBeDefined()
 
   await Bun.write(path.join(company.path, "COMPANY.md"), "# Acme\n\n## Bar\n- Ship weekly in public\n")
   const afterBar = await DecisionVerbs.status({ cwd: company.path })
   expect(afterBar.session.leftover).toBe("rescore")
-  expect(afterBar.session.next).toBe("rescore leftover on staff-platform")
-  expect(afterBar.session.next).not.toMatch(/^(score leftover|nothing left|commit leftover)/)
+  expect(afterBar.session.next).toMatch(/^review /)
+  expect(afterBar.session.next).not.toBe("rescore leftover on staff-platform")
+  for (const id of afterBar.session.staged.ids) {
+    await DecisionVerbs.review({ id, action: "approve", by: "reviewer", cwd: company.path })
+  }
   const comeBack = await HiringSession.loadSnapshot(company.path)
   expect(comeBack.next).toBe("rescore leftover on staff-platform")
   expect(comeBack.leftover).toBe("rescore")
   const still = await CandidateCard.read(path.join(company.path, "staff-platform"), "kenji-okada")
   expect(still?.score).toBe(card?.score)
-  expect(HiringSession.formatSnapshot(afterBar.session).join("\n")).toContain("rescore leftover")
-  expect(HiringSession.formatSnapshot(afterBar.session).join("\n")).not.toMatch(/score=\d/)
+  expect(HiringSession.formatSnapshot(comeBack).join("\n")).toContain("rescore leftover")
+  expect(HiringSession.formatSnapshot(comeBack).join("\n")).not.toMatch(/score=\d/)
 
   await CardWrite.writeOnCard(company.path, { kind: "score", hint: "kenji-okada" })
   await Bun.write(
@@ -250,7 +254,8 @@ test("score then COMPANY bar or HIRING table change marks status come-back stale
   )
   const afterHiring = await DecisionVerbs.status({ cwd: company.path })
   expect(afterHiring.session.leftover).toBe("rescore")
-  expect(afterHiring.session.next).toBe("rescore leftover on staff-platform")
+  expect(afterHiring.session.next).toMatch(/^review /)
+  expect(afterHiring.session.staged.count).toBeGreaterThan(0)
 })
 
 test("company-root status names the req: staged A, stale B", async () => {
@@ -299,24 +304,23 @@ test("company-root status names the req: staged A, stale B", async () => {
   await Bun.write(path.join(company.path, "COMPANY.md"), "# Acme\n\n## Bar\n- Ship weekly in public\n")
 
   const status = await DecisionVerbs.status({ cwd: company.path })
-  expect(status.session.next).toBe("review founding-engineer")
+  expect(status.session.next).toMatch(/^review /)
   expect(status.session.staged.ids).toContain(staged.changeset.id)
+  expect(status.session.staged.count).toBeGreaterThan(1)
   expect(status.session.leftover).toBe("rescore")
   expect(HiringSession.formatSnapshot(status.session).join("\n")).toContain("founding-engineer")
 
   const listed = await DecisionVerbs.listStagedReviews({ cwd: company.path })
   expect(listed.rows.map((row) => row.id)).toContain(staged.changeset.id)
   expect(listed.rows.some((row) => row.rationale.includes("taste founding"))).toBe(true)
+  expect(listed.rows.every((row) => row.action !== "note" || row.rationale.includes("taste founding"))).toBe(true)
 
   const insideA = await HiringSession.loadSnapshot(path.join(company.path, "founding-engineer"))
   expect(insideA.next).toBe(`review ${staged.changeset.id}`)
 
-  await DecisionVerbs.review({
-    id: staged.changeset.id,
-    action: "approve",
-    by: "reviewer",
-    cwd: company.path,
-  })
+  for (const id of status.session.staged.ids) {
+    await DecisionVerbs.review({ id, action: "approve", by: "reviewer", cwd: company.path })
+  }
   const after = await DecisionVerbs.status({ cwd: company.path })
   expect(after.session.next).toMatch(/rescore.*staff-recruiter/)
   expect(after.session.leftover).toBe("rescore")
