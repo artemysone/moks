@@ -53,6 +53,33 @@ export function parseWriteIntent(command?: string, message = ""): WriteIntent | 
   }
 }
 
+/** Natural recruit ask: work / get-ready. Named verbs stay on parseWriteIntent. */
+export function parseNaturalWorkIntent(
+  command?: string,
+  message = "",
+  agent?: string,
+): { hint: string } | undefined {
+  if (command) return
+  if (agent && agent !== "recruit") return
+  const hint = message.trim()
+  if (!hint) return
+  if (parseWriteIntent(undefined, hint)) return
+  if (/\bready for review\b/i.test(hint)) return { hint }
+  if (/^(?:please\s+|can you\s+)?(?:get|make|prep(?:are)?|work)\b/i.test(hint)) return { hint }
+}
+
+const NAME_FILLER =
+  /\b(?:this|the|a|an|candidate|resume|card|outreach|email|linkedin|for|using|skill|draft|score|get|make|prep|prepare|ready|review|work|please|can|you)\b/gi
+
+function stripHintName(hint: string) {
+  return hint
+    .replace(/^(?:please\s+|can you\s+)?/i, "")
+    .replace(/^(?:\/)?(?:score(?:-candidate)?|draft(?:-outreach)?)\b/i, "")
+    .replace(NAME_FILLER, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
 export async function writeOnCard(cwd: string, intent: WriteIntent) {
   const root = await ReqWorkspace.companyRoot(cwd)
   if (!root || !(await ReqWorkspace.isLiveCompany(root))) {
@@ -90,12 +117,7 @@ export async function writeOnCard(cwd: string, intent: WriteIntent) {
 function namedCardId(hint: string) {
   const cand = hint.match(/\b(cand[_-][a-z0-9]+)\b/i)
   if (cand) return cand[1]
-  const stripped = hint
-    .replace(/^(?:please\s+|can you\s+)?/i, "")
-    .replace(/^(?:\/)?(?:score(?:-candidate)?|draft(?:-outreach)?)\b/i, "")
-    .replace(/\b(?:this|the|a|an|candidate|resume|card|outreach|email|linkedin|for|using|skill|draft)\b/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim()
+  const stripped = stripHintName(hint)
   if (!stripped) return
   if (/^[a-z0-9][a-z0-9_-]+$/i.test(stripped)) return stripped
 }
@@ -127,13 +149,7 @@ function listed(cards: Card[]) {
 export function resolveCard(cards: Card[], hint: string): Card {
   if (cards.length === 0) throw new Error("no candidate cards — run moks pull in a focused req")
   const ids = [...hint.matchAll(/\b(cand[_-][a-z0-9]+)\b/gi)].map((match) => match[1].toLowerCase())
-  const named = hint
-    .replace(/^(?:please\s+|can you\s+)?/i, "")
-    .replace(/^(?:\/)?(?:score(?:-candidate)?|draft(?:-outreach)?)\b/i, "")
-    .replace(/\b(?:this|the|a|an|candidate|resume|card|outreach|email|linkedin|for|using|skill|draft)\b/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase()
+  const named = stripHintName(hint).toLowerCase()
   const scoreable = scoreableCards(cards)
   const byId = cards.find((card) => ids.includes(card.id.toLowerCase()))
   if (byId) {
@@ -331,6 +347,22 @@ function upsertSection(body: string, heading: string, section: string) {
     return body.replace(re, (match) => `${match.startsWith("\n") ? "\n" : ""}${block}`)
   }
   return `${body.replace(/\s*$/, "\n\n")}${block}`
+}
+
+
+export async function workOnCard(cwd: string, hint: string) {
+  const scored = await writeOnCard(cwd, { kind: "score", hint })
+  const drafted = await writeOnCard(cwd, { kind: "draft", hint })
+  const card = CandidateCard.parse(await Bun.file(scored.file).text())
+  const fromCard =
+    card?.body.match(/One-line rationale:\s*(.+)/i)?.[1]?.trim() ||
+    (card?.score !== undefined ? `score ${card.score} on ${scored.id}` : undefined)
+  return {
+    id: scored.id,
+    score: drafted.score ?? scored.score,
+    relative: drafted.relative,
+    rationale: fromCard || hint.trim() || `note on ${scored.id}`,
+  }
 }
 
 export * as CardWrite from "./card-write"

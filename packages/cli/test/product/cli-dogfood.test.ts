@@ -377,6 +377,62 @@ describe("cli dogfood", () => {
     expect(pushed.combined).not.toContain("nothing to push")
   }, 30_000)
 
+
+  test("Reviewer one sentence on a cold company stages a note without verbs", async () => {
+    await using company = await tmpdir()
+    await using home = await tmpdir()
+    const env = { ANTHROPIC_API_KEY: "" }
+    expect((await moks(["run", "--command", "init"], company.path, home.path, env)).code).toBe(0)
+    expect((await moks(["run", "--command", "open-req", "--", "Staff Platform"], company.path, home.path, env)).code).toBe(0)
+    const resume = path.join(company.path, "kenji-okada.md")
+    await Bun.write(
+      resume,
+      ["# Kenji Okada", "", "Staff platform engineer. Payments edge and on-call.", ""].join("\n"),
+    )
+    const added = await moks(["add-candidate", resume], company.path, home.path, env)
+    expect(added.code).toBe(0)
+
+    const started = Date.now()
+    const worked = await moks(
+      ["run", "--agent", "recruit", "--", "get kenji ready for review"],
+      company.path,
+      home.path,
+      env,
+    )
+    expect(worked.code).toBe(0)
+    expect(worked.combined).not.toContain("Unexpected error")
+    expect(worked.combined).not.toMatch(/sign in \/ connect OAuth or ACP/i)
+    expect(worked.combined).toMatch(/ready: kenji-okada/)
+    expect(worked.combined).toMatch(/staged note/)
+    expect(Date.now() - started).toBeLessThan(15_000)
+
+    const card = await Bun.file(path.join(company.path, "staff-platform", "candidates", "kenji-okada.md")).text()
+    expect(card).toContain("# Score")
+    expect(card).toContain("# Outreach")
+    expect(card).toContain("Never sent")
+    expect(card).toContain("Payments edge")
+    expect(card).not.toContain("Meridian Fleet")
+
+    const reviewed = await moks(["review"], company.path, home.path, env)
+    expect(reviewed.code).toBe(0)
+    expect(reviewed.combined).toMatch(/AddNote|note/)
+    expect(reviewed.combined).not.toContain("no staged changesets")
+  }, 30_000)
+
+  test("natural work outside a company fails loud without OAuth", async () => {
+    await using empty = await tmpdir()
+    await using home = await tmpdir()
+    const result = await moks(
+      ["run", "--agent", "recruit", "--", "work this candidate"],
+      empty.path,
+      home.path,
+      { ANTHROPIC_API_KEY: "" },
+    )
+    expect(result.code).toBe(1)
+    expect(result.combined).toMatch(/not a company directory|leftover|--cwd\/--dir/)
+    expect(result.combined).not.toMatch(/sign in \/ connect OAuth or ACP/i)
+  }, 15_000)
+
   test("run --command foobar fails locally without OAuth", async () => {
     await using company = await tmpdir()
     await using home = await tmpdir()

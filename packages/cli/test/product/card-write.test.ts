@@ -289,3 +289,45 @@ test("Score named id on another req points at that req, not pull", async () => {
     expect(message).not.toMatch(/run moks pull/)
   }
 })
+test("parseNaturalWorkIntent catches work/get-ready, not verbs or questions", () => {
+  expect(CardWrite.parseNaturalWorkIntent(undefined, "get kenji ready for review")).toEqual({
+    hint: "get kenji ready for review",
+  })
+  expect(CardWrite.parseNaturalWorkIntent(undefined, "work this candidate")?.hint).toBe("work this candidate")
+  expect(CardWrite.parseNaturalWorkIntent(undefined, "work kenji-okada")?.hint).toBe("work kenji-okada")
+  expect(CardWrite.parseNaturalWorkIntent(undefined, "Score cand_priya")).toBeUndefined()
+  expect(CardWrite.parseNaturalWorkIntent("score", "kenji")).toBeUndefined()
+  expect(CardWrite.parseNaturalWorkIntent(undefined, "Who is the hiring manager")).toBeUndefined()
+  expect(CardWrite.parseNaturalWorkIntent(undefined, "get kenji ready for review", "plan")).toBeUndefined()
+  expect(CardWrite.parseNaturalWorkIntent(undefined, "get kenji ready for review", "recruit")?.hint).toBe(
+    "get kenji ready for review",
+  )
+})
+
+test("resolveCard maps kenji / this candidate and refuses a silent pick", () => {
+  const kenji = {
+    id: "kenji-okada",
+    stage: "Sourced",
+    extra: { name: "Kenji Okada" },
+    body: "# Kenji\n",
+  }
+  const priya = {
+    id: "cand_priya",
+    stage: "Sourced",
+    extra: { name: "Priya Shah" },
+    body: "# Priya\n",
+  }
+  expect(CardWrite.resolveCard([kenji], "get kenji ready for review").id).toBe("kenji-okada")
+  expect(CardWrite.resolveCard([kenji], "work this candidate").id).toBe("kenji-okada")
+  expect(CardWrite.resolveCard([kenji], "work kenji-okada").id).toBe("kenji-okada")
+  expect(() => CardWrite.resolveCard([kenji, priya], "work this candidate")).toThrow(/no target id/)
+  expect(() => CardWrite.resolveCard([kenji, priya], "get nobody ready for review")).toThrow(/no target id/)
+})
+
+test("workOnCard outside a company fails loud", async () => {
+  await using empty = await tmpdir()
+  await expect(CardWrite.workOnCard(empty.path, "get kenji ready for review")).rejects.toThrow(
+    /not a company directory.*--cwd\/--dir/,
+  )
+})
+
