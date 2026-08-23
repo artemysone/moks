@@ -148,11 +148,16 @@ export function reviewPushArgs(id: string) {
   return pushCommandArgs({ id, execute: true })
 }
 
-export function reviewDecisionArgs(input: { id: string; action: "approve" | "reject"; by?: string }) {
+export function rejectReasonFromTaste(taste?: { why?: string }) {
+  return taste?.why?.trim() || ""
+}
+
+export function reviewDecisionArgs(input: { id: string; action: "approve" | "reject"; by?: string; reason?: string }) {
   return reviewCommandArgs({
     id: input.id,
     action: input.action,
     by: input.by ?? process.env.USER ?? process.env.LOGNAME ?? "human",
+    reason: input.reason,
   })
 }
 

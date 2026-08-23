@@ -593,7 +593,7 @@ export function reviewChangeset(
   db: SqliteDb,
   vault: Vault,
   id: string,
-  input: { action: string; reviewer_id: string },
+  input: { action: string; reviewer_id: string; reason?: string },
 ): ChangesetDetail {
   const reviewerId = requireString(input.reviewer_id, "reviewer_id_required");
   if (input.action !== "approve" && input.action !== "reject") {
@@ -604,7 +604,22 @@ export function reviewChangeset(
     throw new LedgerError("not_staged");
   }
   const status: ChangesetStatus = input.action === "approve" ? "approved" : "rejected";
-  db.prepare("UPDATE changesets SET status = ?, reviewed_by = ? WHERE id = ?").run(status, reviewerId, id);
+  const reason = typeof input.reason === "string" ? input.reason.trim() : "";
+  if (input.action === "reject" && reason) {
+    const meta = parseJson(row.agent_meta);
+    const base = meta && typeof meta === "object" && !Array.isArray(meta) ? (meta as Record<string, unknown>) : {};
+    const nextMeta = { ...base, review_reason: reason };
+    const rationale = row.rationale.includes(reason) ? row.rationale : `${row.rationale}\n\nRejected: ${reason}`;
+    db.prepare("UPDATE changesets SET status = ?, reviewed_by = ?, rationale = ?, agent_meta = ? WHERE id = ?").run(
+      status,
+      reviewerId,
+      rationale,
+      JSON.stringify(nextMeta),
+      id,
+    );
+  } else {
+    db.prepare("UPDATE changesets SET status = ?, reviewed_by = ? WHERE id = ?").run(status, reviewerId, id);
+  }
   return getChangeset(db, vault, id);
 }
 

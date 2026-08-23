@@ -20,14 +20,18 @@ export function nextStep(input: {
   focused: string | null
   stagedIds: string[]
   leftover?: LeftoverKind | null
+  reason?: string
 }) {
   if (input.stagedIds.length > 0) return `review ${input.stagedIds[0]}`
-  if (input.leftover === "score") return input.focused ? `score leftover on ${input.focused}` : "score leftover"
-  if (input.leftover === "rescore") return input.focused ? `rescore leftover on ${input.focused}` : "rescore leftover"
-  if (input.leftover === "draft") return input.focused ? `draft leftover on ${input.focused}` : "draft leftover"
-  if (input.leftover === "commit") return input.focused ? `commit leftover on ${input.focused}` : "commit leftover"
-  if (input.focused) return `nothing left on ${input.focused}`
-  return "open-req"
+  let next = ""
+  if (input.leftover === "score") next = input.focused ? `score leftover on ${input.focused}` : "score leftover"
+  else if (input.leftover === "rescore") next = input.focused ? `rescore leftover on ${input.focused}` : "rescore leftover"
+  else if (input.leftover === "draft") next = input.focused ? `draft leftover on ${input.focused}` : "draft leftover"
+  else if (input.leftover === "commit") next = input.focused ? `commit leftover on ${input.focused}` : "commit leftover"
+  else if (input.focused) next = `nothing left on ${input.focused}`
+  else next = "open-req"
+  const reason = input.reason?.trim()
+  return reason ? `${next} — ${reason}` : next
 }
 
 export function leftoverOnCard(
@@ -92,12 +96,21 @@ async function computeSnapshot(company: string, opened: string): Promise<Session
   const focused = slug && slug !== "." ? slug : null
   const stagedIds = await listStagedIds(company, focused)
   const leftover = packet ? await leftoverOnPacket(packet) : null
+  const reason = packet ? await firstCardReason(packet) : undefined
   return {
     v: 1,
     focused,
     staged: { count: stagedIds.length, ids: stagedIds },
     leftover,
-    next: nextStep({ focused, stagedIds, leftover }),
+    next: nextStep({ focused, stagedIds, leftover, reason }),
+  }
+}
+
+async function firstCardReason(packet: string) {
+  const cards = await CandidateCard.list(packet)
+  for (const card of cards) {
+    const reason = CandidateCard.readReason(card)
+    if (reason) return reason
   }
 }
 

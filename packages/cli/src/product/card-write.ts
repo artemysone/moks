@@ -436,6 +436,7 @@ export async function workOnCard(cwd: string, hint: string) {
   const drafted = await writeOnCard(cwd, { kind: "draft", hint })
   const card = CandidateCard.parse(await Bun.file(scored.file).text())
   const fromCard =
+    (card ? CandidateCard.readReason(card) : undefined) ||
     card?.body.match(/One-line rationale:\s*(.+)/i)?.[1]?.trim() ||
     (card?.score !== undefined ? `score ${card.score} on ${scored.id}` : undefined)
   return {

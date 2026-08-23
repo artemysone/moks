@@ -23,6 +23,10 @@ export const ReviewCommand = effectCmd({
         default: false,
         describe: "reject the changeset",
       })
+      .option("reason", {
+        type: "string",
+        describe: "why this changeset is rejected (required with --reject)",
+      })
       .option("by", {
         type: "string",
         describe: "reviewer identity",
@@ -44,6 +48,9 @@ export const ReviewCommand = effectCmd({
     }
     if (!args.id && (args.approve || args.reject)) {
       return yield* Effect.fail(new CliError({ message: "moks review --approve/--reject needs a changeset id" }))
+    }
+    if (args.reject && !(args.reason ?? "").trim()) {
+      return yield* Effect.fail(new CliError({ message: "review --reject needs --reason" }))
     }
     if (!args.id || (args.id === "list" && !args.approve && !args.reject)) {
       const listed = yield* Effect.tryPromise({
@@ -96,6 +103,7 @@ export const ReviewCommand = effectCmd({
           id: args.id,
           action: args.approve ? "approve" : "reject",
           by: args.by,
+          reason: args.reason,
           cwd: args.cwd,
         }),
       catch: (error) => new CliError({ message: error instanceof Error ? error.message : "review failed" }),

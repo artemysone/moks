@@ -44,6 +44,7 @@ export type ReviewInput = {
   id: string
   action: "approve" | "reject"
   by: string
+  reason?: string
   cwd?: string
 }
 
@@ -285,11 +286,21 @@ export async function inspectReview(input: { cwd?: string; id: string }) {
 }
 
 export async function review(input: ReviewInput) {
+  await requireCompanyDirectory(input.cwd)
   return withLedger(input.cwd, async (handle) => {
+    const current = handle.api.getChangeset(handle.db, handle.vault, input.id)
+    const reason = (input.reason ?? "").trim() || (input.action === "reject" ? current.rationale.trim() : "")
+    if (input.action === "reject" && !reason) {
+      throw new Error("review --reject needs --reason")
+    }
     const changeset = handle.api.reviewChangeset(handle.db, handle.vault, input.id, {
       action: input.action,
       reviewer_id: input.by,
+      reason: input.action === "reject" ? reason : undefined,
     })
+    if (input.action === "reject") {
+      await persistRejectReasonOnCards(handle, changeset, reason)
+    }
     await HiringSession.refreshSnapshot(handle.company)
     return { changeset, path: handle.company }
   })
@@ -454,6 +465,8 @@ async function defaultNoteFromCard(handle: LedgerHandle, input: CommitInput) {
   if (!dir) return `note on ${id}`
   const card = await CandidateCard.read(dir, id)
   if (!card) return `note on ${id}`
+  const rejection = CandidateCard.readReason(card)
+  if (rejection) return rejection
   const rationale = card.body.match(/One-line rationale:\s*(.+)/i)?.[1]?.trim()
   if (rationale) return rationale
   const recommendation = card.body.match(/Recommendation:\s*(.+)/i)?.[1]?.trim()
@@ -625,16 +638,21 @@ async function projectCard(
   if (!dir) return
 
   const stage = stageFromChanges(changes)
+  const rejectReason = rejectReasonFrom(input, changes)
   const existing = await CandidateCard.read(dir, id)
   if (!existing) {
-    if (!stage) return
+    if (!stage && !rejectReason) return
     const created = CandidateCard.parse(CandidateCard.stub(id, { stage }))
     if (!created) throw new Error(`failed to create candidate card: ${id}`)
-    await CandidateCard.write(dir, created)
+    const next = rejectReason ? CandidateCard.persistReason({ ...created, stage: stage ?? created.stage }, rejectReason) : created
+    await CandidateCard.write(dir, next)
     return
   }
-  if (!stage || stage === existing.stage) return
-  await CandidateCard.write(dir, { ...existing, stage })
+  let next = existing
+  if (stage && stage !== existing.stage) next = { ...next, stage }
+  if (rejectReason) next = CandidateCard.persistReason(next, rejectReason)
+  if (next === existing) return
+  await CandidateCard.write(dir, next)
 }
 
 // AdvanceStage stays on the changeset until apply/push. Card + status
@@ -644,6 +662,31 @@ function stageFromChanges(changes: Array<{ mutation: string; payload: unknown }>
   for (const change of changes) {
     if (change.mutation === "Reject") return "Rejected"
     if (change.mutation === "Withdraw") return "Withdrawn"
+  }
+}
+
+function rejectReasonFrom(input: CommitInput, changes: Array<{ mutation: string }>) {
+  if (!changes.some((change) => change.mutation === "Reject")) return
+  const reason = (input.rationale ?? input.reason ?? input.body ?? "").trim()
+  return reason || undefined
+}
+
+async function persistRejectReasonOnCards(
+  handle: LedgerHandle,
+  changeset: { changes: Array<{ entity_type: string; entity_ref: string }> },
+  reason: string,
+) {
+  const dir = handle.req ?? ((await ReqWorkspace.isPacket(handle.company)) ? handle.company : undefined)
+  if (!dir) return
+  for (const change of changeset.changes) {
+    let id = change.entity_ref
+    if (change.entity_type === "application") {
+      const hit = handle.api.listApplications(handle.db).find((row) => row.id === change.entity_ref)
+      if (hit) id = hit.candidateId
+    }
+    const existing = await CandidateCard.read(dir, id)
+    if (!existing) continue
+    await CandidateCard.write(dir, CandidateCard.persistReason(existing, reason))
   }
 }
 
