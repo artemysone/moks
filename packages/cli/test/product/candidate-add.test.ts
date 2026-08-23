@@ -28,6 +28,16 @@ test("parseAddIntent detects add-candidate command and prose", () => {
   expect(CandidateAdd.parseAddIntent(undefined, "Who is the hiring manager")).toBeUndefined()
   expect(CandidateAdd.parseAddIntent("score", "resume.md")).toBeUndefined()
   expect(CandidateAdd.parseAddIntent(undefined, "add a note on Priya")).toBeUndefined()
+  expect(CandidateAdd.parseAddIntent(undefined, "Who is the hiring manager", [], "recruit")).toBeUndefined()
+  expect(CandidateAdd.parseAddIntent(undefined, "Brief this req using the req-context skill", ["HIRING.md", "jordan-lee.md"], "recruit")).toBeUndefined()
+  expect(CandidateAdd.parseAddIntent(undefined, "Kenji Sato and Nora Voss", [], "recruit")).toEqual({
+    files: [],
+    names: ["Kenji Sato", "Nora Voss"],
+  })
+  expect(CandidateAdd.parseAddIntent(undefined, "", ["kenji-sato.md", "nora-voss.md"], "recruit")).toEqual({
+    files: ["kenji-sato.md", "nora-voss.md"],
+    names: [],
+  })
 })
 
 test("addFromFile writes a Sourced card from a local resume only", async () => {

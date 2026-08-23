@@ -38,6 +38,7 @@ const NAME_LIST_FILLER = new Set([
 ])
 
 const NAME_BLOCK = /\b(note|score|draft|review|reject|advance|commit|push|work|hire|offer)\b/i
+const MODEL_OR_QUESTION = /\b(who|what|why|how|when|where|is|are|was|were|using|brief|skill)\b/i
 
 export type AddIntent = {
   files: string[]
@@ -69,13 +70,20 @@ export function parseAddIntent(
     if (attached.length) return { files: attached, names: [] }
     return
   }
-  if ((recruit || attached.length > 0) && recruit && attached.length) {
-    return { files: attached, names: [] }
-  }
-  if (recruit) {
+  // Pile only for add / bare --file / name-list. Model prompts keep --file as LLM context.
+  if (recruit && attached.length && !hint) return { files: attached, names: [] }
+  if (recruit && looksLikeNameList(hint)) {
     const parsed = parsePile(hint, attached)
     if (parsed.files.length || parsed.names.length) return parsed
   }
+}
+
+function looksLikeNameList(hint: string) {
+  const rest = stripAddPrefix(hint)
+  if (!rest || /\?/.test(rest) || MODEL_OR_QUESTION.test(rest)) return false
+  const chunks = splitList(rest).map((chunk) => stripQuotes(chunk)).filter(Boolean)
+  if (chunks.length === 0) return false
+  return chunks.every((token) => looksLikePath(token) || isPersonName(token))
 }
 
 function parsePile(hint: string, attached: string[]): AddIntent {
