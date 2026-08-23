@@ -200,8 +200,9 @@ export function Session() {
   })
 
   createEffect(() => {
-    const title = Locale.truncate(session()?.title ?? "", 50)
-    setEpilogue(sessionEpilogue({ title, sessionID: session()?.id }))
+    const current = session()
+    if (!current) return
+    setEpilogue(sessionEpilogue({ title: Locale.truncate(current.title ?? "", 50), sessionID: current.id }))
   })
   onCleanup(() => setEpilogue())
   const children = createMemo(() => {

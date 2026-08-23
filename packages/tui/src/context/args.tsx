@@ -12,5 +12,17 @@ export interface Args {
 
 export const { use: useArgs, provider: ArgsProvider } = createSimpleContext({
   name: "Args",
-  init: (props: Args) => props,
+  init: (props: Args & { value?: Args }) => {
+    const value = props.value
+    if (value) return value
+    return {
+      model: props.model,
+      agent: props.agent,
+      prompt: props.prompt,
+      continue: props.continue,
+      sessionID: props.sessionID,
+      fork: props.fork,
+      auto: props.auto,
+    }
+  },
 })

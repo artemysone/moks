@@ -74,19 +74,28 @@ test("app.exit prints the session epilogue after scoped cleanup", async () => wi
   const core = await import("@opentui/core")
   mock.module("@opentui/core", () => ({ ...core, createCliRenderer: async () => setup.renderer }))
   const events = createEventSource()
+  const demo = {
+    id: "dummy",
+    title: "Demo session",
+    slug: "dummy",
+    projectID: "project",
+    directory,
+    version: "0.0.0-test",
+    time: { created: 0, updated: 0 },
+  }
+  let sessionHydrated!: () => void
+  const hydrated = new Promise<void>((resolve) => {
+    sessionHydrated = resolve
+  })
   const calls = createFetch((url) => {
-    if (url.pathname === "/session")
-      return json([
-        {
-          id: "dummy",
-          title: "Demo session",
-          slug: "dummy",
-          projectID: "project",
-          directory,
-          version: "0.0.0-test",
-          time: { created: 0, updated: 0 },
-        },
-      ])
+    if (url.pathname === "/session") {
+      queueMicrotask(sessionHydrated)
+      return json([demo])
+    }
+    if (url.pathname === "/session/dummy") {
+      queueMicrotask(sessionHydrated)
+      return json(demo)
+    }
   })
   const originalWrite = process.stdout.write.bind(process.stdout)
   let stdout = ""
@@ -122,6 +131,9 @@ test("app.exit prints the session epilogue after scoped cleanup", async () => wi
     )
 
     await ready
+    await hydrated
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    while (calls.inflight > 0) await new Promise((resolve) => setTimeout(resolve, 0))
     await setup.renderOnce()
     await setup.renderOnce()
     api?.keymap.dispatchCommand("app.exit")

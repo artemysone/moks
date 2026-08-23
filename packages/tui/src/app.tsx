@@ -7,7 +7,7 @@ import { Flag } from "@moks/core/flag/flag"
 import { InstallationVersion } from "@moks/core/installation/version"
 import { ClipboardProvider, useClipboard } from "./context/clipboard"
 import { ExitProvider, useExit } from "./context/exit"
-import { EpilogueProvider } from "./context/epilogue"
+import { EpilogueProvider, useEpilogue } from "./context/epilogue"
 import * as Selection from "./util/selection"
 import { createCliRenderer, MouseButton } from "@opentui/core"
 import { RouteProvider, useRoute } from "./context/route"
@@ -88,6 +88,8 @@ import { win32DisableProcessedInput, win32FlushInputBuffer } from "./terminal-wi
 import { destroyRenderer } from "./util/renderer"
 import { requireInteractiveTty } from "./util/tty"
 import { cliErrorMessage, errorFormat } from "./util/error"
+import { sessionEpilogue } from "./util/presentation"
+import { Locale } from "./util/locale"
 
 registerMoksSpinner()
 
@@ -189,7 +191,7 @@ function isVersionGreater(left: string, right: string) {
 export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
   requireInteractiveTty()
   const global = yield* Global.Service
-  const exit = { epilogue: undefined as string | undefined, reason: undefined as unknown }
+  const exit = { epilogue: undefined as string | undefined, reason: undefined as unknown, sealed: false }
   const result = yield* Effect.scoped(
     Effect.gen(function* () {
       const renderer = yield* Effect.acquireRelease(
@@ -252,10 +254,15 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               exit={(reason) => {
                 if (renderer.isDestroyed) return
                 exit.reason = reason
+                exit.sealed = true
                 destroyRenderer(renderer)
               }}
             >
-              <EpilogueProvider set={(value) => (exit.epilogue = value)}>
+              <EpilogueProvider
+                set={(value) => {
+                  if (!exit.sealed) exit.epilogue = value
+                }}
+              >
                 <ErrorBoundary fallback={(error, reset) => <ErrorComponent error={error} reset={reset} mode={mode} />}>
                   <TuiPathsProvider
                     value={{
@@ -284,7 +291,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                       >
                         <ClipboardProvider>
                           <MoksKeymapProvider keymap={keymap}>
-                            <ArgsProvider {...input.args}>
+                            <ArgsProvider value={input.args}>
                               <KVProvider>
                                 <ToastProvider>
                                   <RouteProvider
@@ -370,6 +377,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
   const startup = useTuiStartup()
   const tuiConfig = useTuiConfig()
   const route = useRoute()
+  const setEpilogue = useEpilogue()
   const dimensions = useTerminalDimensions()
   const renderer = useRenderer()
   const dialog = useDialog()
@@ -871,7 +879,21 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         title: "Exit the app",
         slashName: "exit",
         slashAliases: ["quit", "q"],
-        run: () => exit(),
+        run: () => {
+          const data = route.data
+          if (data.type === "session") {
+            const current = sync.session.get(data.sessionID)
+            if (current) {
+              setEpilogue(
+                sessionEpilogue({
+                  title: Locale.truncate(current.title ?? "", 50),
+                  sessionID: current.id,
+                }),
+              )
+            }
+          }
+          exit()
+        },
         category: "System",
       },
       {
