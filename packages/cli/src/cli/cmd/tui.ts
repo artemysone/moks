@@ -16,6 +16,7 @@ import { validateSession } from "../tui/validate-session"
 import { win32InstallCtrlCGuard } from "@moks/tui/terminal-win32"
 import { requireInteractiveTty } from "@moks/tui/util/tty"
 import { DecisionVerbs } from "@/decision/verbs"
+import { withCompanyDirOption } from "@/cli/cmd/agent"
 import { isLiveCompany } from "@/product/req-workspace"
 
 declare global {
@@ -173,7 +174,7 @@ export const TuiThreadCommand = cmd({
   command: "$0 [project]",
   describe: "start moks tui",
   builder: (yargs) =>
-    withNetworkOptions(yargs)
+    withCompanyDirOption(withNetworkOptions(yargs))
       .positional("project", {
         type: "string",
         describe: "path to start moks in",
