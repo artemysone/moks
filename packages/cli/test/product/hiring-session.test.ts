@@ -115,3 +115,61 @@ test("reviewer leaving and coming back gets the real next step", async () => {
   expect(after.next).toMatch(/score leftover on staff-platform|draft leftover on staff-platform|commit leftover on staff-platform|nothing left/)
   expect(after.next).not.toMatch(/open-req/)
 })
+
+test("come back after a second req still names the last focused req and its staged", async () => {
+  await using company = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "COMPANY.md"), "# Acme\n")
+    },
+  })
+  await ReqWorkspace.scaffoldReq(company.path, "Staff Platform")
+  await CandidateCard.write(path.join(company.path, "staff-platform"), {
+    id: "kenji-okada",
+    stage: "Sourced",
+    extra: { name: "Kenji" },
+    body: "# Kenji Okada\n\nStaff platform engineer. Payments edge.\n",
+  })
+  await ReqWorkspace.writeFocus(company.path, "staff-platform")
+  await DecisionVerbs.pull({ cwd: company.path })
+  const onA = await DecisionVerbs.commit({
+    action: "note",
+    target: { kind: "candidate", id: "kenji-okada" },
+    reason: "note on A",
+    cwd: company.path,
+  })
+
+  await ReqWorkspace.scaffoldReq(company.path, "Senior Backend")
+  await CandidateCard.write(path.join(company.path, "senior-backend"), {
+    id: "priya-shah",
+    stage: "Sourced",
+    extra: { name: "Priya" },
+    body: "# Priya Shah\n\nBackend. Payments.\n",
+  })
+  await ReqWorkspace.writeFocus(company.path, "senior-backend")
+  const onB = await DecisionVerbs.commit({
+    action: "note",
+    target: { kind: "candidate", id: "priya-shah" },
+    reason: "note on B",
+    cwd: company.path,
+  })
+
+  const whileB = await HiringSession.loadSnapshot(company.path)
+  expect(whileB.focused).toBe("senior-backend")
+  expect(whileB.staged.ids).toContain(onB.changeset.id)
+  expect(whileB.staged.ids).not.toContain(onA.changeset.id)
+  expect(whileB.next).toBe(`review ${onB.changeset.id}`)
+  expect(await Bun.file(path.join(company.path, "staff-platform", "HIRING.md")).exists()).toBe(true)
+  expect(await Bun.file(path.join(company.path, "staff-platform", "candidates", "kenji-okada.md")).exists()).toBe(true)
+  expect(await Bun.file(path.join(company.path, "COMPANY.md")).text()).toBe("# Acme\n")
+
+  await ReqWorkspace.writeFocus(company.path, "staff-platform")
+  const back = await HiringSession.loadSnapshot(company.path)
+  expect(back.focused).toBe("staff-platform")
+  expect(back.staged.ids).toContain(onA.changeset.id)
+  expect(back.staged.ids).not.toContain(onB.changeset.id)
+  expect(back.next).toBe(`review ${onA.changeset.id}`)
+  expect(HiringSession.formatSnapshot(back).join("\n")).toContain("staff-platform")
+  expect(HiringSession.formatSnapshot(back).join("\n")).toContain(onA.changeset.id)
+  expect(await Bun.file(path.join(company.path, "senior-backend", "HIRING.md")).exists()).toBe(true)
+  expect(await Bun.file(path.join(company.path, "senior-backend", "candidates", "priya-shah.md")).exists()).toBe(true)
+})
