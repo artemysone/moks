@@ -5,9 +5,13 @@ import {
   canExitToTerminal,
   canExtendOffer,
   isLegalAdvance,
+  isLegalAdvanceOnPath,
   nextStage,
+  nextStageOnPath,
   requiredEffectClass,
+  isStage,
 } from "./domain.ts";
+import { assertMutationLegal } from "./ledger.ts";
 
 describe("nextStage / isLegalAdvance", () => {
   test("Sourced advances to Contacted", () => {
@@ -64,5 +68,60 @@ describe("requiredEffectClass", () => {
     expect(requiredEffectClass("Reject")).toBe("irreversible");
     expect(requiredEffectClass("SendOutreach")).toBe("irreversible");
     expect(requiredEffectClass("ExtendOffer")).toBe("irreversible");
+  });
+});
+
+describe("nextStageOnPath / isLegalAdvanceOnPath", () => {
+  const path = ["Sourced", "Screen", "Offer", "Hired"] as const;
+
+  test("path of length >= 2 uses the req order", () => {
+    expect(nextStageOnPath("Sourced", path)).toBe("Screen");
+    expect(isLegalAdvanceOnPath("Sourced", "Screen", path)).toBe(true);
+    expect(isLegalAdvanceOnPath("Sourced", "Contacted", path)).toBe(false);
+  });
+
+  test("missing or short path falls back to the default machine", () => {
+    expect(isLegalAdvanceOnPath("Sourced", "Contacted")).toBe(true);
+    expect(isLegalAdvanceOnPath("Sourced", "Screen")).toBe(false);
+    expect(isLegalAdvanceOnPath("Sourced", "Screen", ["Sourced"])).toBe(false);
+  });
+});
+
+describe("HIRING path with Phone/Onsite", () => {
+  const hiring = ["Sourced", "Screen", "Phone", "Onsite", "Offer", "Hired"] as const;
+
+  test("Screen→Phone and Phone→Onsite are legal; Sourced→Phone is not", () => {
+    expect(isLegalAdvanceOnPath("Screen", "Phone", hiring)).toBe(true);
+    expect(nextStageOnPath("Screen", hiring)).toBe("Phone");
+    expect(isLegalAdvanceOnPath("Phone", "Onsite", hiring)).toBe(true);
+    expect(isLegalAdvanceOnPath("Sourced", "Phone", hiring)).toBe(false);
+  });
+
+  test("default machine is still Sourced→Contacted; Sourced→Screen is false", () => {
+    expect(isLegalAdvance("Sourced", "Contacted")).toBe(true);
+    expect(isLegalAdvance("Sourced", "Screen")).toBe(false);
+    expect(isLegalAdvanceOnPath("Sourced", "Contacted")).toBe(true);
+    expect(isLegalAdvanceOnPath("Sourced", "Screen")).toBe(false);
+  });
+});
+
+describe("assertMutationLegal HIRING hops", () => {
+  const hiring = ["Sourced", "Screen", "Phone", "Onsite", "Offer", "Hired"] as const;
+  const app = (stage: string) => ({
+    id: "app_1",
+    remoteId: "r1",
+    jobId: "job_1",
+    candidateId: "cand_1",
+    stage,
+  });
+
+  test("AdvanceStage Sourced→Screen then Screen→Phone succeeds; Phone is a stage", () => {
+    expect(isStage("Phone")).toBe(true);
+    expect(() =>
+      assertMutationLegal("AdvanceStage", "application", app("Sourced"), { to: "Screen" }, [...hiring]),
+    ).not.toThrow();
+    expect(() =>
+      assertMutationLegal("AdvanceStage", "application", app("Screen"), { to: "Phone" }, [...hiring]),
+    ).not.toThrow();
   });
 });

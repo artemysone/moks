@@ -137,7 +137,7 @@ describe("workspace wiring (MOKS_ATS=ashby over MCP)", () => {
       expect(status.ats).toBe("ashby");
       expect(status.pipeline.Screen).toBe(2);
 
-      const advance = (rationale: string) =>
+      const advance = (rationale: string, to: string) =>
         ws.commit({
           rationale,
           author_id: "recruiter",
@@ -148,14 +148,14 @@ describe("workspace wiring (MOKS_ATS=ashby over MCP)", () => {
               entity_ref: "app_lena_200",
               mutation: "AdvanceStage",
               effect_class: "compensable",
-              payload: { to: "Interview" },
+              payload: { to },
             },
           ],
         });
 
-      // Both changesets capture the same Screen precondition from the mirror.
-      const first = advance("Advance Lena");
-      const second = advance("Advance Lena again");
+      // Pending hops block a second Screen→Interview; Offer is the legal next hop. Both still capture Screen on the mirror, so the second CAS-fails after the first apply.
+      const first = advance("Advance Lena", "Interview");
+      const second = advance("Advance Lena again", "Offer");
       expect(first.status).toBe("staged");
       ws.review(first.id, { action: "approve", reviewer_id: "hiring_manager" });
       ws.review(second.id, { action: "approve", reviewer_id: "hiring_manager" });
@@ -189,8 +189,8 @@ describe("workspace wiring (MOKS_ATS=ashby over MCP)", () => {
         }
       };
 
-      // First changeset advances Omar; it will make the second changeset's
-      // AdvanceStage precondition (captured now, at Screen) fail CAS remotely.
+      // First hop Screen→Interview. Sibling Omar advance is the pending Offer hop;
+      // both still capture Screen on the mirror, so CAS fails after the first apply.
       const advanceOmar = ws.commit({
         rationale: "Advance Omar",
         author_id: "recruiter",
@@ -222,7 +222,7 @@ describe("workspace wiring (MOKS_ATS=ashby over MCP)", () => {
             entity_ref: "app_omar_200",
             mutation: "AdvanceStage",
             effect_class: "compensable",
-            payload: { to: "Interview" },
+            payload: { to: "Offer" },
           },
         ],
       });
@@ -245,16 +245,20 @@ describe("workspace wiring (MOKS_ATS=ashby over MCP)", () => {
       // The mirror was re-pulled and reflects the partially applied remote.
       expect(ws.status().pipeline.Interview).toBe(1);
 
-      // Rebase drops the now-illegal advance and re-stages the note. Pushing
-      // it replays the apply; the server dedupes on the idempotency key and
-      // returns the recorded result instead of creating a second note.
+      // Rebase keeps the note and the still-legal Offer hop against the Interview
+      // mirror. Replaying the note uses the idempotency key (no second note).
       const rebased = ws.rebase(notePlusAdvance.id);
-      expect(rebased.changeset.changes.map((change) => change.mutation)).toEqual(["AddNote"]);
+      expect(rebased.changeset.changes.map((change) => change.mutation)).toEqual([
+        "AddNote",
+        "AdvanceStage",
+      ]);
+      expect(rebased.changeset.changes[1]?.payload).toEqual({ to: "Offer" });
       ensureApproved(rebased.changeset.id);
       const repushed = ws.push(rebased.changeset.id);
       expect(repushed.pushed).toEqual([{ id: rebased.changeset.id, status: "applied" }]);
       const replayed = ws.getChangeset(rebased.changeset.id);
       expect(replayed.changes[0]?.remote_result).toEqual({ noteId: noteResult.noteId });
+      expect((replayed.changes[1]?.remote_result as { stage?: string } | null)?.stage).toBe("Offer");
     } finally {
       ws.close();
     }

@@ -17,8 +17,11 @@ export {
   MUTATION_EFFECT_CLASS,
   MUTATIONS,
   isLegalAdvance,
+  isLegalAdvanceOnPath,
   isMutation,
+  isStage,
   nextStage,
+  nextStageOnPath,
 } from "./domain.ts";
 export {
   canonicalJson,
@@ -40,6 +43,7 @@ export {
   loadChangesetRow,
   markChangesetApplied,
   markChangesetStatus,
+  pendingAdvanceStage,
   readLog,
   reviewChangeset,
   setChangeRemoteResult,

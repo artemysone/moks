@@ -50,6 +50,18 @@ describe("parseHiringMarkdown", () => {
     expect(doc.warnings).toEqual(["unknown mutation in always_gate: NotAMutation"]);
     expect(doc.policy.alwaysGate).toEqual(["Reject"]);
   });
+
+  test("parse Process stages keeps HIRING hops (Phone, Onsite)", () => {
+    const doc = parseHiringMarkdown(`## Process
+- Stages: sourced → screen → phone → onsite → offer → hire
+`);
+    expect(doc.stages).toEqual(["Sourced", "Screen", "Phone", "Onsite", "Offer", "Hired"]);
+  });
+
+  test("no Process section yields empty stages", () => {
+    const doc = parseHiringMarkdown(`# Role\n`);
+    expect(doc.stages).toEqual([]);
+  });
 });
 
 describe("gateFor", () => {
