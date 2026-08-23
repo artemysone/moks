@@ -191,9 +191,10 @@ export function pushCommandArgs(input: { id: string; execute: boolean; confirm?:
   return args
 }
 
-export function reviewCommandArgs(input: { id: string; action: "approve" | "reject"; by: string; reason?: string }) {
+export function reviewCommandArgs(input: { id: string; action: "approve" | "reject"; by: string; reason?: string; excerpt?: string }) {
   const args = ["review", input.id, input.action === "approve" ? "--approve" : "--reject", "--by", input.by, "--json"]
   if (input.action === "reject" && input.reason?.trim()) args.push("--reason", input.reason.trim())
+  if (input.action === "approve" && input.excerpt?.trim()) args.push("--excerpt", input.excerpt.trim())
   return args
 }
 
