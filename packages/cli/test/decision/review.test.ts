@@ -52,6 +52,23 @@ test("review with no staged changesets is an honest empty", async () => {
   expect(cli.combined).not.toMatch(/reviewed /)
 })
 
+test("review list is the list verb, not a changeset id", async () => {
+  await using tmp = await workspace()
+  await DecisionVerbs.pull({ cwd: tmp.path })
+  const committed = await DecisionVerbs.commit({
+    action: "note",
+    target: { kind: "candidate", id: "cand_priya" },
+    reason: "list verb",
+    cwd: tmp.path,
+  })
+  const cli = await moks(["review", "list"], tmp.path)
+  expect(cli.code).toBe(0)
+  expect(cli.combined).toContain(committed.changeset.id)
+  expect(cli.combined).toContain("list verb")
+  expect(cli.combined).not.toMatch(/changeset not found/)
+  expect(cli.combined).not.toMatch(/reviewed /)
+})
+
 test("review lists a staged note and inspect does not mutate", async () => {
   await using tmp = await workspace()
   await DecisionVerbs.pull({ cwd: tmp.path })

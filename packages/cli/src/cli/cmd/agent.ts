@@ -230,9 +230,19 @@ const AgentCreateCommand = effectCmd({
   }),
 })
 
+export function withCompanyDirOption<T>(yargs: Argv<T>) {
+  return yargs.option("cwd", {
+    alias: ["dir"],
+    type: "string",
+    describe: "company directory (alias: --dir; same as moks run --dir)",
+  })
+}
+
 const AgentListCommand = effectCmd({
   command: "list",
   describe: "list all available agents",
+  builder: (yargs: Argv) => withCompanyDirOption(yargs),
+  directory: (args: { cwd?: string }) => (args.cwd ? path.resolve(process.cwd(), args.cwd) : process.cwd()),
   handler: Effect.fn("Cli.agent.list")(function* () {
     const { Agent } = yield* Effect.promise(() => import("../../agent/agent"))
     const agents = yield* Agent.Service.use((svc) => svc.list())

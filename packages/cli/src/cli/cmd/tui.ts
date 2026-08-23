@@ -16,6 +16,7 @@ import { validateSession } from "../tui/validate-session"
 import { win32InstallCtrlCGuard } from "@moks/tui/terminal-win32"
 import { requireInteractiveTty } from "@moks/tui/util/tty"
 import { DecisionVerbs } from "@/decision/verbs"
+import { withCompanyDirOption } from "@/cli/cmd/agent"
 import { isLiveCompany } from "@/product/req-workspace"
 
 declare global {
@@ -100,6 +101,23 @@ export const RESERVED_TUI_PROJECTS = new Set([
   "rebase",
 ])
 
+/** Bare tokens on `$0` are commands, not project paths — fail before TUI/react. */
+export function looksLikeProjectPath(token: string) {
+  if (!token) return false
+  if (token === "." || token === ".." || token.startsWith("./") || token.startsWith("../")) return true
+  if (token.startsWith("~") || token.includes("/") || token.includes("\\")) return true
+  return path.isAbsolute(token)
+}
+
+export function unknownDefaultToken(input: { project?: string; exists?: boolean }) {
+  const project = input.project?.trim()
+  if (!project) return
+  if (RESERVED_TUI_PROJECTS.has(project)) return
+  if (looksLikeProjectPath(project)) return
+  if (input.exists) return
+  return project
+}
+
 /** Default `moks --pure` in a company folder is the TUI recruit composer, not a no-op. */
 export function selectDefaultInteractiveLaunch(
   input: {
@@ -156,7 +174,7 @@ export const TuiThreadCommand = cmd({
   command: "$0 [project]",
   describe: "start moks tui",
   builder: (yargs) =>
-    withNetworkOptions(yargs)
+    withCompanyDirOption(withNetworkOptions(yargs))
       .positional("project", {
         type: "string",
         describe: "path to start moks in",
@@ -226,6 +244,15 @@ export const TuiThreadCommand = cmd({
       }),
   handler: async (args) => {
     ensureMoksEntry()
+    const unknown = unknownDefaultToken({
+      project: args.project,
+      exists: args.project ? await Filesystem.exists(resolveThreadDirectory(args.project)) : false,
+    })
+    if (unknown) {
+      UI.error(`unknown command: ${unknown}`)
+      process.exitCode = 1
+      return
+    }
     if (args.project && RESERVED_TUI_PROJECTS.has(args.project)) {
       if (args.project === "review") {
         const extra = (args._ ?? []).map(String).filter((item) => item !== "review" && item !== "$0")

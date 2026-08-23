@@ -33,6 +33,7 @@ import { ReviewCommand } from "./cli/cmd/review"
 import { RebaseCommand } from "./cli/cmd/rebase"
 import { LogCommand } from "./cli/cmd/log"
 import { Heap } from "./cli/heap"
+import { unknownCliFailure } from "./cli/unknown-token"
 
 const args = hideBin(process.argv)
 
@@ -66,6 +67,12 @@ const cli = yargs(args)
   .option("pure", {
     describe: "run without external plugins",
     type: "boolean",
+  })
+  .option("cwd", {
+    alias: ["dir"],
+    type: "string",
+    global: true,
+    describe: "company directory (alias: --dir)",
   })
   .middleware(async (opts) => {
     if (opts.printLogs) process.env.MOKS_PRINT_LOGS = "1"
@@ -110,10 +117,16 @@ const cli = yargs(args)
   .command(RebaseCommand)
   .command(LogCommand)
   .fail((msg, err) => {
-    if (msg?.startsWith("Unknown argument")) {
+    const unknown = unknownCliFailure({ argv: args, message: msg })
+    if (unknown?.kind === "command") {
       if (err) throw err
-      process.stderr.write(msg + EOL)
-      if (/\b(cwd|dir)\b/i.test(msg)) {
+      process.stderr.write(`unknown command: ${unknown.name}` + EOL)
+      process.exit(1)
+    }
+    if (unknown?.kind === "argument") {
+      if (err) throw err
+      process.stderr.write(`unknown argument: ${unknown.names}` + EOL)
+      if (/\b(cwd|dir)\b/i.test(unknown.names)) {
         process.stderr.write(
           "company directory: moks run --dir <company> (alias --cwd); ledger commands accept --cwd or --dir" + EOL,
         )
