@@ -47,14 +47,26 @@ test("review excerpt and push apply the same blessed score and outreach", async 
 
   const scoreReview = await DecisionVerbs.inspectReview({ cwd: tmp.path, id: scoreRow.id })
   const draftReview = await DecisionVerbs.inspectReview({ cwd: tmp.path, id: draftRow.id })
-  const scoreBody = (scoreReview.changeset.changes[0].payload as { body?: string }).body
-  const draftBody = (draftReview.changeset.changes[0].payload as { body?: string }).body
+  const scoreChange = scoreReview.changeset.changes[0]
+  const draftChange = draftReview.changeset.changes[0]
+  const scoreExcerpt = scoreReview.excerpts[0]
+  const draftExcerpt = draftReview.excerpts[0]
+  const scoreBody = scoreChange && typeof scoreChange.payload === "object" && scoreChange.payload && "body" in scoreChange.payload
+    ? scoreChange.payload.body
+    : undefined
+  const draftBody = draftChange && typeof draftChange.payload === "object" && draftChange.payload && "body" in draftChange.payload
+    ? draftChange.payload.body
+    : undefined
+  if (typeof scoreBody !== "string") throw new Error("score changeset missing body")
+  if (typeof draftBody !== "string") throw new Error("draft changeset missing body")
+  if (typeof scoreExcerpt !== "string") throw new Error("score review missing excerpt")
+  if (typeof draftExcerpt !== "string") throw new Error("draft review missing excerpt")
   expect(scoreBody).toContain("# Score:")
   expect(scoreBody).toContain(String(scored.score ?? card?.score))
   expect(draftBody).toContain("# Outreach")
   expect(draftBody).toContain("Draft only. Never sent.")
-  expect(scoreReview.excerpts[0]).toBe(scoreBody)
-  expect(draftReview.excerpts[0]).toBe(draftBody)
+  expect(scoreExcerpt).toBe(scoreBody)
+  expect(draftExcerpt).toBe(draftBody)
   expect(card?.body).toContain(scoreBody)
   expect(card?.body).toContain(draftBody)
 
@@ -73,7 +85,7 @@ test("review excerpt and push apply the same blessed score and outreach", async 
 
   const after = await CandidateCard.read(tmp.path, "kenji-sato")
   expect(after?.stage).toBe("Sourced")
-  expect(after?.body).toContain(scoreBody ?? "")
+  expect(after?.body).toContain(scoreBody)
   expect(after?.score).toBe(drafted.score ?? scored.score)
 })
 
