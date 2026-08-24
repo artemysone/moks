@@ -1381,13 +1381,15 @@ const layer = Layer.effect(
         yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
         throw error
       }
+      let initHome: string | undefined
       if (input.command === Command.Default.INIT) {
         const ctx = yield* InstanceState.context
         const grounding = ReqWorkspace.parseCompanyGrounding(input.arguments)
         const name = grounding?.name || ReqWorkspace.parseReqTitle(input.arguments)
-        yield* Effect.promise(() => ReqWorkspace.scaffoldCompany(ctx.directory, name || undefined))
+        const result = yield* Effect.promise(() => ReqWorkspace.scaffoldCompany(ctx.directory, name || undefined))
+        initHome = result.directory
         if (grounding?.source) {
-          yield* Effect.promise(() => ReqWorkspace.groundCompanyAbout(ctx.directory, grounding))
+          yield* Effect.promise(() => ReqWorkspace.groundCompanyAbout(result.directory, grounding))
         }
       }
       if (input.command === Command.Default.OPEN_REQ) {
@@ -1395,7 +1397,7 @@ const layer = Layer.effect(
         const title = ReqWorkspace.parseReqTitle(input.arguments)
         yield* Effect.promise(async () => {
           const result = await ReqWorkspace.scaffoldReq(ctx.directory, title || undefined)
-          if (result.relative !== ".") await ReqWorkspace.writeFocus(ctx.directory, result.relative)
+          if (result.relative !== ".") await ReqWorkspace.writeFocus(result.directory, result.relative)
         })
       }
       const agentName = cmd.agent ?? input.agent
@@ -1425,6 +1427,10 @@ const layer = Layer.effect(
         template = template + "\n\n" + input.arguments
       }
 
+      if (input.command === Command.Default.INIT && initHome) {
+        const ctx = yield* InstanceState.context
+        if (initHome !== ctx.directory) template = template.replaceAll(ctx.directory, initHome)
+      }
       if (input.command === Command.Default.OPEN_REQ) {
         const title = ReqWorkspace.parseReqTitle(input.arguments)
         const slug = ReqWorkspace.slugify(title)

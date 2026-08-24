@@ -1,10 +1,32 @@
 import { expect, test } from "bun:test"
 import { $ } from "bun"
+import { mkdir } from "fs/promises"
 import path from "path"
 import { CandidateCard } from "../../src/product/candidate-card"
 import { HiringFixtures } from "../../src/product/fixtures"
+import { HiringSession } from "../../src/product/hiring-session"
 import { ReqWorkspace } from "../../src/product/req-workspace"
+import { selectDefaultInteractiveLaunch } from "../../src/cli/cmd/tui"
 import { tmpdir } from "../fixture/fixture"
+
+async function withCompaniesRoot<T>(root: string, fn: () => Promise<T>) {
+  const prev = process.env.MOKS_COMPANIES_ROOT
+  process.env.MOKS_COMPANIES_ROOT = root
+  try {
+    return await fn()
+  } finally {
+    if (prev === undefined) delete process.env.MOKS_COMPANIES_ROOT
+    else process.env.MOKS_COMPANIES_ROOT = prev
+  }
+}
+
+async function fakeCheckout(parent: string) {
+  const checkout = path.join(parent, "repo")
+  const cli = path.join(checkout, "packages", "cli")
+  await mkdir(path.join(checkout, "packages", "engine"), { recursive: true })
+  await mkdir(cli, { recursive: true })
+  return { checkout, cli }
+}
 
 test("slugify lowercases and hyphenates", () => {
   expect(ReqWorkspace.slugify("Senior Backend Engineer")).toBe("senior-backend-engineer")
@@ -108,6 +130,81 @@ test("scaffoldCompany writes a typed company name into COMPANY.md", async () => 
   expect(await Bun.file(path.join(tmp.path, "COMPANY.md")).text()).toBe(
     ReqWorkspace.companyStub("Northline Analytics"),
   )
+})
+
+test("detects a Moks checkout vs a user folder", async () => {
+  await using tmp = await tmpdir()
+  const { checkout, cli } = await fakeCheckout(tmp.path)
+  expect(await ReqWorkspace.isMoksCheckout(cli)).toBe(true)
+  expect(await ReqWorkspace.isMoksCheckout(checkout)).toBe(true)
+
+  await using user = await tmpdir()
+  expect(await ReqWorkspace.isMoksCheckout(user.path)).toBe(false)
+
+  const named = path.join(tmp.path, "named")
+  await mkdir(named, { recursive: true })
+  await Bun.write(path.join(named, "package.json"), JSON.stringify({ name: "@moks/cli" }))
+  expect(await ReqWorkspace.isMoksCheckout(named)).toBe(true)
+
+  const remote = path.join(tmp.path, "remote")
+  await mkdir(remote, { recursive: true })
+  await $`git init`.cwd(remote).quiet()
+  await $`git remote add origin https://github.com/artemysone/moks.git`.cwd(remote).quiet()
+  expect(await ReqWorkspace.isMoksCheckout(remote)).toBe(true)
+})
+
+test("scaffoldCompany from a packages/cli-shaped checkout writes outside, not there", async () => {
+  await using tmp = await tmpdir()
+  const { checkout, cli } = await fakeCheckout(tmp.path)
+  const companies = path.join(tmp.path, "companies")
+  await withCompaniesRoot(companies, async () => {
+    const result = await ReqWorkspace.scaffoldCompany(cli, "Acme")
+    expect(result.directory).toBe(path.join(companies, "acme"))
+    expect(result.directory.startsWith(checkout + path.sep)).toBe(false)
+    expect(await Bun.file(path.join(cli, "COMPANY.md")).exists()).toBe(false)
+    expect(await Bun.file(path.join(cli, ".moks", "ledger.sqlite")).exists()).toBe(false)
+    expect(await Bun.file(path.join(checkout, "COMPANY.md")).exists()).toBe(false)
+    expect(await Bun.file(path.join(result.directory, "COMPANY.md")).text()).toContain("# Acme")
+    expect(await Bun.file(path.join(result.directory, ".moks", "ledger.sqlite")).exists()).toBe(true)
+  })
+})
+
+test("scaffoldCompany from a temp user dir still writes there", async () => {
+  await using tmp = await tmpdir()
+  const result = await ReqWorkspace.scaffoldCompany(tmp.path, "Acme")
+  expect(result.directory).toBe(tmp.path)
+  expect(await Bun.file(path.join(tmp.path, "COMPANY.md")).text()).toContain("# Acme")
+})
+
+test("existing COMPANY.md inside a checkout stays the user's folder", async () => {
+  await using tmp = await tmpdir()
+  const { cli } = await fakeCheckout(tmp.path)
+  await Bun.write(path.join(cli, "COMPANY.md"), "# Theirs\n")
+  const companies = path.join(tmp.path, "companies")
+  await withCompaniesRoot(companies, async () => {
+    const result = await ReqWorkspace.scaffoldCompany(cli, "Acme")
+    expect(result.directory).toBe(cli)
+    expect(await Bun.file(path.join(cli, "COMPANY.md")).text()).toBe("# Theirs\n")
+    expect(await Bun.file(path.join(companies, "acme", "COMPANY.md")).exists()).toBe(false)
+  })
+})
+
+test("leftover-ledger and empty cwd still fail loud", async () => {
+  await using empty = await tmpdir()
+  expect(await ReqWorkspace.isLiveCompany(empty.path)).toBe(false)
+  await expect(HiringSession.loadSnapshot(empty.path)).rejects.toThrow(/not a company directory/)
+  expect(selectDefaultInteractiveLaunch({ headless: true, liveCompany: false, leftoverOrEmpty: true }).kind).toBe(
+    "fail-loud",
+  )
+
+  await using leftover = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "COMPANY.md"), ReqWorkspace.COMPANY_STUB)
+      await Bun.write(path.join(dir, ".moks", "ledger.sqlite"), "")
+    },
+  })
+  expect(await ReqWorkspace.isLiveCompany(leftover.path)).toBe(false)
+  await expect(HiringSession.loadSnapshot(leftover.path)).rejects.toThrow(/not a company directory/)
 })
 
 test("scaffoldCompany ledger works for moks commands after /init", async () => {
