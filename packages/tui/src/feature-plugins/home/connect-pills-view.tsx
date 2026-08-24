@@ -1,8 +1,9 @@
 import { For } from "solid-js"
+import type { RGBA } from "@opentui/core"
 import { CONNECT_PILLS } from "./connect-pills"
 
 export function ConnectPills(props: {
-  theme: { backgroundElement: unknown; text: unknown }
+  theme: { backgroundElement: string | RGBA; text: string | RGBA }
   onOpen: () => void
 }) {
   return (
