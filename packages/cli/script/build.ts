@@ -199,7 +199,15 @@ for (const item of targets) {
   binaries[name] = Script.version
 }
 
+const repo = process.env.GH_REPO ?? "artemysone/moks"
+if (/opencode|anomalyco/i.test(repo)) {
+  throw new Error(`refusing foreign release repo: ${repo}`)
+}
+
 if (Script.release) {
+  if (Script.preview) {
+    throw new Error("Refusing to publish a preview version. Set MOKS_CHANNEL=latest and MOKS_VERSION=...")
+  }
   for (const key of Object.keys(binaries)) {
     if (key.includes("linux")) {
       await $`tar -czf ../../${key}.tar.gz *`.cwd(`dist/${key}/bin`)
@@ -207,7 +215,12 @@ if (Script.release) {
       await $`zip -r ../../${key}.zip *`.cwd(`dist/${key}/bin`)
     }
   }
-  await $`gh release upload v${Script.version} ./dist/*.zip ./dist/*.tar.gz --clobber --repo ${process.env.GH_REPO}`
+  const tag = `v${Script.version}`
+  const viewed = await $`gh release view ${tag} --repo ${repo}`.nothrow()
+  if (viewed.exitCode !== 0) {
+    await $`gh release create ${tag} --repo ${repo} --title ${tag} --notes ${`moks ${Script.version}`}`
+  }
+  await $`gh release upload ${tag} ./dist/*.zip ./dist/*.tar.gz --clobber --repo ${repo}`
 }
 
 export { binaries }

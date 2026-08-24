@@ -7,6 +7,7 @@ import { makeRuntime } from "@moks/core/effect/runtime"
 import semver from "semver"
 import { InstallationChannel, InstallationVersion } from "@moks/core/installation/version"
 import { InstallationEvent } from "@moks/schema/installation-event"
+import { fetchLatestVersion, installRelease } from "./github"
 
 export type Method = "curl" | "npm" | "yarn" | "pnpm" | "bun" | "brew" | "scoop" | "choco" | "unknown"
 
@@ -56,7 +57,7 @@ export class UpgradeFailedError extends Schema.TaggedErrorClass<UpgradeFailedErr
 export interface Interface {
   readonly info: () => Effect.Effect<Info>
   readonly method: () => Effect.Effect<Method>
-  readonly latest: (method?: Method) => Effect.Effect<string>
+  readonly latest: (method?: Method) => Effect.Effect<string, UpgradeFailedError>
   readonly upgrade: (method: Method, target: string) => Effect.Effect<void, UpgradeFailedError>
 }
 
@@ -71,18 +72,28 @@ const layer = Layer.effect(
       info: Effect.fn("Installation.info")(function* () {
         return {
           version: InstallationVersion,
-          latest: yield* result.latest(),
+          latest: InstallationVersion,
         }
       }),
       method: Effect.fn("Installation.method")(function* () {
         if (process.execPath.includes(path.join(".moks", "bin"))) return "curl" as Method
         return "unknown" as Method
       }),
-      latest: Effect.fn("Installation.latest")(function* (_installMethod?: Method) {
-        return InstallationVersion
+      latest: Effect.fn("Installation.latest")(function* (installMethod?: Method) {
+        if (installMethod !== "curl") return InstallationVersion
+        return yield* Effect.tryPromise({
+          try: () => fetchLatestVersion(),
+          catch: (error) => new UpgradeFailedError({ stderr: error instanceof Error ? error.message : String(error) }),
+        })
       }),
-      upgrade: Effect.fn("Installation.upgrade")(function* (_m: Method, _target: string) {
-        return yield* new UpgradeFailedError({ stderr: "moks has no binary upgrade; use source install." })
+      upgrade: Effect.fn("Installation.upgrade")(function* (method: Method, target: string) {
+        if (method !== "curl") {
+          return yield* new UpgradeFailedError({ stderr: `moks has no ${method} release channel; use curl install.` })
+        }
+        return yield* Effect.tryPromise({
+          try: () => installRelease(target),
+          catch: (error) => new UpgradeFailedError({ stderr: error instanceof Error ? error.message : String(error) }),
+        })
       }),
     }
 

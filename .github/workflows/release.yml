@@ -1,0 +1,37 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semver without a leading v
+        required: true
+        type: string
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - name: Build and upload
+        working-directory: packages/cli
+        env:
+          MOKS_CHANNEL: latest
+          MOKS_RELEASE: "1"
+          MOKS_VERSION: ${{ inputs.version || github.ref_name }}
+          GH_REPO: artemysone/moks
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${MOKS_VERSION#v}"
+          export MOKS_VERSION="$version"
+          bun run script/build.ts

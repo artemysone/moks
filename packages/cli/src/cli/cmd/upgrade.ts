@@ -1,9 +1,23 @@
 import type { Argv } from "yargs"
+import { Installation } from "../../installation"
 import { UI } from "../ui"
+
+function installMethod(value: unknown): Installation.Method | undefined {
+  switch (value) {
+    case "curl":
+    case "npm":
+    case "pnpm":
+    case "bun":
+    case "brew":
+    case "choco":
+    case "scoop":
+      return value
+  }
+}
 
 export const UpgradeCommand = {
   command: "upgrade [target]",
-  describe: "show how to update moks (releases not ready)",
+  describe: "upgrade moks to the latest or a specific version",
   builder: (yargs: Argv) => {
     return yargs
       .positional("target", {
@@ -17,8 +31,16 @@ export const UpgradeCommand = {
         choices: ["curl", "npm", "pnpm", "bun", "brew", "choco", "scoop"],
       })
   },
-  handler: async () => {
-    UI.println("Binary releases are not ready. Install from source: clone the repo and run bun install.")
-    UI.println("Do not download from opencode.ai, the opencode-ai npm package, or brew opencode.")
+  handler: async (args: { target?: string; method?: string }) => {
+    const method = installMethod(args.method) ?? (await Installation.method())
+    if (method === "unknown") {
+      UI.error("Not a curl install.")
+      UI.println("curl -fsSL https://raw.githubusercontent.com/artemysone/moks/main/install | bash")
+      process.exitCode = 1
+      return
+    }
+    const target = args.target ?? (await Installation.latest(method))
+    await Installation.upgrade(method, target)
+    UI.println(`Upgraded to ${target}`)
   },
 }

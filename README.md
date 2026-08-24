@@ -18,9 +18,32 @@ The company folder is the workspace. A req is a subdirectory. `COMPANY.md` is th
 | PR review | `/review` packet review |
 | Build agent | `recruit` (`build` stays hidden) |
 
-## Install (from source)
+## Install
 
-Requires [Bun](https://bun.sh). Binary releases are not ready yet.
+```bash
+curl -fsSL https://raw.githubusercontent.com/artemysone/moks/main/install | bash
+```
+
+That puts `moks` on your PATH (`~/.moks/bin`). Then:
+
+```bash
+mkdir ~/acme && cd ~/acme
+moks
+# /init
+```
+
+Do **not** run the product against this git checkout. `bun dev` is for editing the CLI.
+
+Cut a release (maintainers):
+
+```bash
+MOKS_CHANNEL=latest MOKS_VERSION=0.1.0 MOKS_RELEASE=1 GH_REPO=artemysone/moks \
+  bun run --cwd packages/cli script/build.ts
+```
+
+### From source (engineering)
+
+Requires [Bun](https://bun.sh).
 
 ```bash
 git clone https://github.com/artemysone/moks.git
@@ -29,23 +52,22 @@ bun install
 bun dev
 ```
 
-`bun dev` starts the TUI from `packages/cli`. From that package you can also run:
+`bun dev` starts the TUI from `packages/cli`. Local binary without GitHub:
 
 ```bash
-cd packages/cli
-bun dev
-# or
-bun run --conditions=browser src/index.ts
+cd packages/cli && bun run script/build.ts --single
+cd ../..
+./install --binary packages/cli/dist/moks-darwin-arm64/bin/moks
 ```
 
-Default branch is `main`. Day-to-day workflow is Bun (`bun install` / `bun dev`) — not npm/pnpm as the primary path.
+Default branch is `main`. Day-to-day engineering is Bun (`bun install` / `bun dev`) — not npm/pnpm as the primary path.
 
 ## Hiring loop
 
 Default agent is **`recruit`**.
 
 ```bash
-bun dev
+moks
 # /init → attach a resume → score-candidate → /review → moks commit → moks push
 ```
 
@@ -96,9 +118,14 @@ moks log --compliance
 moks run --json --agent recruit -f HIRING.md -f candidates/jordan-lee.md -- "Score this candidate"
 ```
 
-### Optional: install script
+### Upgrade
 
-`./install` is a moks-branded stub. It does **not** download upstream OpenCode binaries. Prefer source install above until moks ships its own releases.
+```bash
+moks upgrade
+moks upgrade 0.1.0
+```
+
+Only curl installs (`~/.moks/bin/moks`) upgrade in place. npm / brew channels are not shipped.
 
 ## Docs
 
