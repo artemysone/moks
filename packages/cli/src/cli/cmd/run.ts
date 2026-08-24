@@ -217,14 +217,15 @@ async function runHeadlessScaffold(args: {
     args.command === "open-req"
       ? await ReqWorkspace.scaffoldReq(directory, title || undefined)
       : await ReqWorkspace.scaffoldCompany(directory, args.command === "init" ? title || undefined : undefined)
+  const home = result.directory
   if (args.command === "init" && grounding?.source) {
-    await ReqWorkspace.groundCompanyAbout(directory, grounding)
+    await ReqWorkspace.groundCompanyAbout(home, grounding)
   }
   if (args.command === "open-req" && result.relative !== ".") {
-    await ReqWorkspace.writeFocus(directory, result.relative)
+    await ReqWorkspace.writeFocus(home, result.relative)
   }
   if (args.command === "open-req") {
-    await HiringSession.refreshSnapshot(directory)
+    await HiringSession.refreshSnapshot(home)
   }
   if (args.json || args.format === "json") {
     console.log(JSON.stringify({ command: args.command, title: title || undefined, ...result }, null, 2))
@@ -235,7 +236,8 @@ async function runHeadlessScaffold(args: {
   if (result.skipped.length > 0) UI.println(`skipped ${result.skipped.join(", ")}`)
   if (args.command === "open-req" && result.relative !== ".") UI.println(`focused ${result.relative}`)
   if (args.command === "init") {
-    const about = await Bun.file(path.join(directory, "COMPANY.md")).text().catch(() => "")
+    if (home !== directory) UI.println(`company ${home}`)
+    const about = await Bun.file(path.join(home, "COMPANY.md")).text().catch(() => "")
     if (/^## About\n- TBD$/m.test(about) || /## About\n- TBD/.test(about)) {
       UI.println(ReqWorkspace.INIT_FIRST_QUESTION.question)
     }

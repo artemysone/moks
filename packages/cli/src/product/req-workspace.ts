@@ -1,4 +1,5 @@
-import { readdir } from "fs/promises"
+import { mkdir, readdir } from "fs/promises"
+import os from "os"
 import path from "path"
 import { Filesystem } from "@/util/filesystem"
 import { CandidateCard, CANDIDATES_DIR } from "./candidate-card"
@@ -111,6 +112,90 @@ export async function isLiveCompany(dir: string) {
 
 export function notACompanyDirectory(opened: string) {
   return `not a company directory: ${opened} — pass --cwd/--dir to the company (same as moks run --dir)`
+}
+
+/** User-owned companies root. Never the Moks checkout. */
+export function userCompaniesRoot() {
+  const override = process.env.MOKS_COMPANIES_ROOT?.trim()
+  if (override) return path.resolve(override)
+  const home = process.env.MOKS_TEST_HOME || process.env.HOME || os.homedir()
+  return path.join(home, "moks-companies")
+}
+
+async function readPackageName(dir: string) {
+  try {
+    const pkg = await Bun.file(path.join(dir, "package.json")).json()
+    return typeof pkg?.name === "string" ? pkg.name : undefined
+  } catch {
+    return
+  }
+}
+
+async function remoteIsMoks(dir: string) {
+  const proc = Bun.spawn(["git", "remote", "-v"], { cwd: dir, stdout: "pipe", stderr: "pipe" })
+  const text = await new Response(proc.stdout).text()
+  await proc.exited
+  if (proc.exitCode !== 0) return false
+  return /artemysone\/moks(?:\.git)?(?:\s|$)/i.test(text)
+}
+
+async function looksLikeMoksRoot(dir: string) {
+  const name = await readPackageName(dir)
+  if (name && (name.startsWith("@moks/") || name === "moks-monorepo")) return true
+  if (
+    (await Filesystem.isDir(path.join(dir, "packages", "cli"))) &&
+    (await Filesystem.isDir(path.join(dir, "packages", "engine")))
+  ) {
+    return true
+  }
+  const top = await gitToplevel(dir)
+  if (top && path.resolve(top) === path.resolve(dir) && (await remoteIsMoks(dir))) return true
+  return false
+}
+
+/** True when dir is the Moks monorepo or a path inside it. */
+export async function isMoksCheckout(dir: string) {
+  let current = path.resolve(dir)
+  while (true) {
+    if (await looksLikeMoksRoot(current)) return true
+    const parent = path.dirname(current)
+    if (parent === current) return false
+    current = parent
+  }
+}
+
+async function hasExistingCompany(dir: string) {
+  return (await hasCompanyFile(dir)) || (await isPacket(dir)) || (await hasCandidatesDir(dir))
+}
+
+async function moksCheckoutRoot(dir: string) {
+  let current = path.resolve(dir)
+  let found: string | undefined
+  while (true) {
+    if (await looksLikeMoksRoot(current)) found = current
+    const parent = path.dirname(current)
+    if (parent === current) return found
+    current = parent
+  }
+}
+
+/**
+ * Init writes into a folder the user owns.
+ * Existing COMPANY.md / packet stays. A Moks checkout without company files
+ * is refused in-place — we create ~/moks-companies/<slug> (or a sibling
+ * outside the repo if that root is still the checkout).
+ */
+export async function resolveInitDirectory(cwd: string, name?: string) {
+  const start = path.resolve(cwd)
+  if (await hasExistingCompany(start)) return start
+  if (!(await isMoksCheckout(start))) return start
+
+  const slug = (name && slugify(name)) || "company"
+  const preferred = path.join(userCompaniesRoot(), slug)
+  if (!(await isMoksCheckout(preferred))) return preferred
+
+  const root = (await moksCheckoutRoot(start)) ?? start
+  return path.join(path.dirname(root), "moks-companies", slug)
 }
 
 export async function listReqs(company: string) {
@@ -292,7 +377,7 @@ export function parseTalkOpenRole(raw: string) {
 
 export async function openTalkReq(cwd: string, title: string) {
   const result = await scaffoldReq(cwd, title)
-  if (result.relative !== ".") await writeFocus(cwd, result.relative)
+  if (result.relative !== ".") await writeFocus(result.directory, result.relative)
   return result
 }
 
@@ -356,8 +441,8 @@ function replaceAbout(text: string, source: string) {
 export async function groundCompanyAbout(cwd: string, input: CompanyGrounding) {
   const source = input.source ?? input.url ?? input.profile
   if (!source) return
-  await scaffoldCompany(cwd, input.name)
-  const file = companyPath(cwd)
+  const company = await scaffoldCompany(cwd, input.name)
+  const file = companyPath(company.directory)
   let text = await Bun.file(file).text().catch(() => companyStub(input.name))
   if (input.name) {
     const heading = text.match(/^# (.+)$/m)?.[1]
@@ -365,32 +450,35 @@ export async function groundCompanyAbout(cwd: string, input: CompanyGrounding) {
   }
   if (/## About\n- TBD/.test(text) || !/^## About/m.test(text)) text = replaceAbout(text, source)
   await Bun.write(file, text)
-  return { source, name: input.name, relative: COMPANY_FILE }
+  return { source, name: input.name, relative: COMPANY_FILE, directory: company.directory }
 }
 
 export async function scaffoldCompany(cwd: string, name?: string) {
+  const home = await resolveInitDirectory(cwd, name)
+  await mkdir(home, { recursive: true })
   const created: string[] = []
   const skipped: string[] = []
   // A packet root is a single-req workspace; its HIRING.md is already the constitution.
-  const packet = await isPacket(cwd)
-  const existing = Bun.file(companyPath(cwd))
+  const packet = await isPacket(home)
+  const existing = Bun.file(companyPath(home))
   const present = packet || ((await existing.exists()) && (await existing.text()).trim().length > 0)
 
   if (present) {
     skipped.push(packet ? HIRING_FILE : COMPANY_FILE)
   } else {
-    await Bun.write(companyPath(cwd), companyStub(name))
+    await Bun.write(companyPath(home), companyStub(name))
     created.push(COMPANY_FILE)
   }
-  await ensureLedger(cwd, created, skipped)
-  const git = await gitInitIfNeeded(cwd, !present)
-  return { created, skipped, relative: ".", git }
+  await ensureLedger(home, created, skipped)
+  const git = await gitInitIfNeeded(home, !present)
+  return { created, skipped, relative: ".", git, directory: home }
 }
 
 export async function scaffoldReq(cwd: string, title?: string) {
   // A root that already has HIRING.md + candidates/ is the req itself; never nest.
   const packet = await isPacket(cwd)
   const company = await scaffoldCompany(cwd)
+  const root = company.directory
   const created = [...company.created]
   const skipped = [...company.skipped]
 
@@ -402,28 +490,28 @@ export async function scaffoldReq(cwd: string, title?: string) {
       await Bun.write(path.join(cwd, gitkeep), "")
       created.push(gitkeep)
     }
-    return { created, skipped, title, relative: ".", git: company.git }
+    return { created, skipped, title, relative: ".", git: company.git, directory: root }
   }
 
   const slug = title ? slugify(title) : ""
-  if (!slug) return { created, skipped, title, relative: ".", git: company.git }
+  if (!slug) return { created, skipped, title, relative: ".", git: company.git, directory: root }
 
   const reqHiring = path.join(slug, HIRING_FILE)
   const reqKeep = path.join(slug, CANDIDATES_DIR, ".gitkeep")
-  const reqFile = Bun.file(path.join(cwd, reqHiring))
+  const reqFile = Bun.file(path.join(root, reqHiring))
   if ((await reqFile.exists()) && (await reqFile.text()).trim().length > 0) {
     skipped.push(reqHiring)
   } else {
-    await Bun.write(path.join(cwd, reqHiring), stubFor(title))
+    await Bun.write(path.join(root, reqHiring), stubFor(title))
     created.push(reqHiring)
   }
-  if (await Bun.file(path.join(cwd, reqKeep)).exists()) {
+  if (await Bun.file(path.join(root, reqKeep)).exists()) {
     skipped.push(reqKeep)
   } else {
-    await Bun.write(path.join(cwd, reqKeep), "")
+    await Bun.write(path.join(root, reqKeep), "")
     created.push(reqKeep)
   }
-  return { created, skipped, title, relative: slug, git: company.git }
+  return { created, skipped, title, relative: slug, git: company.git, directory: root }
 }
 
 async function ensureLedger(cwd: string, created: string[], skipped: string[]) {

@@ -528,6 +528,24 @@ describe("cli dogfood", () => {
     expect(await ReqWorkspace.readFocus(company.path)).toBe("staff-platform")
   }, 20_000)
 
+  test("run --command init from a packages/cli-shaped checkout writes outside", async () => {
+    await using tmp = await tmpdir()
+    const checkout = path.join(tmp.path, "repo")
+    const cli = path.join(checkout, "packages", "cli")
+    await Bun.write(path.join(cli, ".keep"), "")
+    await Bun.write(path.join(checkout, "packages", "engine", ".keep"), "")
+    const companies = path.join(tmp.path, "companies")
+    await using home = await tmpdir()
+    const result = await moks(["run", "--command", "init", "--", "Acme"], cli, home.path, {
+      MOKS_COMPANIES_ROOT: companies,
+    })
+    expect(result.code).toBe(0)
+    expect(await Bun.file(path.join(cli, "COMPANY.md")).exists()).toBe(false)
+    expect(await Bun.file(path.join(checkout, "COMPANY.md")).exists()).toBe(false)
+    expect(await Bun.file(path.join(companies, "acme", "COMPANY.md")).text()).toContain("# Acme")
+    expect(result.combined).toContain(path.join(companies, "acme"))
+  }, 20_000)
+
   test("run --command init with a URL grounds About, not TBD", async () => {
     await using company = await tmpdir()
     await using home = await tmpdir()
