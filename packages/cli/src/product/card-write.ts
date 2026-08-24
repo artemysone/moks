@@ -86,11 +86,38 @@ export function parseNaturalWorkIntent(
   if (!hint) return
   if (parseSendIntent(undefined, hint)) return
   if (parseWriteIntent(undefined, hint)) return
+  if (parseTakeIntent(undefined, hint)) return
   if (parseCompareIntent(undefined, hint)) return
   if (/\bready for review\b/i.test(hint)) return { hint }
   if (/^(?:please\s+|can you\s+)?(?:get|make|prep(?:are)?|work)\b/i.test(hint)) return { hint }
 }
 
+
+
+const TAKE_COMMANDS = new Set(["take", "hm-take", "hiring-manager-take"])
+
+export function parseTakeIntent(command?: string, message = ""): { hint: string } | undefined {
+  const hint = message.trim()
+  if (command && TAKE_COMMANDS.has(command)) return { hint: hint || command }
+  if (command) return
+  if (!hint) return
+  if (parseSendIntent(undefined, hint) || parseWriteIntent(undefined, hint)) return
+  if (/(?:hm|hiring[ -]?manager)\s+take\b/i.test(hint)) return { hint }
+  if (/^(?:please\s+|can you\s+)?(?:\/)?(?:hm-take|hiring-manager-take)\b/i.test(hint)) return { hint }
+  if (/^(?:please\s+|can you\s+)?(?:\/)?take\s+(?:on|for)\b/i.test(hint)) return { hint }
+}
+
+function stripTakeHint(hint: string) {
+  return hint
+    .replace(/^(?:please\s+|can you\s+)?/i, "")
+    .replace(/^(?:\/)?(?:hm-take|hiring-manager-take|take)\b/i, "")
+    .replace(/\b(?:hm|hiring[ -]?manager)\s+take\b/i, "")
+    .replace(/\b(?:for|to)\s+(?:the\s+)?(?:hm|hiring[ -]?manager)\b/i, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^on\b/i, "")
+    .trim()
+}
 
 const COMPARE_COMMANDS = new Set(["compare", "compare-candidates"])
 
@@ -99,7 +126,7 @@ export function parseCompareIntent(command?: string, message = ""): { hint: stri
   if (command && COMPARE_COMMANDS.has(command)) return { hint: hint || command }
   if (command) return
   if (!hint) return
-  if (parseSendIntent(undefined, hint) || parseWriteIntent(undefined, hint)) return
+  if (parseSendIntent(undefined, hint) || parseWriteIntent(undefined, hint) || parseTakeIntent(undefined, hint)) return
   if (/^(?:please\s+|can you\s+)?(?:\/)?compare(?:-candidates)?\b/i.test(hint)) return { hint }
   if (/\b(?:vs\.?|versus|against)\b/i.test(hint) && splitComparePair(hint)) return { hint }
 }
@@ -592,6 +619,78 @@ function upsertSection(body: string, heading: string, section: string) {
 }
 
 
+
+
+export async function takeOnCards(cwd: string, hint: string, files: string[] = []) {
+  const root = await ReqWorkspace.companyRoot(cwd)
+  if (!root || !(await ReqWorkspace.isLiveCompany(root))) {
+    throw new Error(ReqWorkspace.notACompanyDirectory(cwd))
+  }
+  const packet = (await ReqWorkspace.focusedReq(cwd)) ?? ((await ReqWorkspace.isPacket(cwd)) ? cwd : undefined)
+  if (!packet) throw new Error(ReqWorkspace.notACompanyDirectory(cwd))
+  const hiring = await Bun.file(path.join(packet, HIRING_FILE))
+    .text()
+    .catch(() => "")
+  if (!hiring.trim()) throw new Error(`missing ${HIRING_FILE} in the focused req`)
+  const companyMd = await Bun.file(path.join(root, COMPANY_FILE))
+    .text()
+    .catch(() => "")
+  const cleaned = stripTakeHint(hint)
+  const mentioned = cardIdsFromMention(`${cleaned} ${hint}`, files)
+  const pair = mentioned.length >= 2 ? [mentioned[0]!, mentioned[1]!] : splitComparePair(cleaned)
+  const cards = await CandidateCard.list(packet)
+  const picked =
+    pair && pair[0] && pair[1]
+      ? [resolveCard(cards, pair[0]), resolveCard(cards, pair[1])]
+      : [resolveCard(cards, mentioned[0] ?? (cleaned || hint), files)]
+  const unique = picked.filter((card, index) => picked.findIndex((item) => item.id === card.id) === index)
+  const req = parseReq(hiring, companyMd)
+  const companyBars = req.companyBar.map((bar) => ({ label: bar, bar, file: COMPANY_FILE }))
+  const bars = [...req.bars, ...companyBars]
+  const barLines = bars.map((item) => `- ${item.file} ${item.bar === item.label ? item.label : `${item.label} bar: "${item.bar}"`}`)
+  const sections: string[] = []
+  const sources: string[] = []
+  const lines: string[] = []
+  for (const card of unique) {
+    const src = path.relative(packet, CandidateCard.filePath(packet, card.id)).replaceAll(path.sep, "/")
+    sources.push(src)
+    const rows = scoreRows(card, bars, src)
+    sections.push(`### ${card.extra.name || card.id} (${src})`, ...rows.map((row) => `- ${citeRow(row)}`), "")
+    const hit = rows.find((row) => row.score !== "N/A")
+    if (hit) lines.push(`${card.extra.name || card.id}: ${citeRow(hit)}.`)
+    else lines.push(`${card.extra.name || card.id}: no card line matches the bar.`)
+  }
+  const ids = unique.map((card) => card.id).toSorted()
+  const file = path.join(packet, "take", ids.length === 1 ? `${ids[0]}.md` : `${ids[0]}-vs-${ids[1]}.md`)
+  const who = unique.map((card) => card.extra.name || card.id).join(" / ")
+  const body = [
+    `# Take: ${who} → ${req.title}`,
+    "",
+    "For the hiring manager. Paste this. Not outreach. Never sent.",
+    "",
+    "## Bar",
+    ...(barLines.length ? barLines : [`- ${HIRING_FILE}`]),
+    "",
+    "## On the card",
+    ...sections,
+    "## Take",
+    lines.join(" "),
+    "The human still picks. This is not a hire.",
+    "",
+    "## Sources",
+    ...sources.map((src) => `- ${src}`),
+    `- ${HIRING_FILE}`,
+    ...(req.companyBar.length ? [`- ${COMPANY_FILE}`] : []),
+    "",
+  ].join("\n")
+  await Bun.write(file, body)
+  return {
+    ids: unique.map((card) => card.id),
+    file,
+    relative: path.relative(cwd, file) || file,
+    outreach: false,
+  }
+}
 
 export async function compareOnCards(cwd: string, hint: string, files: string[] = []) {
   const root = await ReqWorkspace.companyRoot(cwd)

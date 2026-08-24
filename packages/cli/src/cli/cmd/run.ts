@@ -126,7 +126,7 @@ async function toolError(part: ToolPart) {
   }
 }
 
-const LOCAL_RUN_COMMANDS = "init / open-req / score / draft / add-candidate / compare"
+const LOCAL_RUN_COMMANDS = "init / open-req / score / draft / add-candidate / compare / take"
 
 function isLocalWriteOrScaffold(command?: string, message = "", files: string[] = [], agent?: string) {
   return (
@@ -135,6 +135,7 @@ function isLocalWriteOrScaffold(command?: string, message = "", files: string[] 
     command === "add-candidate" ||
     Boolean(CardWrite.parseWriteIntent(command, message)) ||
     Boolean(CardWrite.parseCompareIntent(command, message)) ||
+    Boolean(CardWrite.parseTakeIntent(command, message)) ||
     Boolean(CardWrite.parseNaturalWorkIntent(command, message, agent)) ||
     Boolean(CandidateAdd.parseAddIntent(command, message, files, agent))
   )
@@ -178,6 +179,7 @@ function isHeadlessScaffoldCommand(args: {
       CandidateAdd.parseAddIntent(args.command, message, args.file ?? [], args.agent) ||
       CardWrite.parseWriteIntent(args.command, message) ||
       CardWrite.parseCompareIntent(args.command, message) ||
+      CardWrite.parseTakeIntent(args.command, message) ||
       CardWrite.parseNaturalWorkIntent(args.command, message, args.agent),
   )
 }
@@ -266,6 +268,34 @@ async function runHeadlessAddCandidate(args: {
   await printPacketTree(directory)
 }
 
+
+
+async function runHeadlessTake(args: {
+  command?: string
+  message?: string[]
+  dir?: string
+  json?: boolean
+  format?: string
+  file?: string[]
+  ["--"]?: string[]
+}) {
+  const directory = await resolveRunDirectory(args.dir)
+  const raw = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
+  const intent = CardWrite.parseTakeIntent(args.command, raw)
+  if (!intent) {
+    UI.error("not a local HM take")
+    process.exit(1)
+  }
+  const result = await CardWrite.takeOnCards(directory, intent.hint, args.file ?? []).catch((error) => {
+    UI.error(error instanceof Error ? error.message : String(error))
+    process.exit(1)
+  })
+  if (args.json || args.format === "json") {
+    console.log(JSON.stringify({ command: "take", ...result }, null, 2))
+    return
+  }
+  UI.println(`take: wrote ${result.relative} — paste for the HM. Not outreach.`)
+}
 
 async function runHeadlessCompare(args: {
   command?: string
@@ -563,6 +593,10 @@ export const RunCommand = effectCmd({
       }
       if (CardWrite.parseNaturalWorkIntent(args.command, message, args.agent)) {
         yield* Effect.promise(() => runHeadlessRecruitWork(args))
+        return
+      }
+      if (CardWrite.parseTakeIntent(args.command, message)) {
+        yield* Effect.promise(() => runHeadlessTake(args))
         return
       }
       if (CardWrite.parseCompareIntent(args.command, message)) {
