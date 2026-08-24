@@ -85,8 +85,38 @@ export function parseNaturalWorkIntent(
   if (!hint) return
   if (parseSendIntent(undefined, hint)) return
   if (parseWriteIntent(undefined, hint)) return
+  if (parseCompareIntent(undefined, hint)) return
   if (/\bready for review\b/i.test(hint)) return { hint }
   if (/^(?:please\s+|can you\s+)?(?:get|make|prep(?:are)?|work)\b/i.test(hint)) return { hint }
+}
+
+
+const COMPARE_COMMANDS = new Set(["compare", "compare-candidates"])
+
+export function parseCompareIntent(command?: string, message = ""): { hint: string } | undefined {
+  const hint = message.trim()
+  if (command && COMPARE_COMMANDS.has(command)) return { hint: hint || command }
+  if (command) return
+  if (!hint) return
+  if (parseSendIntent(undefined, hint) || parseWriteIntent(undefined, hint)) return
+  if (/^(?:please\s+|can you\s+)?(?:\/)?compare(?:-candidates)?\b/i.test(hint)) return { hint }
+  if (/\b(?:vs\.?|versus|against)\b/i.test(hint) && splitComparePair(hint)) return { hint }
+}
+
+export function splitComparePair(hint: string): [string, string] | undefined {
+  const cleaned = hint
+    .replace(/^(?:please\s+|can you\s+)?(?:\/)?compare(?:-candidates)?\b/i, "")
+    .replace(/\b(?:these|those|the|candidates?|cards?|people|two)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+  const parts = cleaned
+    .split(/\s+(?:vs\.?|versus|against|and)\s+/i)
+    .map((part) => part.trim())
+    .filter(Boolean)
+  const pair = parts.length === 2 ? parts : cleaned.split(/\s+/).filter(Boolean)
+  if (pair.length !== 2) return
+  if (pair[0]!.toLowerCase() === pair[1]!.toLowerCase()) return
+  return [pair[0]!, pair[1]!]
 }
 
 const NAME_FILLER =
@@ -528,6 +558,72 @@ function upsertSection(body: string, heading: string, section: string) {
   return `${body.replace(/\s*$/, "\n\n")}${block}`
 }
 
+
+
+export async function compareOnCards(cwd: string, hint: string) {
+  const root = await ReqWorkspace.companyRoot(cwd)
+  if (!root || !(await ReqWorkspace.isLiveCompany(root))) {
+    throw new Error(ReqWorkspace.notACompanyDirectory(cwd))
+  }
+  const packet = (await ReqWorkspace.focusedReq(cwd)) ?? ((await ReqWorkspace.isPacket(cwd)) ? cwd : undefined)
+  if (!packet) throw new Error(ReqWorkspace.notACompanyDirectory(cwd))
+  const hiring = await Bun.file(path.join(packet, HIRING_FILE))
+    .text()
+    .catch(() => "")
+  if (!hiring.trim()) throw new Error(`missing ${HIRING_FILE} in the focused req`)
+  const companyMd = await Bun.file(path.join(root, COMPANY_FILE))
+    .text()
+    .catch(() => "")
+  const pair = splitComparePair(hint)
+  if (!pair) throw new Error("compare needs two cards in this req — name both")
+  const cards = await CandidateCard.list(packet)
+  const left = resolveCard(cards, pair[0])
+  const right = resolveCard(cards, pair[1])
+  if (left.id === right.id) throw new Error("compare needs two different cards in this req")
+  const req = parseReq(hiring, companyMd)
+  const leftSrc = path.relative(packet, CandidateCard.filePath(packet, left.id)).replaceAll(path.sep, "/")
+  const rightSrc = path.relative(packet, CandidateCard.filePath(packet, right.id)).replaceAll(path.sep, "/")
+  const companyBars = req.companyBar.map((bar) => ({ label: bar, bar, file: COMPANY_FILE }))
+  const bars = [...req.bars, ...companyBars]
+  const leftRows = scoreRows(left, bars, leftSrc)
+  const rightRows = scoreRows(right, bars, rightSrc)
+  const ids = [left.id, right.id].toSorted()
+  const file = path.join(packet, "compare", `${ids[0]}-vs-${ids[1]}.md`)
+  const barLines = bars.map((item) => `- ${item.file} ${item.bar === item.label ? item.label : `${item.label} bar: "${item.bar}"`}`)
+  const body = [
+    `# Compare: ${left.extra.name || left.id} vs ${right.extra.name || right.id} → ${req.title}`,
+    "",
+    "Human picks. This is a take, not a hire.",
+    "",
+    "## Bar",
+    ...(barLines.length ? barLines : [`- ${HIRING_FILE}`]),
+    "",
+    "## On the cards",
+    `### ${left.id} (${leftSrc})`,
+    ...leftRows.map((row) => `- ${citeRow(row)}`),
+    "",
+    `### ${right.id} (${rightSrc})`,
+    ...rightRows.map((row) => `- ${citeRow(row)}`),
+    "",
+    "## Take",
+    "Same bar. Different evidence. The human still picks.",
+    "",
+    "## Sources",
+    `- ${leftSrc}`,
+    `- ${rightSrc}`,
+    `- ${HIRING_FILE}`,
+    ...(req.companyBar.length ? [`- ${COMPANY_FILE}`] : []),
+    "",
+  ].join("\n")
+  await Bun.write(file, body)
+  return {
+    left: left.id,
+    right: right.id,
+    file,
+    relative: path.relative(cwd, file) || file,
+    pick: null,
+  }
+}
 
 export async function workOnCard(cwd: string, hint: string) {
   if (parseSendIntent(undefined, hint)) throw new Error(NEVER_SENT)

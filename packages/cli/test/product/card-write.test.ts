@@ -43,6 +43,74 @@ test("writeOnCard scores from card + HIRING.md without inventing jobs", async ()
   expect(card?.body).not.toContain("Acme Corp")
 })
 
+test("parseCompareIntent detects compare and vs, not pile or score", () => {
+  expect(CardWrite.parseCompareIntent("compare", "maya-chen kenji-okada")).toEqual({
+    hint: "maya-chen kenji-okada",
+  })
+  expect(CardWrite.parseCompareIntent(undefined, "compare Maya and Kenji")?.hint).toBe("compare Maya and Kenji")
+  expect(CardWrite.parseCompareIntent(undefined, "Maya vs Kenji")?.hint).toBe("Maya vs Kenji")
+  expect(CardWrite.parseCompareIntent(undefined, "Score jordan-lee")).toBeUndefined()
+  expect(CardWrite.splitComparePair("compare Maya Chen and Kenji Okada")).toEqual(["Maya Chen", "Kenji Okada"])
+})
+
+test("compare cites both cards and the bar and does not pick a hire", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "COMPANY.md"), "# Acme\n\n## Bar\n- Ship weekly in public\n")
+      const req = path.join(dir, "staff-platform")
+      await Bun.write(
+        path.join(req, "HIRING.md"),
+        [
+          "# Staff Platform",
+          "",
+          "## Scorecard",
+          "| Dimension | Bar | Notes |",
+          "|-----------|-----|-------|",
+          "| Backend ownership | Owned services end-to-end | |",
+          "",
+        ].join("\n"),
+      )
+      await CandidateCard.write(req, {
+        id: "maya-chen",
+        stage: "Sourced",
+        extra: { name: "Maya Chen" },
+        body: "# Maya Chen\n\nOwned the payments edge service.\n",
+      })
+      await CandidateCard.write(req, {
+        id: "kenji-okada",
+        stage: "Sourced",
+        extra: { name: "Kenji Okada" },
+        body: "# Kenji Okada\n\nShips weekly notes in public. Platform on-call.\n",
+      })
+      await ReqWorkspace.writeFocus(dir, "staff-platform")
+    },
+  })
+  const result = await CardWrite.compareOnCards(tmp.path, "compare Maya and Kenji")
+  expect(result.pick).toBeNull()
+  expect(new Set([result.left, result.right])).toEqual(new Set(["maya-chen", "kenji-okada"]))
+  const text = await Bun.file(result.file).text()
+  expect(text).toContain("Human picks")
+  expect(text).toContain("not a hire")
+  expect(text).toContain("candidates/maya-chen.md")
+  expect(text).toContain("candidates/kenji-okada.md")
+  expect(text).toContain("Owned the payments edge service")
+  expect(text).toContain("Ships weekly notes in public")
+  expect(text).toContain("Owned services end-to-end")
+  expect(text).toContain("Ship weekly in public")
+  expect(text).toContain("HIRING.md")
+  expect(text).toContain("COMPANY.md")
+  expect(text).not.toMatch(/hire (maya|kenji)/i)
+  const maya = await CandidateCard.read(path.join(tmp.path, "staff-platform"), "maya-chen")
+  expect(maya?.body).not.toContain("# Compare")
+})
+
+test("compare outside a company directory fails loud", async () => {
+  await using empty = await tmpdir()
+  await expect(CardWrite.compareOnCards(empty.path, "compare Maya and Kenji")).rejects.toThrow(
+    /not a company directory/,
+  )
+})
+
 test("score cites HIRING.md / COMPANY.md bar plus card evidence", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {
