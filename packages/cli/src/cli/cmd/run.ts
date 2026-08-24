@@ -258,7 +258,7 @@ async function runHeadlessTalkOpen(args: {
   const result = await ReqWorkspace.openTalkReq(directory, role)
   await HiringSession.refreshSnapshot(directory)
   if (args.json || args.format === "json") {
-    console.log(JSON.stringify({ command: "talk-open", title: role, ...result }, null, 2))
+    console.log(JSON.stringify({ command: "talk-open", ...result }, null, 2))
     return
   }
   const created = result.created.length > 0 ? `created ${result.created.join(", ")}` : "already present"
