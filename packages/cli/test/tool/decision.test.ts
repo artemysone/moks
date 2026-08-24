@@ -41,6 +41,7 @@ describe("tool.decision", () => {
         const commitBody = JSON.parse(committed.output)
         expect(commitBody.changeset.changes[0].mutation).toBe("AdvanceStage")
         expect(commitBody.changeset.author_kind).toBe("agent")
+        expect(commitBody.next).toBe(DecisionVerbs.COMMIT_TASTE_NEXT)
 
         const statusInfo = yield* StatusTool
         const status = yield* statusInfo.init()
