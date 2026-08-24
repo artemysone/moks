@@ -59,6 +59,7 @@ export function parseAddIntent(
   const hint = message.trim()
   if (CardWrite.parseSendIntent(command, hint)) return
   if (CardWrite.parseWriteIntent(command, hint)) return
+  if (CardWrite.parseTakeIntent(command, hint)) return
   if (CardWrite.parseCompareIntent(command, hint)) return
   const recruit = !command && agent === "recruit"
   if (command && !ADD_COMMANDS.has(command)) return

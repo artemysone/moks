@@ -111,6 +111,90 @@ test("compare outside a company directory fails loud", async () => {
   )
 })
 
+test("parseTakeIntent is HM take, not score or outreach", () => {
+  expect(CardWrite.parseTakeIntent(undefined, "HM take on Maya")?.hint).toBe("HM take on Maya")
+  expect(CardWrite.parseTakeIntent("take", "maya-chen")).toEqual({ hint: "maya-chen" })
+  expect(CardWrite.parseTakeIntent(undefined, "Score jordan-lee")).toBeUndefined()
+  expect(CardWrite.parseTakeIntent(undefined, "Draft outreach for Maya")).toBeUndefined()
+  expect(CardWrite.parseCompareIntent(undefined, "HM take on Maya vs Kenji")).toBeUndefined()
+})
+
+test("HM take writes a pasteable memo, not outreach", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "COMPANY.md"), "# Acme\n\n## Bar\n- Ship weekly in public\n")
+      const req = path.join(dir, "staff-platform")
+      await Bun.write(
+        path.join(req, "HIRING.md"),
+        [
+          "# Staff Platform",
+          "",
+          "## Scorecard",
+          "| Dimension | Bar | Notes |",
+          "|-----------|-----|-------|",
+          "| Backend ownership | Owned services end-to-end | |",
+          "",
+        ].join("\n"),
+      )
+      await CandidateCard.write(req, {
+        id: "maya-chen",
+        stage: "Sourced",
+        extra: { name: "Maya Chen" },
+        body: "# Maya Chen\n\nOwned the payments edge service.\n",
+      })
+      await ReqWorkspace.writeFocus(dir, "staff-platform")
+    },
+  })
+  const result = await CardWrite.takeOnCards(tmp.path, "HM take on Maya")
+  expect(result.outreach).toBe(false)
+  expect(result.ids).toEqual(["maya-chen"])
+  const text = await Bun.file(result.file).text()
+  expect(result.relative).toContain("take/")
+  expect(text).toContain("For the hiring manager. Paste this.")
+  expect(text).toContain("Not outreach")
+  expect(text).toContain("Owned the payments edge service")
+  expect(text).toContain("Owned services end-to-end")
+  expect(text).toContain("Ship weekly in public")
+  expect(text).not.toMatch(/Hi Maya|Subject:|LinkedIn/i)
+  const card = await CandidateCard.read(path.join(tmp.path, "staff-platform"), "maya-chen")
+  expect(card?.body).not.toContain("# Outreach")
+})
+
+test("HM take on two cards cites both and does not pick a hire", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "COMPANY.md"), "# Acme\n\n## Bar\n- Ship weekly in public\n")
+      const req = path.join(dir, "staff-platform")
+      await Bun.write(path.join(req, "HIRING.md"), "# Staff Platform\n")
+      await CandidateCard.write(req, {
+        id: "maya-chen",
+        stage: "Sourced",
+        extra: { name: "Maya Chen" },
+        body: "# Maya Chen\n\nOwned the payments edge.\n",
+      })
+      await CandidateCard.write(req, {
+        id: "kenji-okada",
+        stage: "Sourced",
+        extra: { name: "Kenji Okada" },
+        body: "# Kenji Okada\n\nShips weekly notes in public.\n",
+      })
+      await ReqWorkspace.writeFocus(dir, "staff-platform")
+    },
+  })
+  const result = await CardWrite.takeOnCards(tmp.path, "HM take on Maya and Kenji")
+  expect(new Set(result.ids)).toEqual(new Set(["maya-chen", "kenji-okada"]))
+  const text = await Bun.file(result.file).text()
+  expect(text).toContain("Maya Chen")
+  expect(text).toContain("Kenji Okada")
+  expect(text).toContain("The human still picks")
+  expect(text).not.toMatch(/hire (maya|kenji)/i)
+})
+
+test("HM take outside a company fails loud", async () => {
+  await using empty = await tmpdir()
+  await expect(CardWrite.takeOnCards(empty.path, "HM take on Maya")).rejects.toThrow(/not a company directory/)
+})
+
 test("cardIdsFromMention reads @file and candidates/*.md", () => {
   expect(CardWrite.cardIdsFromMention("score @candidates/maya-chen.md")).toEqual(["maya-chen"])
   expect(CardWrite.cardIdsFromMention("draft candidates/kenji-okada.md")).toEqual(["kenji-okada"])
