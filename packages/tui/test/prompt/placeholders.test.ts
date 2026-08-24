@@ -3,13 +3,13 @@ import { DEFAULT_PLACEHOLDERS, placeholdersFor } from "../../src/component/promp
 
 describe("prompt placeholders", () => {
   test("defaults to recruit language, not a verb menu", () => {
-    expect(DEFAULT_PLACEHOLDERS.normal).toEqual(["add Maya Chen and Kenji Sato", "get Maya ready", "taste with /review"])
+    expect(DEFAULT_PLACEHOLDERS.normal).toEqual(["add names or files", "get this candidate ready", "taste with /review"])
     expect(DEFAULT_PLACEHOLDERS.shell).toEqual(["ls candidates", "pwd"])
   })
 
   test("points at /open-req until cards exist, plus a pile ask", () => {
-    expect(placeholdersFor({ cards: 0 })).toEqual(["Open a req with /open-req", "add Maya Chen and Kenji Sato"])
-    expect(placeholdersFor({})).toEqual(["Open a req with /open-req", "add Maya Chen and Kenji Sato"])
+    expect(placeholdersFor({ cards: 0 })).toEqual(["Open a req with /open-req", "add names or files"])
+    expect(placeholdersFor({})).toEqual(["Open a req with /open-req", "add names or files"])
     for (const text of placeholdersFor({ cards: 0 })) {
       expect(text).not.toMatch(/score-candidate|draft-outreach|moks commit/i)
     }
