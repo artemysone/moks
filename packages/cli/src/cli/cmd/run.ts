@@ -261,6 +261,7 @@ async function runHeadlessAddCandidate(args: {
   for (const result of added) {
     UI.println(`add-candidate: wrote ${result.relative} (${result.id}, stage ${result.stage})`)
   }
+  await printPacketTree(directory)
 }
 
 async function runHeadlessCardWrite(args: {
@@ -288,9 +289,17 @@ async function runHeadlessCardWrite(args: {
   }
   if (intent.kind === "score") {
     UI.println(`score: wrote ${result.relative}${result.score !== undefined ? ` (score ${result.score})` : ""}`)
+    await printPacketTree(directory)
     return
   }
   UI.println(`draft: wrote ${result.relative} (not sent)`)
+  await printPacketTree(directory)
+}
+
+async function printPacketTree(directory: string) {
+  const session = await HiringSession.loadSnapshot(directory).catch(() => undefined)
+  if (!session) return
+  for (const line of HiringSession.formatSnapshot(session)) UI.println(line)
 }
 
 async function runNeverSent(args: { dir?: string }) {

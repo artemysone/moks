@@ -8,11 +8,19 @@ export const SESSION_FILE = path.join(".moks", "session.json")
 
 export type LeftoverKind = "score" | "rescore" | "draft" | "commit"
 
+export type SessionCard = {
+  id: string
+  file: string
+  stage?: string
+  score?: number
+}
+
 export type SessionSnapshot = {
   v: 1
   focused: string | null
   staged: { count: number; ids: string[] }
   leftover: LeftoverKind | null
+  cards: SessionCard[]
   next: string
 }
 
@@ -52,7 +60,16 @@ export function leftoverOnCard(
 
 export function formatSnapshot(snap: SessionSnapshot) {
   const ids = snap.staged.ids.length > 0 ? `  ${snap.staged.ids.join(", ")}` : ""
-  return [`focused ${snap.focused ?? "none"}`, `staged ${snap.staged.count}${ids}`, `next: ${snap.next}`]
+  const cards = snap.cards ?? []
+  const tree = ["candidates/"]
+  if (cards.length === 0) tree.push("  (empty)")
+  else {
+    for (const card of cards) {
+      const bits = [card.file, card.stage, card.score !== undefined ? String(card.score) : ""].filter(Boolean)
+      tree.push(`  ${bits.join("  ")}`)
+    }
+  }
+  return [`focused ${snap.focused ?? "none"}`, `staged ${snap.staged.count}${ids}`, ...tree, `next: ${snap.next}`]
 }
 
 export async function readSnapshot(company: string): Promise<SessionSnapshot | undefined> {
@@ -64,7 +81,7 @@ export async function readSnapshot(company: string): Promise<SessionSnapshot | u
     const parsed = JSON.parse(raw) as SessionSnapshot
     if (parsed?.v !== 1) return
     if (typeof parsed.next !== "string") return
-    return parsed
+    return { ...parsed, cards: parsed.cards ?? [] }
   } catch {
     return
   }
@@ -113,6 +130,7 @@ async function computeSnapshot(company: string, opened: string): Promise<Session
     focused,
     staged: { count: stagedIds.length, ids: stagedIds },
     leftover,
+    cards: packet ? await listSessionCards(packet) : [],
     next: nextStep({ focused, stagedIds, leftover, reason }),
   }
 }
@@ -140,6 +158,7 @@ async function computeCompanyRootSnapshot(company: string, reqs: string[]): Prom
     focused,
     staged: { count: stagedIds.length, ids: stagedIds },
     leftover,
+    cards: await listCompanyCards(company, reqs),
     next: nextStep({ focused, stagedIds, leftover, reviewReq, leftoverReq }),
   }
 }
@@ -176,6 +195,27 @@ async function firstCardReason(packet: string) {
     const reason = CandidateCard.readReason(card)
     if (reason) return reason
   }
+}
+
+
+async function listSessionCards(packet: string): Promise<SessionCard[]> {
+  const cards = await CandidateCard.list(packet)
+  return cards.map((card) => ({
+    id: card.id,
+    file: `${CandidateCard.CANDIDATES_DIR}/${CandidateCard.fileName(card.id)}`,
+    stage: card.stage,
+    score: card.score,
+  }))
+}
+
+async function listCompanyCards(company: string, reqs: string[]): Promise<SessionCard[]> {
+  const out: SessionCard[] = []
+  for (const slug of reqs) {
+    for (const card of await listSessionCards(path.join(company, slug))) {
+      out.push({ ...card, file: `${slug}/${card.file}` })
+    }
+  }
+  return out
 }
 
 async function leftoverOnPacket(packet: string): Promise<LeftoverKind | null> {
