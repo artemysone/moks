@@ -41,7 +41,7 @@ export function nextStep(input: {
   else if (input.leftover === "draft") next = leftoverOn ? `draft leftover on ${leftoverOn}` : "draft leftover"
   else if (input.leftover === "commit") next = leftoverOn ? `commit leftover on ${leftoverOn}` : "commit leftover"
   else if (input.focused) next = `nothing left on ${input.focused}`
-  else next = "open-req"
+  else next = "open a role"
   const reason = input.reason?.trim()
   return reason ? `${next} — ${reason}` : next
 }

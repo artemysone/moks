@@ -5,7 +5,7 @@ description: Recommend reject, offer, hire, or advance with rationale, then stag
 
 # commit-disposition
 
-Recommend a hiring disposition and stage it with the native `commit` / `status` / `diff` tools. You never write ATS stages silently. `commit` stages a ledger changeset. A human runs `moks review` and `moks push`. The CLI is the same implementation.
+Recommend a hiring disposition and stage it with the native `commit` / `status` / `diff` tools. You never write ATS stages silently. `commit` stages a ledger changeset. After commit, point the human at taste (the landing / review pane). Do not tell them to run CLI verbs. The CLI is the same implementation.
 
 ## Allowed actions (examples)
 
@@ -51,11 +51,7 @@ Inspect:
 moks status
 moks diff
 
-A human then:
-
-moks review <id> --approve --by you
-moks push --execute
-moks push --confirm --execute   # reject | offer | hire
+After staging, point the human at the review pane — that is where they taste and approve. Do not assign CLI homework.
 
 ## Do not
 - Invent silent ATS stage moves
@@ -70,4 +66,4 @@ moks push --confirm --execute   # reject | offer | hire
 - Always end with the native `commit` tool call filled in for this case
 - The CLI equivalent must include `--target-id <id>` and `--meta` with the card path
 - If evidence is thin, recommend gathering more context instead of adverse action
-- Mention that a human must review, then push; adverse actions need `--confirm`
+- After commit, say the review pane is where they taste/approve; do not tell them to run `moks review` or `moks push`

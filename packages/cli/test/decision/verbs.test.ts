@@ -77,6 +77,9 @@ describe("decision/verbs", () => {
     expect(result.changeset.id).toMatch(ID)
     expect(result.adverse).toBe(false)
     expect(result.changeset.changes[0].mutation).toBe("AddNote")
+    expect(result.next).toBe(DecisionVerbs.COMMIT_TASTE_NEXT)
+    expect(result.next).toMatch(/taste|review pane/i)
+    expect(result.next).not.toMatch(/moks review|moks push/)
   })
 
   test("commit marks adverse mutations", async () => {

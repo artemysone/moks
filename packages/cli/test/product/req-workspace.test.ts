@@ -22,6 +22,55 @@ test("parseReqTitle strips wrapping quotes used by headless run --command", () =
   expect(ReqWorkspace.stubFor(ReqWorkspace.parseReqTitle('"Founding Engineer"'))).not.toContain('# "Founding Engineer"')
 })
 
+test("parseTalkOpenRole reads a talk-shaped role, not a company name", () => {
+  expect(ReqWorkspace.parseTalkOpenRole("open a Staff Platform role")).toBe("Staff Platform")
+  expect(ReqWorkspace.parseTalkOpenRole("open a Senior Backend role")).toBe("Senior Backend")
+  expect(ReqWorkspace.parseTalkOpenRole("open the req for Founding Engineer")).toBe("Founding Engineer")
+  expect(ReqWorkspace.parseTalkOpenRole("Senior Backend")).toBeUndefined()
+  expect(ReqWorkspace.parseTalkOpenRole("Northline Analytics")).toBeUndefined()
+})
+
+
+test("init first questions ask for a URL/profile", () => {
+  expect(ReqWorkspace.INIT_FIRST_QUESTION.question).toMatch(/website|profile/i)
+  expect(ReqWorkspace.INIT_FIRST_QUESTION.custom).toBe(true)
+  expect(ReqWorkspace.parseCompanyGrounding("https://example.com/acme")).toEqual({
+    name: undefined,
+    url: "https://example.com/acme",
+    profile: undefined,
+    source: "https://example.com/acme",
+  })
+  expect(ReqWorkspace.parseCompanyGrounding("Acme https://example.com/acme")?.name).toBe("Acme")
+  expect(ReqWorkspace.parseCompanyGrounding("open a Staff Platform role")).toBeUndefined()
+})
+
+test("groundCompanyAbout writes About from a provided URL, not TBD", async () => {
+  await using tmp = await tmpdir()
+  await ReqWorkspace.groundCompanyAbout(tmp.path, {
+    name: "Acme",
+    url: "https://example.com/acme",
+    source: "https://example.com/acme",
+  })
+  const body = await Bun.file(path.join(tmp.path, "COMPANY.md")).text()
+  expect(body).toContain("# Acme")
+  expect(body).toContain("https://example.com/acme")
+  expect(body).not.toMatch(/## About\n- TBD/)
+  expect(body).toContain("## Bar")
+  expect(body).toMatch(/## Bar\n- TBD/)
+})
+
+test("openTalkReq scaffolds the req subdirectory from talk", async () => {
+  await using tmp = await tmpdir()
+  await ReqWorkspace.scaffoldCompany(tmp.path, "Northline Analytics")
+  const result = await ReqWorkspace.openTalkReq(tmp.path, "Staff Platform")
+  expect(result.relative).toBe("staff-platform")
+  expect(await Bun.file(path.join(tmp.path, "staff-platform", "HIRING.md")).text()).toBe(
+    ReqWorkspace.stubFor("Staff Platform"),
+  )
+  expect(await Bun.file(path.join(tmp.path, "staff-platform", "candidates", ".gitkeep")).exists()).toBe(true)
+  expect(await ReqWorkspace.readFocus(tmp.path)).toBe("staff-platform")
+})
+
 test("scaffoldCompany stands up the full company workspace in empty cwd", async () => {
   await using tmp = await tmpdir()
   const result = await ReqWorkspace.scaffoldCompany(tmp.path)
@@ -37,6 +86,28 @@ test("scaffoldCompany stands up the full company workspace in empty cwd", async 
   expect(await ReqWorkspace.isCompanyRoot(tmp.path)).toBe(true)
   expect(await ReqWorkspace.isPacket(tmp.path)).toBe(false)
   expect(await ReqWorkspace.listReqs(tmp.path)).toEqual([])
+})
+
+test("scaffoldCompany writes a typed company name into COMPANY.md", async () => {
+  await using tmp = await tmpdir()
+  const named = await ReqWorkspace.scaffoldCompany(tmp.path, "Northline Analytics")
+  expect(named.created).toContain("COMPANY.md")
+  expect(await Bun.file(path.join(tmp.path, "COMPANY.md")).text()).toBe(
+    ReqWorkspace.companyStub("Northline Analytics"),
+  )
+  expect(await Bun.file(path.join(tmp.path, "COMPANY.md")).text()).toContain("# Northline Analytics")
+  expect(await Bun.file(path.join(tmp.path, "HIRING.md")).exists()).toBe(false)
+
+  await using empty = await tmpdir()
+  await ReqWorkspace.scaffoldCompany(empty.path)
+  expect(await Bun.file(path.join(empty.path, "COMPANY.md")).text()).toBe(ReqWorkspace.COMPANY_STUB)
+  expect(await Bun.file(path.join(empty.path, "COMPANY.md")).text()).toBe(ReqWorkspace.companyStub())
+
+  const again = await ReqWorkspace.scaffoldCompany(tmp.path, "Other Co")
+  expect(again.skipped).toContain("COMPANY.md")
+  expect(await Bun.file(path.join(tmp.path, "COMPANY.md")).text()).toBe(
+    ReqWorkspace.companyStub("Northline Analytics"),
+  )
 })
 
 test("scaffoldCompany ledger works for moks commands after /init", async () => {

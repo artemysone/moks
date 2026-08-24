@@ -61,6 +61,8 @@ export function parseAddIntent(
   if (CardWrite.parseWriteIntent(command, hint)) return
   if (CardWrite.parseTakeIntent(command, hint)) return
   if (CardWrite.parseCompareIntent(command, hint)) return
+  if (ReqWorkspace.parseTalkOpenRole(hint)) return
+  if (ReqWorkspace.parseCompanyGrounding(hint)?.source) return
   const recruit = !command && agent === "recruit"
   if (command && !ADD_COMMANDS.has(command)) return
   if (command && ADD_COMMANDS.has(command)) {
@@ -177,7 +179,7 @@ function isResumeFile(name: string) {
 
 export async function addFromName(cwd: string, rawName: string) {
   const packet = (await ReqWorkspace.focusedReq(cwd)) ?? ((await ReqWorkspace.isPacket(cwd)) ? cwd : undefined)
-  if (!packet) throw new Error("no focused req — run /open-req")
+  if (!packet) throw new Error("no focused req — open a role in this chat")
   const name = rawName.trim()
   if (!name) throw new Error("add-candidate requires a name")
   const id = CandidateCard.safeId(name)
@@ -201,7 +203,7 @@ export async function addFromName(cwd: string, rawName: string) {
 
 export async function addFromFile(cwd: string, resumePath: string) {
   const packet = (await ReqWorkspace.focusedReq(cwd)) ?? ((await ReqWorkspace.isPacket(cwd)) ? cwd : undefined)
-  if (!packet) throw new Error("no focused req — run /open-req")
+  if (!packet) throw new Error("no focused req — open a role in this chat")
   const file = resumePath.trim()
   if (!file) throw new Error("add-candidate requires a local resume path")
   const abs = path.isAbsolute(file) ? file : path.resolve(cwd, file)

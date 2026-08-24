@@ -14,7 +14,7 @@ export const Plugin = define({
     yield* ctx.command.transform((draft) => {
       draft.update("init", (command) => {
         command.template = PROMPT_INITIALIZE.replace("${path}", location.directory)
-        command.description = "write or update the company dossier (COMPANY.md)"
+        command.description = "write or update the company constitution (COMPANY.md)"
       })
       draft.update("open-req", (command) => {
         command.template = PROMPT_OPEN_REQ.replace("${path}", location.directory)

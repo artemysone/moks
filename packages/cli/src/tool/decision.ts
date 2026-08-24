@@ -70,9 +70,10 @@ export const CommitTool = Tool.define("commit", Effect.succeed({
           cwd: instance.directory,
         }),
       )
+      const staged = result.changeset.changes.map((change) => change.mutation).join(",")
       return {
-        title: `staged ${result.changeset.changes.map((change) => change.mutation).join(",")}`,
-        output: JSON.stringify(result, null, 2),
+        title: `staged ${staged}`,
+        output: JSON.stringify(result),
         metadata: result,
       }
     }).pipe(Effect.orDie),

@@ -510,6 +510,58 @@ describe("cli dogfood", () => {
     expect(result.combined).not.toMatch(/sign in \/ connect OAuth or ACP/i)
   }, 15_000)
 
+  test("headless recruit talk-open creates staff-platform without /open-req", async () => {
+    await using company = await tmpdir()
+    await using home = await tmpdir()
+    const env = { ANTHROPIC_API_KEY: "" }
+    expect((await moks(["run", "--command", "init"], company.path, home.path, env)).code).toBe(0)
+    const opened = await moks(
+      ["run", "--agent", "recruit", "--", "open a Staff Platform role"],
+      company.path,
+      home.path,
+      env,
+    )
+    expect(opened.code).toBe(0)
+    expect(opened.combined).not.toMatch(/open-req/)
+    expect(opened.combined).not.toMatch(/no focused req/)
+    expect(await Bun.file(path.join(company.path, "staff-platform", "HIRING.md")).exists()).toBe(true)
+    expect(await ReqWorkspace.readFocus(company.path)).toBe("staff-platform")
+  }, 20_000)
+
+  test("run --command init with a URL grounds About, not TBD", async () => {
+    await using company = await tmpdir()
+    await using home = await tmpdir()
+    const result = await moks(
+      ["run", "--command", "init", "--", "Acme", "https://example.com/acme"],
+      company.path,
+      home.path,
+    )
+    expect(result.code).toBe(0)
+    const body = await Bun.file(path.join(company.path, "COMPANY.md")).text()
+    expect(body).toContain("# Acme")
+    expect(body).toContain("https://example.com/acme")
+    expect(body).not.toMatch(/## About\n- TBD/)
+  }, 20_000)
+
+  test("commit result copy points at taste, not moks review/push", async () => {
+    await using company = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
+      },
+    })
+    await using home = await tmpdir()
+    expect((await moks(["pull", "--cwd", company.path], company.path, home.path)).code).toBe(0)
+    const committed = await moks(
+      ["commit", "--action", "note", "--target-id", "cand_priya", "--reason", "taste copy", "--cwd", company.path],
+      company.path,
+      home.path,
+    )
+    expect(committed.code).toBe(0)
+    expect(committed.combined).toMatch(/taste|review pane/i)
+    expect(committed.combined).not.toMatch(/moks review|moks push/)
+    expect(committed.combined).not.toContain("push will require")
+  }, 20_000)
+
   test("run --command foobar fails locally without OAuth", async () => {
     await using company = await tmpdir()
     await using home = await tmpdir()

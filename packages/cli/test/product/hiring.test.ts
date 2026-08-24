@@ -10,6 +10,7 @@ import { HiringFixtures } from "../../src/product/fixtures"
 import PROMPT_RECRUIT from "../../src/product/agents/recruit.txt"
 import PROMPT_INITIALIZE from "../../src/command/template/initialize.txt"
 import PROMPT_OPEN_REQ from "../../src/command/template/open-req.txt"
+import { ReqWorkspace } from "../../src/product/req-workspace"
 import path from "path"
 
 const node = LayerNode.compile(CrossSpawnSpawner.node)
@@ -38,7 +39,7 @@ it.effect("HiringFixtures paths resolve to on-disk samples", () =>
 )
 
 it.effect("score-candidate writes a score file path; commit-disposition cites it", () =>
-  Effect.sync(() => {
+  Effect.promise(async () => {
     const score = HiringSkills.find((s) => s.name === "score-candidate")
     const commit = HiringSkills.find((s) => s.name === "commit-disposition")
     expect(score?.content).toContain("candidates/<id>.md")
@@ -54,15 +55,43 @@ it.effect("score-candidate writes a score file path; commit-disposition cites it
     expect(PROMPT_RECRUIT).not.toContain("packages/moks/src/product/fixtures/hiring/")
     expect(PROMPT_INITIALIZE).toContain("HIRING.md")
     expect(PROMPT_INITIALIZE).toContain("Do not overwrite non-empty user content")
-    expect(PROMPT_INITIALIZE).toContain("Do not create a req directory here")
+    expect(PROMPT_INITIALIZE).toContain("Do not treat a company name as a req")
     expect(PROMPT_INITIALIZE).toContain("The company workspace was already scaffolded")
     expect(PROMPT_INITIALIZE).toContain("`.moks/` ledger")
-    expect(PROMPT_INITIALIZE).toContain("/open-req")
+    expect(PROMPT_INITIALIZE).not.toContain("/open-req <title>")
+    expect(PROMPT_INITIALIZE).toContain("talking in this chat")
+    expect(PROMPT_INITIALIZE).toContain("scaffold the req directory")
     expect(PROMPT_INITIALIZE).toContain("The ledger is the audit log")
     expect(PROMPT_INITIALIZE).not.toContain("taking a req from a hiring manager")
     expect(PROMPT_INITIALIZE).not.toContain("${title}")
     expect(PROMPT_INITIALIZE).not.toContain("Git is the audit log")
     expect(PROMPT_INITIALIZE).not.toContain("ask once")
+    expect(PROMPT_INITIALIZE).toContain("write `# <name>` as the COMPANY.md title")
+    expect(PROMPT_INITIALIZE).toContain("type-your-own")
+    expect(PROMPT_INITIALIZE).toContain('never a yes/no "want a working name on the constitution"')
+    expect(PROMPT_INITIALIZE).not.toContain("dossier")
+    expect(PROMPT_INITIALIZE).toContain("website")
+    expect(PROMPT_INITIALIZE).toContain("public profile")
+    expect(PROMPT_INITIALIZE).toContain(ReqWorkspace.INIT_FIRST_QUESTION.question)
+    expect(PROMPT_INITIALIZE).toContain("## About from that (not TBD)")
+    expect(PROMPT_INITIALIZE).toContain("Do not invent a constitution from nothing")
+    expect(ReqWorkspace.INIT_FIRST_QUESTIONS[0]?.question).toMatch(/website|profile/i)
+    expect(ReqWorkspace.INIT_FIRST_QUESTION.custom).toBe(true)
+    expect(PROMPT_RECRUIT).not.toContain("A human runs `moks review`")
+    expect(PROMPT_RECRUIT).not.toContain("Human only: `moks review`")
+    expect(PROMPT_RECRUIT).toMatch(/taste|review pane/)
+    expect(PROMPT_RECRUIT).not.toContain("dossier")
+    expect(PROMPT_RECRUIT).not.toContain("/open-req <title>")
+    expect(PROMPT_RECRUIT).toContain("ask for a role in language")
+    expect(PROMPT_RECRUIT).toContain("scaffold the req directory")
+    expect(PROMPT_RECRUIT).toContain("company constitution")
+    const commandIndex = await Bun.file(path.join(import.meta.dir, "../../src/command/index.ts")).text()
+    expect(commandIndex).toContain('description: "write or update the company constitution (COMPANY.md)"')
+    expect(commandIndex).not.toContain("dossier")
+    expect(commit?.content).not.toContain("A human runs `moks review`")
+    expect(commit?.content).not.toContain("A human then:")
+    expect(commit?.content).not.toContain("moks review <id>")
+    expect(commit?.content).toMatch(/taste|review pane/)
     expect(PROMPT_OPEN_REQ).toContain("HIRING.md")
     expect(PROMPT_OPEN_REQ).toContain("candidates/<id>.md")
     expect(PROMPT_OPEN_REQ).toContain("Do not overwrite non-empty user content")

@@ -28,6 +28,7 @@ import { INTERACTIVE_INPUT_ERROR, resolveInteractiveStdin } from "./run/runtime.
 import { CardWrite } from "@/product/card-write"
 import { CandidateAdd } from "@/product/candidate-add"
 import { HiringSession } from "@/product/hiring-session"
+import { ReqWorkspace } from "@/product/req-workspace"
 
 type ModelInput = Parameters<MoksClient["session"]["prompt"]>[0]["model"]
 
@@ -137,6 +138,7 @@ function isLocalWriteOrScaffold(command?: string, message = "", files: string[] 
     Boolean(CardWrite.parseCompareIntent(command, message)) ||
     Boolean(CardWrite.parseTakeIntent(command, message)) ||
     Boolean(CardWrite.parseNaturalWorkIntent(command, message, agent)) ||
+    Boolean(ReqWorkspace.parseTalkOpenRole(message)) ||
     Boolean(CandidateAdd.parseAddIntent(command, message, files, agent))
   )
 }
@@ -180,7 +182,8 @@ function isHeadlessScaffoldCommand(args: {
       CardWrite.parseWriteIntent(args.command, message) ||
       CardWrite.parseCompareIntent(args.command, message) ||
       CardWrite.parseTakeIntent(args.command, message) ||
-      CardWrite.parseNaturalWorkIntent(args.command, message, args.agent),
+      CardWrite.parseNaturalWorkIntent(args.command, message, args.agent) ||
+      Boolean(ReqWorkspace.parseTalkOpenRole(message)),
   )
 }
 
@@ -204,14 +207,17 @@ async function runHeadlessScaffold(args: {
   format?: string
   ["--"]?: string[]
 }) {
-  const { ReqWorkspace } = await import("@/product/req-workspace")
   const directory = await resolveRunDirectory(args.dir)
   const raw = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
-  const title = ReqWorkspace.parseReqTitle(raw)
+  const grounding = ReqWorkspace.parseCompanyGrounding(raw)
+  const title = grounding?.name || ReqWorkspace.parseReqTitle(raw)
   const result =
     args.command === "open-req"
       ? await ReqWorkspace.scaffoldReq(directory, title || undefined)
-      : await ReqWorkspace.scaffoldCompany(directory)
+      : await ReqWorkspace.scaffoldCompany(directory, args.command === "init" ? title || undefined : undefined)
+  if (args.command === "init" && grounding?.source) {
+    await ReqWorkspace.groundCompanyAbout(directory, grounding)
+  }
   if (args.command === "open-req" && result.relative !== ".") {
     await ReqWorkspace.writeFocus(directory, result.relative)
   }
@@ -226,6 +232,38 @@ async function runHeadlessScaffold(args: {
   UI.println(`${args.command}: ${created}`)
   if (result.skipped.length > 0) UI.println(`skipped ${result.skipped.join(", ")}`)
   if (args.command === "open-req" && result.relative !== ".") UI.println(`focused ${result.relative}`)
+  if (args.command === "init") {
+    const about = await Bun.file(path.join(directory, "COMPANY.md")).text().catch(() => "")
+    if (/^## About\n- TBD$/m.test(about) || /## About\n- TBD/.test(about)) {
+      UI.println(ReqWorkspace.INIT_FIRST_QUESTION.question)
+    }
+  }
+}
+
+async function runHeadlessTalkOpen(args: {
+  command?: string
+  message?: string[]
+  dir?: string
+  json?: boolean
+  format?: string
+  ["--"]?: string[]
+}) {
+  const directory = await resolveRunDirectory(args.dir)
+  const raw = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
+  const role = ReqWorkspace.parseTalkOpenRole(raw)
+  if (!role) {
+    UI.error("not a talk-open role")
+    process.exit(1)
+  }
+  const result = await ReqWorkspace.openTalkReq(directory, role)
+  await HiringSession.refreshSnapshot(directory)
+  if (args.json || args.format === "json") {
+    console.log(JSON.stringify({ command: "talk-open", ...result }, null, 2))
+    return
+  }
+  const created = result.created.length > 0 ? `created ${result.created.join(", ")}` : "already present"
+  UI.println(`opened ${role}: ${created}`)
+  if (result.relative !== ".") UI.println(`focused ${result.relative}`)
 }
 
 async function runHeadlessAddCandidate(args: {
@@ -593,6 +631,10 @@ export const RunCommand = effectCmd({
       }
       if (CardWrite.parseNaturalWorkIntent(args.command, message, args.agent)) {
         yield* Effect.promise(() => runHeadlessRecruitWork(args))
+        return
+      }
+      if (ReqWorkspace.parseTalkOpenRole(message)) {
+        yield* Effect.promise(() => runHeadlessTalkOpen(args))
         return
       }
       if (CardWrite.parseTakeIntent(args.command, message)) {

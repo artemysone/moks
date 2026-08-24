@@ -1,19 +1,27 @@
 Open company intake at `${path}`.
 
-This is the company dossier conversation, not req intake.
+This is the company constitution conversation, not req intake.
 
-`COMPANY.md` at the company root is the company constitution: who the company is, how it hires, the bar, the outreach tone, and the approval policy. The company workspace was already scaffolded before this turn: a `COMPANY.md` stub if it was missing or empty, plus the `.moks/` ledger, so `moks commit` works from the first decision. Do not overwrite non-empty user content. Do not create `candidates/` at the company root. Do not create a req directory here, even if the notes name a role. `/open-req <title>` opens roles.
+`COMPANY.md` at the company root is the company constitution: who the company is, how it hires, the bar, the outreach tone, and the approval policy. The company workspace was already scaffolded before this turn: a `COMPANY.md` stub if it was missing or empty, plus the `.moks/` ledger, so `moks commit` works from the first decision. Do not overwrite non-empty user content. Do not create `candidates/` at the company root. Do not treat a company name as a req. Do not create a req directory from a title-shaped company name.
 
 If this root already has `HIRING.md` + `candidates/`, the folder is a single-req workspace; that `HIRING.md` is both company and req constitution. Continue it in place; do not add a `COMPANY.md` next to it.
 
 The ledger is the audit log (`moks commit`), not git.
 
-User notes (honor these; they are not a finished dossier):
+User notes (honor these; they are not a finished constitution):
 $ARGUMENTS
 
 ## Intake
 
-Talk like a recruiter onboarding a new client company. Write only what they confirmed. Leave the rest TBD. If `COMPANY.md` already has real content, read it first and continue or update the dossier. Never restart it.
+If user notes / $ARGUMENTS name a company, that is the working name: write `# <name>` as the COMPANY.md title immediately.
+
+If you ask for a name, use a free-text question (question tool with custom/type-your-own; never a yes/no "want a working name on the constitution"). Take the typed answer and write `# <name>` in COMPANY.md in the same turn.
+
+The first question is free-text (question tool, custom/type-your-own): "What's a website, LinkedIn, careers page, or short public profile we can ground About from?" Take the typed name too. When they give a URL or profile, write COMPANY.md ## About from that (not TBD). Do not invent a constitution from nothing.
+
+Do not stop after the name. Continue about / how we hire / bar / tone.
+
+Talk like a recruiter onboarding a new client company. Write only what they confirmed. Leave the rest TBD. If `COMPANY.md` already has real content, read it first and continue or update the constitution. Never restart it.
 
 After each answer, update `COMPANY.md`, then use the question tool for the next 2–4 gaps. Keep going until about, how we hire, bar, and tone are real. Do not stop after the company name.
 
@@ -24,4 +32,4 @@ Ask about, in roughly this order:
 - Tone: outreach voice, what never to say (comp, buzzwords)
 - Policy: which decisions the agent may auto-approve and which always need a human
 
-When they are ready to open a role, point them at `/open-req <title>`. Do not create the req from here.
+When they want a role in language, open it: scaffold the req directory + HIRING.md and focus it. They open a role by talking in this chat. Do not assign `/open-req` homework.

@@ -1787,7 +1787,7 @@ it.instance(
 )
 
 it.instance(
-  "/init in an empty folder writes the company dossier only, even with a title argument",
+  "/init in an empty folder writes the company constitution only, even with a title argument",
   () =>
     Effect.gen(function* () {
       const { dir, llm } = yield* useServerConfig(providerCfg)
@@ -1800,7 +1800,10 @@ it.instance(
         arguments: "Senior Backend",
       })
 
-      expect(yield* Effect.promise(() => Bun.file(path.join(dir, "COMPANY.md")).text())).toBe(ReqWorkspace.COMPANY_STUB)
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, "COMPANY.md")).text())).toBe(
+        ReqWorkspace.companyStub("Senior Backend"),
+      )
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, "COMPANY.md")).text())).toContain("# Senior Backend")
       expect(yield* Effect.promise(() => Bun.file(path.join(dir, "HIRING.md")).exists())).toBe(false)
       expect(yield* Effect.promise(() => Bun.file(path.join(dir, ".moks", "ledger.sqlite")).exists())).toBe(true)
       expect(yield* Effect.promise(() => Bun.file(path.join(dir, ".moks", "vault.key")).exists())).toBe(true)
@@ -1808,20 +1811,22 @@ it.instance(
       expect(yield* Effect.promise(() => Bun.file(path.join(dir, "candidates", ".gitkeep")).exists())).toBe(false)
       expect(yield* Effect.promise(() => ReqWorkspace.listReqs(dir))).toEqual([])
 
-      const inputs = yield* llm.inputs
-      expect(JSON.stringify(inputs.at(-1)?.messages)).toContain("company dossier")
+      const session = yield* Session.Service
+      const stored = JSON.stringify(yield* session.messages({ sessionID: chat.id }))
+      expect(stored).toContain("company constitution")
+      expect(stored).not.toContain("dossier")
     }),
   30_000,
 )
 
 it.instance(
-  "/init on an inited company continues the dossier and does not spawn a req",
+  "/init on an inited company continues the constitution and does not spawn a req",
   () =>
     Effect.gen(function* () {
       const { dir, llm } = yield* useServerConfig(providerCfg)
       const { prompt, chat } = yield* boot()
-      const dossier = path.join(dir, "COMPANY.md")
-      yield* Effect.promise(() => Bun.write(dossier, "# Northline Analytics\n\n## About\n- analytics platform\n"))
+      const constitution = path.join(dir, "COMPANY.md")
+      yield* Effect.promise(() => Bun.write(constitution, "# Northline Analytics\n\n## About\n- analytics platform\n"))
       yield* llm.text("done")
 
       yield* prompt.command({
@@ -1830,7 +1835,7 @@ it.instance(
         arguments: "Staff Platform",
       })
 
-      expect(yield* Effect.promise(() => Bun.file(dossier).text())).toBe(
+      expect(yield* Effect.promise(() => Bun.file(constitution).text())).toBe(
         "# Northline Analytics\n\n## About\n- analytics platform\n",
       )
       expect(yield* Effect.promise(() => Bun.file(path.join(dir, ".moks", "ledger.sqlite")).exists())).toBe(true)
@@ -1862,12 +1867,38 @@ it.instance(
       ).toBe(true)
       expect(yield* Effect.promise(() => ReqWorkspace.readFocus(dir))).toBe("senior-backend")
 
-      const inputs = yield* llm.inputs
-      const messages = JSON.stringify(inputs.at(-1)?.messages)
+      const session = yield* Session.Service
+      const messages = JSON.stringify(yield* session.messages({ sessionID: chat.id }))
       expect(messages).toContain("req intake")
       expect(messages).toContain("Senior Backend")
       expect(messages).toContain("senior-backend")
       expect(messages).not.toContain("${title}")
+    }),
+  30_000,
+)
+
+it.instance(
+  "talk-shaped open a Staff Platform role scaffolds the req subdirectory",
+  () =>
+    Effect.gen(function* () {
+      const { dir, llm } = yield* useServerConfig(providerCfg)
+      const { prompt, chat } = yield* boot()
+      yield* llm.text("done")
+
+      yield* prompt.prompt({
+        sessionID: chat.id,
+        agent: "recruit",
+        parts: [{ type: "text", text: "open a Staff Platform role" }],
+      })
+
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, "staff-platform", "HIRING.md")).exists())).toBe(true)
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, "staff-platform", "HIRING.md")).text())).toBe(
+        ReqWorkspace.stubFor("Staff Platform"),
+      )
+      expect(
+        yield* Effect.promise(() => Bun.file(path.join(dir, "staff-platform", "candidates", ".gitkeep")).exists()),
+      ).toBe(true)
+      expect(yield* Effect.promise(() => ReqWorkspace.readFocus(dir))).toBe("staff-platform")
     }),
   30_000,
 )

@@ -119,6 +119,9 @@ export function defaultAuthor() {
   return process.env.USER ?? process.env.LOGNAME ?? "human"
 }
 
+/** What the human/agent sees after staging. Taste, not a CLI cheat sheet. */
+export const COMMIT_TASTE_NEXT = "Taste this on the review pane."
+
 export async function pull(input: { cwd?: string } = {}) {
   await requireOpenedHiringDir(input.cwd)
   return withLedger(input.cwd, async (handle) => {
@@ -192,7 +195,7 @@ async function commitWithHandle(handle: LedgerHandle, input: CommitInput) {
   await projectCard(handle, input, changeset.changes)
   const adverse = changeset.changes.some((change) => isAdverseMutation(change.mutation, change.payload))
   await HiringSession.refreshSnapshot(handle.company)
-  return { changeset, path: handle.company, adverse }
+  return { changeset, path: handle.company, adverse, next: COMMIT_TASTE_NEXT }
 }
 
 const TERMINAL_STAGES = new Set(["Hired", "Rejected", "Withdrawn"])
