@@ -95,7 +95,7 @@ export function retryable(error: Err, provider: string) {
           provider,
           title: "Free limit reached",
           message:
-            "This provider's free tier is exhausted. Connect another provider (/connect) or use your own API keys.",
+            "This provider's free tier is exhausted. Connect another provider (/providers) or use your own API keys.",
           label: "dismiss",
         },
       }

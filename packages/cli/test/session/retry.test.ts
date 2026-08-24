@@ -317,7 +317,7 @@ describe("session.retry.retryable", () => {
         reason: "free_tier_limit",
         provider: "opencode",
         title: "Free limit reached",
-        message: "This provider's free tier is exhausted. Connect another provider (/connect) or use your own API keys.",
+        message: "This provider's free tier is exhausted. Connect another provider (/providers) or use your own API keys.",
         label: "dismiss",
       },
     })

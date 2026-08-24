@@ -66,7 +66,8 @@ Inherited harness. Still useful.
 | `/variants` | App | Model variant |
 | `/agents` | App | Switch agent (recruit, plan, …) |
 | `/mcps` | App | Toggle MCP servers |
-| `/connect` | App | Add a provider |
+| `/connect` | App | Connect a hiring tool (Ashby, Greenhouse, …) |
+| `/providers` | App | Add an LLM provider |
 | `/org` | App | Switch org (only if more than one). Aliases: `/orgs`, `/switch-org` |
 | `/move` | Prompt | Move session to another project dir |
 | `/warp` | Prompt | Change workspace (experimental, hidden unless flag) |

@@ -42,6 +42,7 @@ import { PermissionProvider } from "./context/permission"
 import { DialogModel } from "./component/dialog-model"
 import { useConnected } from "./component/use-connected"
 import { DialogMcp } from "./component/dialog-mcp"
+import { DialogConnect } from "./component/dialog-connect"
 import { DialogStatus } from "./component/dialog-status"
 import { DialogDebug } from "./component/dialog-debug"
 import { DialogThemeList } from "./component/dialog-theme-list"
@@ -121,6 +122,7 @@ const appBindingCommands = [
   "variant.cycle",
   "variant.list",
   "provider.connect",
+  "connector.connect",
   "decision.list",
   "decision.review",
   "moks.system",
@@ -751,10 +753,19 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         },
       },
       {
+        name: "connector.connect",
+        title: "Connect tool",
+        slashName: "connect",
+        run: () => {
+          dialog.replace(() => <DialogConnect />)
+        },
+        category: "MCP",
+      },
+      {
         name: "provider.connect",
         title: "Connect provider",
         suggested: !connected(),
-        slashName: "connect",
+        slashName: "providers",
         run: () => {
           dialog.replace(() => <DialogProviderList />)
         },

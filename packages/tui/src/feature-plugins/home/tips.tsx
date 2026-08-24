@@ -5,6 +5,7 @@ import { createMemo, createResource, Show } from "solid-js"
 import { Tips } from "./tips-view"
 import { useTuiPaths } from "../../context/runtime"
 import { useBindings } from "../../keymap"
+import { hasCatalogConnector } from "./connect-pills"
 
 const id = "internal:home-tips"
 
@@ -12,9 +13,8 @@ function View(props: {
   api: TuiPluginApi
   hidden: boolean
   show: boolean
-  connected: boolean
   company?: boolean
-  sessionNext?: string
+  connectors?: boolean
 }) {
   useBindings(() => ({
     commands: [
@@ -35,10 +35,15 @@ function View(props: {
   return (
     <box width="100%" maxWidth={75} alignItems="center" paddingTop={3} flexShrink={1} gap={1}>
       <Show when={props.show}>
-        <Tips api={props.api} connected={props.connected} company={props.company} sessionNext={props.sessionNext} />
+        <Tips company={props.company} connectors={props.connectors} />
       </Show>
     </box>
   )
+}
+
+async function hasCompany(directory: string) {
+  if (await Bun.file(path.join(directory, "COMPANY.md")).exists()) return true
+  return Bun.file(path.join(directory, "HIRING.md")).exists()
 }
 
 const tui: TuiPlugin = async (api) => {
@@ -48,32 +53,28 @@ const tui: TuiPlugin = async (api) => {
       home_bottom() {
         const paths = useTuiPaths()
         const hidden = createMemo(() => api.kv.get("tips_hidden", false))
-        const first = createMemo(() => api.state.session.count() === 0)
-        const connected = createMemo(() => api.state.provider.length > 0)
         const [company] = createResource(async () => {
           const directory = api.state.path.directory || paths.cwd
-          return Bun.file(path.join(directory, "HIRING.md")).exists()
+          return hasCompany(directory)
         })
-        const [session] = createResource(async () => {
-          const directory = api.state.path.directory || paths.cwd
-          const raw = await Bun.file(path.join(directory, ".moks", "session.json"))
-            .text()
-            .catch(() => "")
-          if (!raw.trim()) return
-          try {
-            const parsed = JSON.parse(raw) as { focused?: string | null; next?: string }
-            if (!parsed.focused || !parsed.next) return
-            return parsed
-          } catch {
-            return
-          }
+        const connectors = createMemo(() => {
+          const mcp = Object.fromEntries(api.state.mcp().map((item) => [item.name, item]))
+          return hasCatalogConnector(mcp)
         })
         const show = createMemo(() => {
           if (company() === false) return true
-          if (session()?.next) return true
-          return (!first() || !connected()) && !hidden()
+          if (!connectors()) return true
+          return !hidden()
         })
-        return <View api={api} hidden={hidden()} show={show()} connected={connected()} company={company()} sessionNext={session()?.next} />
+        return (
+          <View
+            api={api}
+            hidden={hidden()}
+            show={show()}
+            company={company()}
+            connectors={connectors()}
+          />
+        )
       },
     },
   })

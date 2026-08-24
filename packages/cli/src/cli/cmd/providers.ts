@@ -454,7 +454,7 @@ export const ProvidersLoginCommand = effectCmd({
     if (provider === "amazon-bedrock") {
       yield* Prompt.log.info(
         "Amazon Bedrock authentication priority:\n" +
-          "  1. Bearer token (AWS_BEARER_TOKEN_BEDROCK or /connect)\n" +
+          "  1. Bearer token (AWS_BEARER_TOKEN_BEDROCK or /providers)\n" +
           "  2. AWS credential chain (profile, access keys, IAM roles, EKS IRSA)\n\n" +
           "Configure via moks.json options (profile, region, endpoint) or\n" +
           "AWS environment variables (AWS_PROFILE, AWS_REGION, AWS_ACCESS_KEY_ID, AWS_WEB_IDENTITY_TOKEN_FILE).",
