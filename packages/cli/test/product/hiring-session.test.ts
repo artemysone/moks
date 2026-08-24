@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import path from "path"
 import { CandidateCard } from "../../src/product/candidate-card"
 import { DecisionVerbs } from "../../src/decision/verbs"
+import { CandidateAdd } from "../../src/product/candidate-add"
 import { CardWrite } from "../../src/product/card-write"
 import { HiringSession } from "../../src/product/hiring-session"
 import { ReqWorkspace } from "../../src/product/req-workspace"
@@ -333,4 +334,33 @@ test("company-root status names the req: staged A, stale B", async () => {
   const dumped = JSON.stringify(after)
   expect(dumped).not.toContain("SECRET-SIBLING")
   expect(dumped).not.toContain(sibling)
+})
+
+test("pile/score writes the card file and status tree shows it before review", async () => {
+  await using company = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "COMPANY.md"), "# Acme\n")
+      await Bun.write(path.join(dir, "staff-platform", "HIRING.md"), "# Staff Platform\n")
+      await Bun.write(path.join(dir, "staff-platform", "candidates", ".gitkeep"), "")
+    },
+  })
+  await ReqWorkspace.writeFocus(company.path, "staff-platform")
+  const piled = await CandidateAdd.addPile(company.path, { names: ["Maya Chen"], files: [] })
+  expect(piled[0]?.id).toBe("maya-chen")
+  expect(await Bun.file(path.join(company.path, "staff-platform", "candidates", "maya-chen.md")).exists()).toBe(true)
+
+  const afterPile = await HiringSession.loadSnapshot(company.path)
+  expect(afterPile.cards.some((card) => card.id === "maya-chen")).toBe(true)
+  expect(afterPile.cards.find((card) => card.id === "maya-chen")?.file).toBe("candidates/maya-chen.md")
+  const piledText = HiringSession.formatSnapshot(afterPile).join("\n")
+  expect(piledText).toContain("candidates/")
+  expect(piledText).toContain("maya-chen.md")
+  expect(piledText).not.toMatch(/^review /m)
+
+  const scored = await CardWrite.writeOnCard(company.path, { kind: "score", hint: "maya-chen" })
+  expect(await Bun.file(scored.file).exists()).toBe(true)
+  const afterScore = await DecisionVerbs.status({ cwd: company.path })
+  const scoredText = HiringSession.formatSnapshot(afterScore.session).join("\n")
+  expect(scoredText).toContain("maya-chen.md")
+  expect(afterScore.session.cards.find((card) => card.id === "maya-chen")?.score).toBeDefined()
 })
