@@ -169,10 +169,10 @@ export async function commit(input: CommitInput) {
 }
 
 async function commitWithHandle(handle: LedgerHandle, input: CommitInput) {
-  const local = await writeAdvanceOnExistingCard(handle, input)
   try {
     await CandidateAdd.adoptLocalCards(handle)
   } catch (error) {
+    const local = await writeAdvanceOnExistingCard(handle, input)
     if (local && isCardOnlyBlocker(error)) return localAdvanceResult(handle, input, local)
     throw error
   }
@@ -206,6 +206,7 @@ async function commitWithHandle(handle: LedgerHandle, input: CommitInput) {
     await HiringSession.refreshSnapshot(handle.company)
     return { changeset, path: handle.company, adverse, next: COMMIT_TASTE_NEXT }
   } catch (error) {
+    const local = await writeAdvanceOnExistingCard(handle, input)
     if (local && isCardOnlyBlocker(error)) return localAdvanceResult(handle, input, local)
     throw error
   }
@@ -792,16 +793,13 @@ async function projectCard(
   await CandidateCard.write(dir, next)
 }
 
-// Folder is the truth: AdvanceStage writes the card immediately.
-// Missing ATS id is not a blocker.
+// AdvanceStage stays on the changeset until apply/push. Card + status
+// keep the applied/mirror stage so review can show the bless hop without
+// rewriting the file. Card-only move (no ledger hop) writes via writeAdvanceOnExistingCard.
 function stageFromChanges(changes: Array<{ mutation: string; payload: unknown }>) {
   for (const change of changes) {
     if (change.mutation === "Reject") return "Rejected"
     if (change.mutation === "Withdraw") return "Withdrawn"
-    if (change.mutation === "AdvanceStage") {
-      const to = (change.payload as { to?: unknown } | undefined)?.to
-      if (typeof to === "string" && to.trim()) return CardWrite.normalizeStage(to)
-    }
   }
 }
 
@@ -825,7 +823,7 @@ async function writeAdvanceOnExistingCard(handle: LedgerHandle, input: CommitInp
   const hasApp = handle.api.listApplications(handle.db).some(
     (row) => row.candidateId === card.id || row.id === who || row.candidateId === who,
   )
-  if (hasApp) return
+  if (hasApp && !parsed) return
   const stage = CardWrite.normalizeStage(to)
   if (card.stage === stage) return { id: card.id, stage, card }
   await CandidateCard.write(dir, { ...card, stage })

@@ -120,7 +120,7 @@ test("review --approve still applies", async () => {
   expect(shown.changeset.status).toBe("approved")
 })
 
-test("review shows AdvanceStage hop after rewriting the card", async () => {
+test("review shows AdvanceStage hop without rewriting the card", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {
       await Bun.write(
@@ -143,19 +143,19 @@ test("review shows AdvanceStage hop after rewriting the card", async () => {
     reason: "HIRING next",
     cwd: tmp.path,
   })
-  expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Screen" })
+  expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
   const shown = await DecisionVerbs.inspectReview({ id: committed.changeset.id, cwd: tmp.path })
   expect(shown.changeset.changes[0]?.mutation).toBe("AdvanceStage")
   expect(shown.changeset.changes[0]?.payload).toEqual(expect.objectContaining({ to: "Screen" }))
-  expect(shown.cards[0]).toMatchObject({ id: "cand_priya", stage: "Screen" })
+  expect(shown.cards[0]).toMatchObject({ id: "cand_priya", stage: "Sourced" })
 
   const cli = await moks(["review", committed.changeset.id], tmp.path)
   expect(cli.code).toBe(0)
   expect(cli.combined).toContain("AdvanceStage")
   expect(cli.combined).toContain("to Screen")
-  expect(cli.combined).toContain("stage=Screen")
+  expect(cli.combined).toContain("stage=Sourced")
   expect(cli.combined).toContain("approve will bless")
-  expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Screen" })
+  expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
 })
 
 test("review --reject without --reason fails loud", async () => {

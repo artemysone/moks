@@ -199,7 +199,7 @@ test("Reviewer path: add-candidate then HIRING Screen hop push apply", async () 
     reason: "HIRING next",
     cwd: tmp.path,
   })
-  expect(await CandidateCard.read(tmp.path, "kenji-okada")).toMatchObject({ stage: "Screen" })
+  expect(await CandidateCard.read(tmp.path, "kenji-okada")).toMatchObject({ stage: "Sourced" })
   if (committed.changeset.status === "staged") {
     await DecisionVerbs.review({
       id: committed.changeset.id,
@@ -208,7 +208,7 @@ test("Reviewer path: add-candidate then HIRING Screen hop push apply", async () 
       cwd: tmp.path,
     })
   }
-  expect(await CandidateCard.read(tmp.path, "kenji-okada")).toMatchObject({ stage: "Screen" })
+  expect(await CandidateCard.read(tmp.path, "kenji-okada")).toMatchObject({ stage: "Sourced" })
   const pushed = await DecisionVerbs.push({
     id: committed.changeset.id,
     cwd: tmp.path,

@@ -609,14 +609,14 @@ test("push dry-run with staged and zero approved names review first", async () =
       cwd: tmp.path,
     })
     expect(committed.changeset.changes[0].payload).toEqual(expect.objectContaining({ to: "Screen" }))
-    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Screen" })
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
     const stagedStatus = await DecisionVerbs.status({ cwd: tmp.path })
     expect(stagedStatus.report.pipeline.Sourced).toBe(1)
     expect(stagedStatus.report.pipeline.Screen).toBe(before.report.pipeline.Screen)
 
     const inspected = await DecisionVerbs.inspectReview({ cwd: tmp.path, id: committed.changeset.id })
     expect(inspected.changeset.changes[0].payload).toEqual(expect.objectContaining({ to: "Screen" }))
-    expect(inspected.cards[0]).toMatchObject({ id: "cand_priya", stage: "Screen" })
+    expect(inspected.cards[0]).toMatchObject({ id: "cand_priya", stage: "Sourced" })
 
     if (committed.changeset.status === "staged") {
       await DecisionVerbs.review({
@@ -626,7 +626,7 @@ test("push dry-run with staged and zero approved names review first", async () =
         cwd: tmp.path,
       })
     }
-    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Screen" })
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
 
   })
 
@@ -642,7 +642,7 @@ test("push dry-run with staged and zero approved names review first", async () =
       reason: "next hop",
       cwd: tmp.path,
     })
-    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Contacted" })
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
     const stagedStatus = await DecisionVerbs.status({ cwd: tmp.path })
     expect(stagedStatus.report.pipeline.Sourced).toBe(1)
     if (committed.changeset.status === "staged") {
@@ -653,7 +653,7 @@ test("push dry-run with staged and zero approved names review first", async () =
         cwd: tmp.path,
       })
     }
-    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Contacted" })
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
     const pushed = await DecisionVerbs.push({
       id: committed.changeset.id,
       cwd: tmp.path,
@@ -690,7 +690,7 @@ test("push dry-run with staged and zero approved names review first", async () =
       : { changeset: committed.changeset }
     expect(approved.changeset.status).toBe("approved")
     expect(mockAppStage(tmp.path)).toBe("Sourced")
-    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Contacted" })
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
     const afterTaste = await DecisionVerbs.status({ cwd: tmp.path })
     expect(afterTaste.report.changesets.applied).toBe(0)
     expect(afterTaste.report.changesets.approved).toBe(1)
@@ -840,7 +840,7 @@ test("push dry-run with staged and zero approved names review first", async () =
         cwd: tmp.path,
       })
     }
-    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Screen" })
+    expect(await CandidateCard.read(tmp.path, "cand_priya")).toMatchObject({ stage: "Sourced" })
 
     const pushed = await DecisionVerbs.push({
       id: committed.changeset.id,
