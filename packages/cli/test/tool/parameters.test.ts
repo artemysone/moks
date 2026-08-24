@@ -195,6 +195,20 @@ describe("tool parameters", () => {
       })
       expect(parsed.questions.length).toBe(1)
     })
+    test("accepts empty options for a typed string", () => {
+      const parsed = parse(Question, {
+        questions: [
+          {
+            question: "What band?",
+            header: "Band",
+            options: [],
+            custom: true,
+          },
+        ],
+      })
+      expect(parsed.questions[0]?.options).toEqual([])
+      expect(parsed.questions[0]?.custom).toBe(true)
+    })
     test("rejects missing questions", () => {
       expect(accepts(Question, {})).toBe(false)
     })

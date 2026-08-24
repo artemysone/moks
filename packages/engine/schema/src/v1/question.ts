@@ -20,14 +20,17 @@ export const Option = Schema.Struct({
 const base = {
   question: Schema.String.annotate({ description: "Complete question" }),
   header: Schema.String.annotate({ description: "Very short label (max 30 chars)" }),
-  options: Schema.Array(Option).annotate({ description: "Available choices" }),
+  options: Schema.Array(Option).annotate({
+    description: "Available choices. Empty when the answer is a typed string (name, band, URL).",
+  }),
   multiple: Schema.optional(Schema.Boolean).annotate({ description: "Allow selecting multiple choices" }),
+  custom: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "Allow typing a custom answer (default: true). For a typed string, leave options empty so the user submits it in the question UI.",
+  }),
 }
 
-export const Info = Schema.Struct({
-  ...base,
-  custom: Schema.optional(Schema.Boolean).annotate({ description: "Allow typing a custom answer (default: true)" }),
-}).annotate({ identifier: "QuestionInfo" })
+export const Info = Schema.Struct(base).annotate({ identifier: "QuestionInfo" })
 export const Prompt = Schema.Struct(base).annotate({ identifier: "QuestionPrompt" })
 export const Tool = Schema.Struct({ messageID: SessionV1.MessageID, callID: Schema.String }).annotate({
   identifier: "QuestionTool",

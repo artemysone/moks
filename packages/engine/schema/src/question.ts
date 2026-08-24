@@ -28,16 +28,17 @@ export interface Option extends Schema.Schema.Type<typeof Option> {}
 const base = {
   question: Schema.String.annotate({ description: "Complete question" }),
   header: Schema.String.annotate({ description: "Very short label (max 30 chars)" }),
-  options: Schema.Array(Option).annotate({ description: "Available choices" }),
+  options: Schema.Array(Option).annotate({
+    description: "Available choices. Empty when the answer is a typed string (name, band, URL).",
+  }),
   multiple: Schema.Boolean.pipe(optional).annotate({ description: "Allow selecting multiple choices" }),
+  custom: Schema.Boolean.pipe(optional).annotate({
+    description:
+      "Allow typing a custom answer (default: true). For a typed string, leave options empty so the user submits it in the question UI.",
+  }),
 }
 
-export const Info = Schema.Struct({
-  ...base,
-  custom: Schema.Boolean.pipe(optional).annotate({
-    description: "Allow typing a custom answer (default: true)",
-  }),
-}).annotate({ identifier: "QuestionV2.Info" })
+export const Info = Schema.Struct(base).annotate({ identifier: "QuestionV2.Info" })
 export interface Info extends Schema.Schema.Type<typeof Info> {}
 
 export const Prompt = Schema.Struct(base).annotate({ identifier: "QuestionV2.Prompt" })
