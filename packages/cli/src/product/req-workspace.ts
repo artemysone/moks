@@ -39,7 +39,7 @@ export const COMPANY_STUB = `# Company
 
 ## How we hire
 - Stages: TBD
-- Reqs live in subdirectories. Each req has HIRING.md + candidates/. Open one with /open-req.
+- Reqs live in subdirectories. Each req has HIRING.md + candidates/. Open one by talking about the role in this chat.
 
 ## Bar
 - TBD
@@ -273,6 +273,27 @@ export function parseReqTitle(raw: string) {
     }
   }
   return first
+}
+
+/** Talk-shaped open: "open a Staff Platform role" — not a slash command. */
+export function parseTalkOpenRole(raw: string) {
+  const text = raw.trim()
+  if (!text) return
+  const patterns = [
+    /\bopen\s+(?:a|an|the)\s+(.+?)\s+role\b/i,
+    /\bopen\s+(?:a|an|the)\s+(?:role|req)\s+(?:for|named|:)\s+(.+)$/i,
+  ]
+  for (const re of patterns) {
+    const match = text.match(re)
+    const title = match?.[1] ? parseReqTitle(match[1]) : ""
+    if (title && slugify(title)) return title
+  }
+}
+
+export async function openTalkReq(cwd: string, title: string) {
+  const result = await scaffoldReq(cwd, title)
+  if (result.relative !== ".") await writeFocus(cwd, result.relative)
+  return result
 }
 
 export function stubFor(title?: string) {

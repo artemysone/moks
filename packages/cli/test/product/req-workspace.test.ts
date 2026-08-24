@@ -22,6 +22,26 @@ test("parseReqTitle strips wrapping quotes used by headless run --command", () =
   expect(ReqWorkspace.stubFor(ReqWorkspace.parseReqTitle('"Founding Engineer"'))).not.toContain('# "Founding Engineer"')
 })
 
+test("parseTalkOpenRole reads a talk-shaped role, not a company name", () => {
+  expect(ReqWorkspace.parseTalkOpenRole("open a Staff Platform role")).toBe("Staff Platform")
+  expect(ReqWorkspace.parseTalkOpenRole("open a Senior Backend role")).toBe("Senior Backend")
+  expect(ReqWorkspace.parseTalkOpenRole("open the req for Founding Engineer")).toBe("Founding Engineer")
+  expect(ReqWorkspace.parseTalkOpenRole("Senior Backend")).toBeUndefined()
+  expect(ReqWorkspace.parseTalkOpenRole("Northline Analytics")).toBeUndefined()
+})
+
+test("openTalkReq scaffolds the req subdirectory from talk", async () => {
+  await using tmp = await tmpdir()
+  await ReqWorkspace.scaffoldCompany(tmp.path, "Northline Analytics")
+  const result = await ReqWorkspace.openTalkReq(tmp.path, "Staff Platform")
+  expect(result.relative).toBe("staff-platform")
+  expect(await Bun.file(path.join(tmp.path, "staff-platform", "HIRING.md")).text()).toBe(
+    ReqWorkspace.stubFor("Staff Platform"),
+  )
+  expect(await Bun.file(path.join(tmp.path, "staff-platform", "candidates", ".gitkeep")).exists()).toBe(true)
+  expect(await ReqWorkspace.readFocus(tmp.path)).toBe("staff-platform")
+})
+
 test("scaffoldCompany stands up the full company workspace in empty cwd", async () => {
   await using tmp = await tmpdir()
   const result = await ReqWorkspace.scaffoldCompany(tmp.path)

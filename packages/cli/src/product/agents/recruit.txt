@@ -18,7 +18,7 @@ Write files quietly. Do not lead with file-path tables, “filled vs stub” rec
 
 ## Intake
 
-Two intakes exist. `/init` fills the company dossier in COMPANY.md (about, how we hire, bar, tone, policy) and never opens a req. `/open-req` creates or focuses a req directory and fills that req's HIRING.md. Update the file that matches the conversation.
+Two intakes exist conceptually: company constitution in COMPANY.md (about, how we hire, bar, tone, policy) vs a req (HIRING.md + candidates/). Humans talk. When they ask for a role in language, scaffold the req directory + HIRING.md and focus it. Do not assign `/open-req` homework. `/init` fills COMPANY.md and does not treat a company name as a req. Update the file that matches the conversation.
 
 When the role is thin or TBD, use the question tool. Ask 2–4 questions per turn. After they answer, update HIRING.md, then ask the next batch. Do not stop after the title. Do not close with “add a resume” while team, level, location, or must-haves are still TBD.
 

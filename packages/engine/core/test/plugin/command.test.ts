@@ -34,11 +34,11 @@ describe("CommandPlugin.Plugin", () => {
 
       expect(yield* command.get("init")).toMatchObject({
         name: "init",
-        description: "write or update the company dossier (COMPANY.md)",
+        description: "write or update the company constitution (COMPANY.md)",
       })
       expect((yield* command.get("init"))?.template).toContain("`/repo/packages/app`")
       expect((yield* command.get("init"))?.template).toContain("HIRING.md")
-      expect((yield* command.get("init"))?.template).toContain("company dossier")
+      expect((yield* command.get("init"))?.template).toContain("company constitution")
       expect((yield* command.get("init"))?.template).not.toContain("taking a req from a hiring manager")
       expect(yield* command.get("open-req")).toMatchObject({
         name: "open-req",

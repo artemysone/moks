@@ -1055,6 +1055,15 @@ const layer = Layer.effect(
     )(function* (input: PromptInput) {
       const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
       yield* revert.cleanup(session)
+      const talk = input.parts
+        .filter((part): part is Extract<PromptInput["parts"][number], { type: "text" }> => part.type === "text")
+        .map((part) => part.text)
+        .join("\n")
+      const role = ReqWorkspace.parseTalkOpenRole(talk)
+      if (role) {
+        const ctx = yield* InstanceState.context
+        yield* Effect.promise(() => ReqWorkspace.openTalkReq(ctx.directory, role))
+      }
       const message = yield* createUserMessage(input)
       yield* sessions.touch(input.sessionID)
 
