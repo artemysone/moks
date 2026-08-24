@@ -69,7 +69,7 @@ function parse(tip: string): TipPart[] {
 const EMPTY_COMPANY_TIP = "This folder is the company. {highlight}/init{/highlight} to start."
 const EMPTY_COMPANY_PARTS = parse(EMPTY_COMPANY_TIP)
 const NO_MODELS_TIP =
-  "Run {highlight}/connect{/highlight} to add an AI provider and start hiring — open a role in this chat"
+  "Connect pills power the day — none required. Open a role in this chat"
 const NO_MODELS_PARTS = parse(NO_MODELS_TIP)
 
 function shortcutText(value: string) {
@@ -168,7 +168,7 @@ export function Tips(props: { api: TuiPluginApi; connected?: boolean; company?: 
 const TIPS: Tip[] = [
   // Hero hiring loop
   "This folder is the company — talk to recruit here, not a verb menu",
-  "Drop a pile in language (names or files). Then {highlight}get Maya ready{/highlight}. Taste with {highlight}/review{/highlight}",
+  "Drop a pile in language (names or files). Then talk the slate, taste, or commit — not score",
   "Use {highlight}/review{/highlight} to slide the staged taste queue — bless or reject, never push from there",
   "Ask for the {highlight}req-context{/highlight} skill to load {highlight}HIRING.md{/highlight}",
   "Switch to {highlight}Plan{/highlight} agent to draft a hiring strategy before recruit executes",
@@ -180,7 +180,7 @@ const TIPS: Tip[] = [
   "Use {highlight}/skills{/highlight} if you want them — recruit language on the landing is enough for the stretch",
   // Small harness set
   (shortcuts) => `Use ${commandText("/models", shortcuts.modelList())} to switch between available AI models`,
-  "Run {highlight}/connect{/highlight} to add API keys for LLM providers",
+  "Run {highlight}/connect{/highlight} to add Ashby, Greenhouse, Juicebox, Metaview, Google, or Outlook — optional",
   (shortcuts) => press(shortcuts.sessionSidebarToggle(), "in a session to show or hide the sidebar panel"),
   (shortcuts) => press(shortcuts.commandList(), "to see all available actions and commands"),
   (shortcuts) => `Use ${commandText("/system", shortcuts.statusView())} to see MCP servers`,

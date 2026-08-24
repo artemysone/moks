@@ -33,7 +33,7 @@ function View(props: {
   }))
 
   return (
-    <box width="100%" maxWidth={75} alignItems="center" paddingTop={3} flexShrink={1}>
+    <box width="100%" maxWidth={75} alignItems="center" paddingTop={3} flexShrink={1} gap={1}>
       <Show when={props.show}>
         <Tips api={props.api} connected={props.connected} company={props.company} sessionNext={props.sessionNext} />
       </Show>

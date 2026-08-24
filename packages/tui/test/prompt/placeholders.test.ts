@@ -5,10 +5,11 @@ const SLASH_HOMEWORK = /\/[a-z]/i
 
 describe("prompt placeholders", () => {
   test("defaults to recruit language, not a verb menu", () => {
-    expect(DEFAULT_PLACEHOLDERS.normal).toEqual(["add names or files", "get this candidate ready", "taste what's staged"])
+    expect(DEFAULT_PLACEHOLDERS.normal).toEqual(["add names or files", "talk this candidate", "taste what's staged"])
     expect(DEFAULT_PLACEHOLDERS.shell).toEqual(["ls candidates", "pwd"])
     for (const text of [...DEFAULT_PLACEHOLDERS.normal, ...DEFAULT_PLACEHOLDERS.shell]) {
       expect(text).not.toMatch(SLASH_HOMEWORK)
+      expect(text).not.toMatch(/score-candidate|score leftover|get (?:this candidate|Maya) ready/i)
     }
   })
 
@@ -29,7 +30,7 @@ describe("prompt placeholders", () => {
     expect(placeholdersFor({ focused: "staff-platform", next: "review leftover cards", cards: 0 })).toEqual([
       "review leftover cards",
     ])
-    expect(placeholdersFor({ focused: "staff-platform", next: "score leftover on staff-platform" })[0]).not.toMatch(
+    expect(placeholdersFor({ focused: "staff-platform", next: "talk leftover on staff-platform" })[0]).not.toMatch(
       SLASH_HOMEWORK,
     )
   })
