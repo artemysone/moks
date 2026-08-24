@@ -64,6 +64,32 @@ describe("decision/verbs", () => {
     expect(DecisionVerbs.isAdverseMutation("AdvanceStage", { to: "Screen" })).toBe(false)
   })
 
+
+  test("move to screen writes a card-only folder without ATS id", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
+        await CandidateCard.write(dir, {
+          id: "jordan",
+          stage: "Sourced",
+          extra: { name: "Jordan" },
+          body: "# Jordan\n",
+        })
+      },
+    })
+    const result = await DecisionVerbs.commit({
+      action: "move Jordan to technical screen",
+      reason: "ready for screen",
+      cwd: tmp.path,
+    })
+    expect(result.changeset.changes[0]).toEqual(
+      expect.objectContaining({ mutation: "AdvanceStage", payload: expect.objectContaining({ to: "Screen" }) }),
+    )
+    const card = await CandidateCard.read(tmp.path, "jordan")
+    expect(card).toMatchObject({ stage: "Screen" })
+    expect(card?.ats_id).toBeUndefined()
+  })
+
   test("commit stages a changeset after pull", async () => {
     await using tmp = await workspace()
     await pull(tmp.path)

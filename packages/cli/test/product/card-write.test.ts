@@ -23,6 +23,50 @@ test("parseWriteIntent detects score and draft, not other prompts", () => {
   )
 })
 
+
+test("parseMoveIntent detects move X to screen", () => {
+  expect(CardWrite.parseMoveIntent(undefined, "move Jordan to technical screen")).toEqual({
+    hint: "move Jordan to technical screen",
+    name: "Jordan",
+    stage: "Screen",
+  })
+  expect(CardWrite.parseMoveIntent(undefined, "move jordan-lee to screen")).toEqual({
+    hint: "move jordan-lee to screen",
+    name: "jordan-lee",
+    stage: "Screen",
+  })
+  expect(CardWrite.parseMoveIntent("move", "Pat to phone")).toEqual({
+    hint: "move Pat to phone",
+    name: "Pat",
+    stage: "Phone",
+  })
+  expect(CardWrite.parseMoveIntent(undefined, "Score jordan-lee")).toBeUndefined()
+  expect(CardWrite.parseMoveIntent("score", "move Jordan to screen")).toBeUndefined()
+})
+
+test("moveOnCard writes stage on a card-only folder without ATS id", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "HIRING.md"), "# Role\n")
+      await CandidateCard.write(dir, {
+        id: "jordan",
+        stage: "Sourced",
+        extra: { name: "Jordan" },
+        body: "# Jordan\n",
+      })
+    },
+  })
+  const intent = CardWrite.parseMoveIntent(undefined, "move Jordan to technical screen")
+  if (!intent) throw new Error("expected move intent")
+  const result = await CardWrite.moveOnCard(tmp.path, intent)
+  expect(result.id).toBe("jordan")
+  expect(result.stage).toBe("Screen")
+  expect(result.relative).toContain("jordan.md")
+  const card = await CandidateCard.read(tmp.path, "jordan")
+  expect(card).toMatchObject({ stage: "Screen" })
+  expect(card?.ats_id).toBeUndefined()
+})
+
 test("writeOnCard scores from card + HIRING.md without inventing jobs", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {

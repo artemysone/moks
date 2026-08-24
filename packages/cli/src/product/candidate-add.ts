@@ -59,6 +59,7 @@ export function parseAddIntent(
   const hint = message.trim()
   if (CardWrite.parseSendIntent(command, hint)) return
   if (CardWrite.parseWriteIntent(command, hint)) return
+  if (CardWrite.parseMoveIntent(command, hint)) return
   if (CardWrite.parseTakeIntent(command, hint)) return
   if (CardWrite.parseCompareIntent(command, hint)) return
   if (ReqWorkspace.parseTalkOpenRole(hint)) return
