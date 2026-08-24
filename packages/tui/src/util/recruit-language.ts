@@ -20,9 +20,16 @@ export function isWriteAsk(text: string) {
   return false
 }
 
-export function isWorkAsk(text: string) {
+export function isCompareAsk(text: string) {
   const hint = text.trim()
   if (!hint || isSendAsk(hint) || isWriteAsk(hint)) return false
+  if (/^(?:please\s+|can you\s+)?(?:\/)?compare(?:-candidates)?\b/i.test(hint)) return true
+  return /\b(?:vs\.?|versus|against)\b/i.test(hint)
+}
+
+export function isWorkAsk(text: string) {
+  const hint = text.trim()
+  if (!hint || isSendAsk(hint) || isWriteAsk(hint) || isCompareAsk(hint)) return false
   if (/\bready for review\b/i.test(hint)) return true
   if (/^(?:please\s+|can you\s+)?(?:get|make|prep(?:are)?|work)\b/i.test(hint)) return true
   return false
@@ -30,7 +37,7 @@ export function isWorkAsk(text: string) {
 
 export function isPileAsk(text: string, files: string[] = []) {
   const hint = text.trim()
-  if (isSendAsk(hint) || isWriteAsk(hint) || isWorkAsk(hint)) return false
+  if (isSendAsk(hint) || isWriteAsk(hint) || isWorkAsk(hint) || isCompareAsk(hint)) return false
   if (files.some((item) => item.trim())) return true
   if (/^(?:please\s+|can you\s+)?(?:\/)?add(?:-candidate)?\b/i.test(hint)) return true
   if (/^(?:please\s+|can you\s+)?(?:ingest|drop|here(?:'s| is)?)\b/i.test(hint)) return true
@@ -49,7 +56,7 @@ function looksLikeNameList(hint: string) {
 }
 
 export function isRecruitLanguage(text: string, files: string[] = []) {
-  return isSendAsk(text) || isWriteAsk(text) || isWorkAsk(text) || isPileAsk(text, files)
+  return isSendAsk(text) || isWriteAsk(text) || isWorkAsk(text) || isCompareAsk(text) || isPileAsk(text, files)
 }
 
 export function recruitLanguageArgs(text: string, files: string[] = []) {

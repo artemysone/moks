@@ -126,7 +126,7 @@ async function toolError(part: ToolPart) {
   }
 }
 
-const LOCAL_RUN_COMMANDS = "init / open-req / score / draft / add-candidate"
+const LOCAL_RUN_COMMANDS = "init / open-req / score / draft / add-candidate / compare"
 
 function isLocalWriteOrScaffold(command?: string, message = "", files: string[] = [], agent?: string) {
   return (
@@ -134,6 +134,7 @@ function isLocalWriteOrScaffold(command?: string, message = "", files: string[] 
     command === "open-req" ||
     command === "add-candidate" ||
     Boolean(CardWrite.parseWriteIntent(command, message)) ||
+    Boolean(CardWrite.parseCompareIntent(command, message)) ||
     Boolean(CardWrite.parseNaturalWorkIntent(command, message, agent)) ||
     Boolean(CandidateAdd.parseAddIntent(command, message, files, agent))
   )
@@ -176,6 +177,7 @@ function isHeadlessScaffoldCommand(args: {
     CardWrite.parseSendIntent(args.command, message) ||
       CandidateAdd.parseAddIntent(args.command, message, args.file ?? [], args.agent) ||
       CardWrite.parseWriteIntent(args.command, message) ||
+      CardWrite.parseCompareIntent(args.command, message) ||
       CardWrite.parseNaturalWorkIntent(args.command, message, args.agent),
   )
 }
@@ -262,6 +264,33 @@ async function runHeadlessAddCandidate(args: {
     UI.println(`add-candidate: wrote ${result.relative} (${result.id}, stage ${result.stage})`)
   }
   await printPacketTree(directory)
+}
+
+
+async function runHeadlessCompare(args: {
+  command?: string
+  message?: string[]
+  dir?: string
+  json?: boolean
+  format?: string
+  ["--"]?: string[]
+}) {
+  const directory = await resolveRunDirectory(args.dir)
+  const raw = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
+  const intent = CardWrite.parseCompareIntent(args.command, raw)
+  if (!intent) {
+    UI.error("not a local compare")
+    process.exit(1)
+  }
+  const result = await CardWrite.compareOnCards(directory, intent.hint).catch((error) => {
+    UI.error(error instanceof Error ? error.message : String(error))
+    process.exit(1)
+  })
+  if (args.json || args.format === "json") {
+    console.log(JSON.stringify({ command: "compare", ...result }, null, 2))
+    return
+  }
+  UI.println(`compare: wrote ${result.relative} (${result.left} vs ${result.right}) — human picks`)
 }
 
 async function runHeadlessCardWrite(args: {
@@ -541,6 +570,10 @@ export const RunCommand = effectCmd({
       if (args.command && !isLocalWriteOrScaffold(args.command, message, args.file ?? [], args.agent)) {
         UI.error(`unknown command: ${args.command} — use ${LOCAL_RUN_COMMANDS}`)
         process.exit(1)
+      }
+      if (CardWrite.parseCompareIntent(args.command, message)) {
+        yield* Effect.promise(() => runHeadlessCompare(args))
+        return
       }
       if (CardWrite.parseWriteIntent(args.command, message)) {
         yield* Effect.promise(() => runHeadlessCardWrite(args))
