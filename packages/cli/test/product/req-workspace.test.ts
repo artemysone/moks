@@ -39,6 +39,28 @@ test("scaffoldCompany stands up the full company workspace in empty cwd", async 
   expect(await ReqWorkspace.listReqs(tmp.path)).toEqual([])
 })
 
+test("scaffoldCompany writes a typed company name into COMPANY.md", async () => {
+  await using tmp = await tmpdir()
+  const named = await ReqWorkspace.scaffoldCompany(tmp.path, "Northline Analytics")
+  expect(named.created).toContain("COMPANY.md")
+  expect(await Bun.file(path.join(tmp.path, "COMPANY.md")).text()).toBe(
+    ReqWorkspace.companyStub("Northline Analytics"),
+  )
+  expect(await Bun.file(path.join(tmp.path, "COMPANY.md")).text()).toContain("# Northline Analytics")
+  expect(await Bun.file(path.join(tmp.path, "HIRING.md")).exists()).toBe(false)
+
+  await using empty = await tmpdir()
+  await ReqWorkspace.scaffoldCompany(empty.path)
+  expect(await Bun.file(path.join(empty.path, "COMPANY.md")).text()).toBe(ReqWorkspace.COMPANY_STUB)
+  expect(await Bun.file(path.join(empty.path, "COMPANY.md")).text()).toBe(ReqWorkspace.companyStub())
+
+  const again = await ReqWorkspace.scaffoldCompany(tmp.path, "Other Co")
+  expect(again.skipped).toContain("COMPANY.md")
+  expect(await Bun.file(path.join(tmp.path, "COMPANY.md")).text()).toBe(
+    ReqWorkspace.companyStub("Northline Analytics"),
+  )
+})
+
 test("scaffoldCompany ledger works for moks commands after /init", async () => {
   await using tmp = await tmpdir()
   await ReqWorkspace.scaffoldCompany(tmp.path)

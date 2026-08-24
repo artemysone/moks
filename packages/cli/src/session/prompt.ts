@@ -1370,7 +1370,8 @@ const layer = Layer.effect(
       }
       if (input.command === Command.Default.INIT) {
         const ctx = yield* InstanceState.context
-        yield* Effect.promise(() => ReqWorkspace.scaffoldCompany(ctx.directory))
+        const name = ReqWorkspace.parseReqTitle(input.arguments)
+        yield* Effect.promise(() => ReqWorkspace.scaffoldCompany(ctx.directory, name || undefined))
       }
       if (input.command === Command.Default.OPEN_REQ) {
         const ctx = yield* InstanceState.context

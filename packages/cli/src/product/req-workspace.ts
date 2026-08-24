@@ -280,7 +280,12 @@ export function stubFor(title?: string) {
   return HIRING_STUB.replaceAll("<role title>", title)
 }
 
-export async function scaffoldCompany(cwd: string) {
+export function companyStub(name?: string) {
+  if (!name) return COMPANY_STUB
+  return COMPANY_STUB.replace("# Company", `# ${name}`)
+}
+
+export async function scaffoldCompany(cwd: string, name?: string) {
   const created: string[] = []
   const skipped: string[] = []
   // A packet root is a single-req workspace; its HIRING.md is already the constitution.
@@ -291,7 +296,7 @@ export async function scaffoldCompany(cwd: string) {
   if (present) {
     skipped.push(packet ? HIRING_FILE : COMPANY_FILE)
   } else {
-    await Bun.write(companyPath(cwd), COMPANY_STUB)
+    await Bun.write(companyPath(cwd), companyStub(name))
     created.push(COMPANY_FILE)
   }
   await ensureLedger(cwd, created, skipped)

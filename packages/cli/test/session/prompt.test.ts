@@ -1800,7 +1800,10 @@ it.instance(
         arguments: "Senior Backend",
       })
 
-      expect(yield* Effect.promise(() => Bun.file(path.join(dir, "COMPANY.md")).text())).toBe(ReqWorkspace.COMPANY_STUB)
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, "COMPANY.md")).text())).toBe(
+        ReqWorkspace.companyStub("Senior Backend"),
+      )
+      expect(yield* Effect.promise(() => Bun.file(path.join(dir, "COMPANY.md")).text())).toContain("# Senior Backend")
       expect(yield* Effect.promise(() => Bun.file(path.join(dir, "HIRING.md")).exists())).toBe(false)
       expect(yield* Effect.promise(() => Bun.file(path.join(dir, ".moks", "ledger.sqlite")).exists())).toBe(true)
       expect(yield* Effect.promise(() => Bun.file(path.join(dir, ".moks", "vault.key")).exists())).toBe(true)

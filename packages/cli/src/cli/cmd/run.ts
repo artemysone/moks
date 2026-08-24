@@ -211,7 +211,7 @@ async function runHeadlessScaffold(args: {
   const result =
     args.command === "open-req"
       ? await ReqWorkspace.scaffoldReq(directory, title || undefined)
-      : await ReqWorkspace.scaffoldCompany(directory)
+      : await ReqWorkspace.scaffoldCompany(directory, args.command === "init" ? title || undefined : undefined)
   if (args.command === "open-req" && result.relative !== ".") {
     await ReqWorkspace.writeFocus(directory, result.relative)
   }
