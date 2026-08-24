@@ -1059,9 +1059,13 @@ const layer = Layer.effect(
         .filter((part): part is Extract<PromptInput["parts"][number], { type: "text" }> => part.type === "text")
         .map((part) => part.text)
         .join("\n")
+      const ctx = yield* InstanceState.context
+      const grounding = ReqWorkspace.parseCompanyGrounding(talk)
+      if (grounding?.source) {
+        yield* Effect.promise(() => ReqWorkspace.groundCompanyAbout(ctx.directory, grounding))
+      }
       const role = ReqWorkspace.parseTalkOpenRole(talk)
       if (role) {
-        const ctx = yield* InstanceState.context
         yield* Effect.promise(() => ReqWorkspace.openTalkReq(ctx.directory, role))
       }
       const message = yield* createUserMessage(input)
@@ -1379,8 +1383,12 @@ const layer = Layer.effect(
       }
       if (input.command === Command.Default.INIT) {
         const ctx = yield* InstanceState.context
-        const name = ReqWorkspace.parseReqTitle(input.arguments)
+        const grounding = ReqWorkspace.parseCompanyGrounding(input.arguments)
+        const name = grounding?.name || ReqWorkspace.parseReqTitle(input.arguments)
         yield* Effect.promise(() => ReqWorkspace.scaffoldCompany(ctx.directory, name || undefined))
+        if (grounding?.source) {
+          yield* Effect.promise(() => ReqWorkspace.groundCompanyAbout(ctx.directory, grounding))
+        }
       }
       if (input.command === Command.Default.OPEN_REQ) {
         const ctx = yield* InstanceState.context

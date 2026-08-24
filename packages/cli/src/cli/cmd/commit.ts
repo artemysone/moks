@@ -139,8 +139,7 @@ export const CommitCommand = effectCmd({
     UI.println(
       `${UI.Style.TEXT_SUCCESS_BOLD}staged${UI.Style.TEXT_NORMAL} ${result.changeset.id} ${result.changeset.status} ${mutations}`,
     )
-    if (result.adverse)
-      UI.println(`${UI.Style.TEXT_WARNING}adverse action — push will require --confirm${UI.Style.TEXT_NORMAL}`)
+    UI.println(result.next)
     UI.println(`${UI.Style.TEXT_DIM}${result.path}${UI.Style.TEXT_NORMAL}`)
   }),
 })

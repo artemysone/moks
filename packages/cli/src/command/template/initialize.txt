@@ -17,7 +17,7 @@ If user notes / $ARGUMENTS name a company, that is the working name: write `# <n
 
 If you ask for a name, use a free-text question (question tool with custom/type-your-own; never a yes/no "want a working name on the constitution"). Take the typed answer and write `# <name>` in COMPANY.md in the same turn.
 
-First questions ask for something real to verify the company: website URL, LinkedIn or careers page, or a short public profile. Take the typed name too. Ground COMPANY.md in what they give you (and what that page actually says). Do not invent a constitution from nothing.
+The first question is free-text (question tool, custom/type-your-own): "What's a website, LinkedIn, careers page, or short public profile we can ground About from?" Take the typed name too. When they give a URL or profile, write COMPANY.md ## About from that (not TBD). Do not invent a constitution from nothing.
 
 Do not stop after the name. Continue about / how we hire / bar / tone.
 

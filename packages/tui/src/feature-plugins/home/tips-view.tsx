@@ -69,7 +69,7 @@ function parse(tip: string): TipPart[] {
 const EMPTY_COMPANY_TIP = "This folder is the company. {highlight}/init{/highlight} to start."
 const EMPTY_COMPANY_PARTS = parse(EMPTY_COMPANY_TIP)
 const NO_MODELS_TIP =
-  "Run {highlight}/connect{/highlight} to add an AI provider and start hiring — open a req with {highlight}/open-req{/highlight}"
+  "Run {highlight}/connect{/highlight} to add an AI provider and start hiring — open a role in this chat"
 const NO_MODELS_PARTS = parse(NO_MODELS_TIP)
 
 function shortcutText(value: string) {

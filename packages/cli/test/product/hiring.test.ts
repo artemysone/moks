@@ -10,6 +10,7 @@ import { HiringFixtures } from "../../src/product/fixtures"
 import PROMPT_RECRUIT from "../../src/product/agents/recruit.txt"
 import PROMPT_INITIALIZE from "../../src/command/template/initialize.txt"
 import PROMPT_OPEN_REQ from "../../src/command/template/open-req.txt"
+import { ReqWorkspace } from "../../src/product/req-workspace"
 import path from "path"
 
 const node = LayerNode.compile(CrossSpawnSpawner.node)
@@ -69,9 +70,13 @@ it.effect("score-candidate writes a score file path; commit-disposition cites it
     expect(PROMPT_INITIALIZE).toContain("type-your-own")
     expect(PROMPT_INITIALIZE).toContain('never a yes/no "want a working name on the constitution"')
     expect(PROMPT_INITIALIZE).not.toContain("dossier")
-    expect(PROMPT_INITIALIZE).toContain("website URL")
+    expect(PROMPT_INITIALIZE).toContain("website")
     expect(PROMPT_INITIALIZE).toContain("public profile")
+    expect(PROMPT_INITIALIZE).toContain(ReqWorkspace.INIT_FIRST_QUESTION.question)
+    expect(PROMPT_INITIALIZE).toContain("## About from that (not TBD)")
     expect(PROMPT_INITIALIZE).toContain("Do not invent a constitution from nothing")
+    expect(ReqWorkspace.INIT_FIRST_QUESTIONS[0]?.question).toMatch(/website|profile/i)
+    expect(ReqWorkspace.INIT_FIRST_QUESTION.custom).toBe(true)
     expect(PROMPT_RECRUIT).not.toContain("A human runs `moks review`")
     expect(PROMPT_RECRUIT).not.toContain("Human only: `moks review`")
     expect(PROMPT_RECRUIT).toMatch(/taste|review pane/)

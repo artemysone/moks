@@ -306,6 +306,68 @@ export function companyStub(name?: string) {
   return COMPANY_STUB.replace("# Company", `# ${name}`)
 }
 
+/** First /init question — free-text URL or public profile. Not a yes/no. */
+export const INIT_FIRST_QUESTION = {
+  question: "What's a website, LinkedIn, careers page, or short public profile we can ground About from?",
+  header: "URL/profile",
+  options: [] as { label: string; description: string }[],
+  custom: true,
+}
+
+export const INIT_FIRST_QUESTIONS = [INIT_FIRST_QUESTION]
+
+export type CompanyGrounding = {
+  name?: string
+  url?: string
+  profile?: string
+  source?: string
+}
+
+function looksLikeCompanyName(text: string) {
+  const parts = text.split(/\s+/).filter(Boolean)
+  if (parts.length === 0 || parts.length > 6) return false
+  if (/[.?!:]/.test(text)) return false
+  return parts.every((part) => /^[A-Za-z0-9][A-Za-z0-9.&'-]*$/.test(part))
+}
+
+/** Init / recruit grounding: a URL or profile, plus an optional typed name. */
+export function parseCompanyGrounding(raw: string): CompanyGrounding | undefined {
+  const text = raw.trim()
+  if (!text) return
+  if (parseTalkOpenRole(text)) return
+  const urls = text.match(/https?:\/\/[^\s)]+/gi) ?? []
+  const url = urls[0]
+  const leftover = text.replace(/https?:\/\/[^\s)]+/gi, " ").replace(/\s+/g, " ").trim()
+  const pathish = leftover && (/[\\/]/.test(leftover) || /\.(md|txt|html|pdf|docx|rst)$/i.test(leftover))
+  const name = leftover && !pathish && looksLikeCompanyName(leftover) ? parseReqTitle(leftover) : undefined
+  const profile = leftover && !name && !pathish ? leftover : undefined
+  const source = url ?? profile
+  if (!source && !name) return
+  return { name, url, profile, source }
+}
+
+function replaceAbout(text: string, source: string) {
+  const about = `## About\n- Grounded from ${source}\n`
+  if (/^## About\n/m.test(text)) return text.replace(/## About\n(?:[-*].*\n)*/m, about)
+  return `${text.trimEnd()}\n\n${about}`
+}
+
+/** Write About from a real URL/profile. Do not invent a constitution. */
+export async function groundCompanyAbout(cwd: string, input: CompanyGrounding) {
+  const source = input.source ?? input.url ?? input.profile
+  if (!source) return
+  await scaffoldCompany(cwd, input.name)
+  const file = companyPath(cwd)
+  let text = await Bun.file(file).text().catch(() => companyStub(input.name))
+  if (input.name) {
+    const heading = text.match(/^# (.+)$/m)?.[1]
+    if (!heading || heading === "Company") text = text.replace(/^# .+$/m, `# ${input.name}`)
+  }
+  if (/## About\n- TBD/.test(text) || !/^## About/m.test(text)) text = replaceAbout(text, source)
+  await Bun.write(file, text)
+  return { source, name: input.name, relative: COMPANY_FILE }
+}
+
 export async function scaffoldCompany(cwd: string, name?: string) {
   const created: string[] = []
   const skipped: string[] = []

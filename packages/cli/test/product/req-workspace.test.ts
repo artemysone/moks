@@ -30,6 +30,35 @@ test("parseTalkOpenRole reads a talk-shaped role, not a company name", () => {
   expect(ReqWorkspace.parseTalkOpenRole("Northline Analytics")).toBeUndefined()
 })
 
+
+test("init first questions ask for a URL/profile", () => {
+  expect(ReqWorkspace.INIT_FIRST_QUESTION.question).toMatch(/website|profile/i)
+  expect(ReqWorkspace.INIT_FIRST_QUESTION.custom).toBe(true)
+  expect(ReqWorkspace.parseCompanyGrounding("https://example.com/acme")).toEqual({
+    name: undefined,
+    url: "https://example.com/acme",
+    profile: undefined,
+    source: "https://example.com/acme",
+  })
+  expect(ReqWorkspace.parseCompanyGrounding("Acme https://example.com/acme")?.name).toBe("Acme")
+  expect(ReqWorkspace.parseCompanyGrounding("open a Staff Platform role")).toBeUndefined()
+})
+
+test("groundCompanyAbout writes About from a provided URL, not TBD", async () => {
+  await using tmp = await tmpdir()
+  await ReqWorkspace.groundCompanyAbout(tmp.path, {
+    name: "Acme",
+    url: "https://example.com/acme",
+    source: "https://example.com/acme",
+  })
+  const body = await Bun.file(path.join(tmp.path, "COMPANY.md")).text()
+  expect(body).toContain("# Acme")
+  expect(body).toContain("https://example.com/acme")
+  expect(body).not.toMatch(/## About\n- TBD/)
+  expect(body).toContain("## Bar")
+  expect(body).toMatch(/## Bar\n- TBD/)
+})
+
 test("openTalkReq scaffolds the req subdirectory from talk", async () => {
   await using tmp = await tmpdir()
   await ReqWorkspace.scaffoldCompany(tmp.path, "Northline Analytics")
