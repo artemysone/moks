@@ -176,15 +176,10 @@ export async function writeOnCard(cwd: string, intent: WriteIntent) {
   }
   const packet = (await ReqWorkspace.focusedReq(cwd)) ?? ((await ReqWorkspace.isPacket(cwd)) ? cwd : undefined)
   if (!packet) throw new Error(ReqWorkspace.notACompanyDirectory(cwd))
-  const hiring = await Bun.file(path.join(packet, HIRING_FILE))
-    .text()
-    .catch(() => "")
-  if (!hiring.trim()) throw new Error(`missing ${HIRING_FILE} in the focused req`)
-  const companyMd = await Bun.file(path.join(root, COMPANY_FILE))
-    .text()
-    .catch(() => "")
-  const cards = await CandidateCard.list(packet)
   const hint = [intent.hint, ...(intent.files ?? [])].filter(Boolean).join(" ")
+  const { hiring, companyMd } = await loadConstitutions(cwd, root, packet, hint, intent.files)
+  if (!hiring.trim()) throw new Error(`missing ${HIRING_FILE} in the focused req`)
+  const cards = await CandidateCard.list(packet)
   const named = cardIdsFromMention(hint, intent.files)[0] ?? namedCardId(hint)
   if (named) {
     const here = cards.find((card) => card.id.toLowerCase() === named.toLowerCase())
@@ -240,12 +235,77 @@ async function stageCardWrite(cwd: string, kind: WriteKind, card: Card) {
 }
 
 
+
+export function constitutionMentions(hint: string, files: string[] = []) {
+  const tokens = [
+    ...files,
+    ...[...hint.matchAll(/@([^\s]+)/g)].map((match) => match[1]!),
+    ...[...hint.matchAll(/(?:^|[\s"'`])((?:\.\.\/|\.\/|[\w.-]+\/)*(?:HIRING|COMPANY)\.md)\b/gi)].map((match) => match[1]!),
+  ]
+  let hiring: string | undefined
+  let company: string | undefined
+  for (const token of tokens) {
+    const raw = token.replace(/^@/, "").replace(/^["'`]+|[,"'`;]+$/g, "").trim()
+    const base = path.basename(raw.replaceAll("\\", "/"))
+    if (base.toLowerCase() === "hiring.md") hiring = raw
+    if (base.toLowerCase() === "company.md") company = raw
+  }
+  return { hiring, company }
+}
+
+function insideDir(root: string, file: string) {
+  const base = path.resolve(root)
+  const resolved = path.resolve(file)
+  return resolved === base || resolved.startsWith(base + path.sep)
+}
+
+async function readMentionedConstitution(
+  cwd: string,
+  root: string,
+  mentioned: string | undefined,
+  name: string,
+  fallback: string,
+) {
+  if (!mentioned) {
+    return Bun.file(fallback)
+      .text()
+      .catch(() => "")
+  }
+  const tries = [
+    path.isAbsolute(mentioned) ? mentioned : path.resolve(cwd, mentioned),
+    path.resolve(root, mentioned),
+  ]
+  for (const file of tries) {
+    if (path.basename(file).toLowerCase() !== name.toLowerCase()) continue
+    if (!insideDir(root, file) && !insideDir(cwd, file)) continue
+    const text = await Bun.file(file)
+      .text()
+      .catch(() => "")
+    if (text.trim()) return text
+  }
+  throw new Error(`${name} not at ${mentioned} — will not use a neighbor file`)
+}
+
+async function loadConstitutions(
+  cwd: string,
+  root: string,
+  packet: string,
+  hint: string,
+  files: string[] = [],
+) {
+  const mentioned = constitutionMentions(hint, files)
+  const hiring = await readMentionedConstitution(cwd, root, mentioned.hiring, HIRING_FILE, path.join(packet, HIRING_FILE))
+  const companyMd = await readMentionedConstitution(cwd, root, mentioned.company, COMPANY_FILE, path.join(root, COMPANY_FILE))
+  return { hiring, companyMd }
+}
+
 export function idFromCardPath(token: string) {
   const raw = token.replace(/^@/, "").replace(/^["'`]+|[,"'`;]+$/g, "").trim()
   if (!raw) return
   const normalized = raw.replaceAll("\\", "/")
   const base = path.basename(normalized)
   if (!base.toLowerCase().endsWith(".md") || base === ".gitkeep") return
+  if (base.toLowerCase() === "hiring.md" || base.toLowerCase() === "company.md") return
   if (normalized.includes("/") && !/\/candidates\//i.test(`/${normalized}`)) return
   const id = CandidateCard.safeId(base.replace(/\.md$/i, ""))
   return id || undefined
@@ -628,13 +688,8 @@ export async function takeOnCards(cwd: string, hint: string, files: string[] = [
   }
   const packet = (await ReqWorkspace.focusedReq(cwd)) ?? ((await ReqWorkspace.isPacket(cwd)) ? cwd : undefined)
   if (!packet) throw new Error(ReqWorkspace.notACompanyDirectory(cwd))
-  const hiring = await Bun.file(path.join(packet, HIRING_FILE))
-    .text()
-    .catch(() => "")
+  const { hiring, companyMd } = await loadConstitutions(cwd, root, packet, hint, files)
   if (!hiring.trim()) throw new Error(`missing ${HIRING_FILE} in the focused req`)
-  const companyMd = await Bun.file(path.join(root, COMPANY_FILE))
-    .text()
-    .catch(() => "")
   const cleaned = stripTakeHint(hint)
   const mentioned = cardIdsFromMention(`${cleaned} ${hint}`, files)
   const pair = mentioned.length >= 2 ? [mentioned[0]!, mentioned[1]!] : splitComparePair(cleaned)
@@ -699,13 +754,8 @@ export async function compareOnCards(cwd: string, hint: string, files: string[] 
   }
   const packet = (await ReqWorkspace.focusedReq(cwd)) ?? ((await ReqWorkspace.isPacket(cwd)) ? cwd : undefined)
   if (!packet) throw new Error(ReqWorkspace.notACompanyDirectory(cwd))
-  const hiring = await Bun.file(path.join(packet, HIRING_FILE))
-    .text()
-    .catch(() => "")
+  const { hiring, companyMd } = await loadConstitutions(cwd, root, packet, hint, files)
   if (!hiring.trim()) throw new Error(`missing ${HIRING_FILE} in the focused req`)
-  const companyMd = await Bun.file(path.join(root, COMPANY_FILE))
-    .text()
-    .catch(() => "")
   const mentioned = cardIdsFromMention(hint, files)
   const pair = mentioned.length >= 2 ? [mentioned[0]!, mentioned[1]!] : splitComparePair(hint)
   if (!pair) throw new Error("compare needs two cards in this req — name both")

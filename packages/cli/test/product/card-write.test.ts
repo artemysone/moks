@@ -202,6 +202,69 @@ test("cardIdsFromMention reads @file and candidates/*.md", () => {
     "maya-chen",
     "kenji-okada",
   ])
+  expect(CardWrite.cardIdsFromMention("score @HIRING.md")).toEqual([])
+  expect(CardWrite.constitutionMentions("score @founding-engineer/HIRING.md")).toEqual({
+    hiring: "founding-engineer/HIRING.md",
+    company: undefined,
+  })
+  expect(CardWrite.constitutionMentions("HM take @COMPANY.md")).toEqual({
+    hiring: undefined,
+    company: "COMPANY.md",
+  })
+})
+
+test("score @HIRING.md uses that req constitution, not a neighbor", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(path.join(dir, "COMPANY.md"), "# Acme\n\n## Bar\n- Ship weekly in public\n")
+      await Bun.write(
+        path.join(dir, "staff-platform", "HIRING.md"),
+        [
+          "# Staff Platform",
+          "",
+          "## Scorecard",
+          "| Dimension | Bar | Notes |",
+          "|-----------|-----|-------|",
+          "| Frontend craft | ships UI | |",
+          "",
+        ].join("\n"),
+      )
+      await Bun.write(
+        path.join(dir, "founding-engineer", "HIRING.md"),
+        [
+          "# Founding Engineer",
+          "",
+          "## Scorecard",
+          "| Dimension | Bar | Notes |",
+          "|-----------|-----|-------|",
+          "| Ledger depth | designs a ledger | |",
+          "",
+        ].join("\n"),
+      )
+      await CandidateCard.write(path.join(dir, "staff-platform"), {
+        id: "maya-chen",
+        stage: "Sourced",
+        extra: { name: "Maya Chen" },
+        body: "# Maya Chen\n\nDesigns a ledger at the payments edge.\n",
+      })
+      await ReqWorkspace.writeFocus(dir, "staff-platform")
+    },
+  })
+  await CardWrite.writeOnCard(tmp.path, {
+    kind: "score",
+    hint: "score Maya @founding-engineer/HIRING.md",
+  })
+  const card = await CandidateCard.read(path.join(tmp.path, "staff-platform"), "maya-chen")
+  expect(card?.body).toContain("Ledger depth")
+  expect(card?.body).toContain("designs a ledger")
+  expect(card?.body).not.toContain("Frontend craft")
+  const take = await CardWrite.takeOnCards(tmp.path, "HM take on Maya @founding-engineer/HIRING.md")
+  const memo = await Bun.file(take.file).text()
+  expect(memo).toContain("Ledger depth")
+  expect(memo).not.toContain("Frontend craft")
+  await expect(
+    CardWrite.writeOnCard(tmp.path, { kind: "score", hint: "score Maya @ghost-req/HIRING.md" }),
+  ).rejects.toThrow(/will not use a neighbor file/)
 })
 
 async function twoCards(dir: string) {
