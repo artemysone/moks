@@ -245,8 +245,13 @@ function parseReq(hiring: string, companyMd = "") {
   const company = hiring.match(/^\s*-\s*Company:\s*(.+)$/m)?.[1]?.trim()
   const location = hiring.match(/^\s*-\s*Location:\s*(.+)$/m)?.[1]?.trim()
   const musts = sectionItems(hiring, "Must-haves").filter((item) => !PLACEHOLDER.test(item))
-  const dimensions = scorecardDimensions(hiring)
+  const scorecard = scorecardBars(hiring)
+  const dimensions = scorecard.map((row) => row.label)
   const labels = dimensions.length > 0 ? dimensions : musts.length > 0 ? musts : titleWords(title)
+  const bars =
+    scorecard.length > 0
+      ? scorecard
+      : labels.map((label) => ({ label, bar: label, file: HIRING_FILE }))
   const companyBar = sectionItems(companyMd, "Bar").filter((item) => !PLACEHOLDER.test(item))
   const toneHeading = sectionItems(companyMd, "Tone & outreach")
   const tone = (toneHeading.length > 0 ? toneHeading : sectionItems(companyMd, "Tone")).filter(
@@ -258,6 +263,7 @@ function parseReq(hiring: string, companyMd = "") {
     company: company && !PLACEHOLDER.test(company) ? company : undefined,
     location: location && !PLACEHOLDER.test(location) ? location : undefined,
     labels,
+    bars,
     companyBar,
     tone,
     about,
@@ -273,11 +279,33 @@ function sectionItems(text: string, heading: string) {
     .filter((line) => line && !line.startsWith("|") && !line.startsWith("#"))
 }
 
-function scorecardDimensions(hiring: string) {
-  const rows = hiring.match(/^\|\s*(?![-:|])([^|\n]+)\|/gm) ?? []
-  return rows
-    .map((row) => row.replace(/^\|\s*/, "").replace(/\s*\|.*$/, "").trim())
-    .filter((cell) => cell && !/^dimension$/i.test(cell) && !PLACEHOLDER.test(cell))
+function tableCells(row: string) {
+  return row
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim())
+}
+
+function scorecardBars(hiring: string) {
+  const block = hiring.match(/^## Scorecard\b[^\n]*\n([\s\S]*?)(?=\n## |\s*$)/i)?.[1] ?? hiring
+  const lines = block.split(/\r?\n/).filter((line) => line.trim().startsWith("|"))
+  if (lines.length < 2) return [] as { label: string; bar: string; file: typeof HIRING_FILE }[]
+  const headers = tableCells(lines[0]!).map((cell) => cell.toLowerCase())
+  const dimI = headers.findIndex((cell) => /dimension/.test(cell))
+  if (dimI < 0) return []
+  const barI = headers.findIndex((cell) => /\bbar\b/.test(cell) || cell === "3")
+  const out: { label: string; bar: string; file: typeof HIRING_FILE }[] = []
+  for (const line of lines.slice(1)) {
+    const cells = tableCells(line)
+    if (cells.every((cell) => /^[-:\s]+$/.test(cell))) continue
+    const label = cells[dimI]?.trim()
+    if (!label || /^dimension$/i.test(label) || PLACEHOLDER.test(label)) continue
+    const barCell = barI >= 0 ? cells[barI]?.trim() : ""
+    const bar = barCell && !PLACEHOLDER.test(barCell) ? barCell : label
+    out.push({ label, bar, file: HIRING_FILE })
+  }
+  return out
 }
 
 function titleWords(title: string) {
@@ -302,15 +330,32 @@ function quoteFor(card: Card, keywords: string[]) {
   return
 }
 
-function scoreRows(card: Card, labels: string[], source: string) {
-  return labels.map((label) => {
-    const keys = tokens(label)
+function scoreRows(
+  card: Card,
+  bars: { label: string; bar: string; file: string }[],
+  source: string,
+) {
+  return bars.map((item) => {
+    const keys = [...tokens(item.label), ...tokens(item.bar)]
     const evidence = quoteFor(card, keys)
     if (!evidence) {
-      return { label, score: "N/A", evidence: "not on the card", source }
+      return { ...item, score: "N/A", evidence: "not on the card", source }
     }
-    return { label, score: "3", evidence, source }
+    return { ...item, score: "3", evidence, source }
   })
+}
+
+function citeRow(row: {
+  label: string
+  bar: string
+  file: string
+  evidence: string
+  source: string
+  score: string
+}) {
+  const bar = row.bar === row.label ? row.label : `${row.label} bar: "${row.bar}"`
+  const card = row.score === "N/A" ? `not on the card` : `card: "${row.evidence}" (${row.source})`
+  return `${row.file} ${bar} — ${card}`
 }
 
 function scored(
@@ -320,24 +365,22 @@ function scored(
   fingerprints: { company_hash: string; hiring_hash: string },
 ) {
   const source = path.relative(packet, CandidateCard.filePath(packet, card.id)).replaceAll(path.sep, "/")
-  const rows = [
-    ...scoreRows(card, req.labels, source),
-    ...scoreRows(card, req.companyBar, source).map((row) => ({ ...row, fromCompany: true })),
-  ]
-  const numeric = rows.filter((row) => row.score !== "N/A").map(() => 3)
+  const companyBars = req.companyBar.map((bar) => ({ label: bar, bar, file: COMPANY_FILE }))
+  const rows = [...scoreRows(card, req.bars, source), ...scoreRows(card, companyBars, source)]
+  const numeric = rows.filter((row) => row.score !== "N/A")
   const overall = numeric.length === 0 ? 2 : 3
   const recommendation = numeric.length === 0 ? "mixed" : numeric.length === rows.length ? "yes" : "mixed"
   const name = card.extra.name || card.id
   const rationale =
     numeric.length === 0
-      ? "Card has no overlapping evidence for the req dimensions; do not invent employment history."
-      : `Evidence on the card covers ${numeric.length}/${rows.length} dimensions; gaps stay N/A.`
-  const strengths = rows.filter((row) => row.score !== "N/A").map((row) => `${row.label}: "${row.evidence}" (${row.source})`)
-  const gaps = rows.filter((row) => row.score === "N/A").map((row) => `${row.label}: not evidenced on ${row.source}`)
+      ? `${overall} — no card line matches a COMPANY.md / HIRING.md bar; do not invent employment history.`
+      : `${overall} because ${numeric.length}/${rows.length} bar lines have card evidence; unmatched stay N/A.`
+  const strengths = numeric.map((row) => citeRow(row))
+  const gaps = rows.filter((row) => row.score === "N/A").map((row) => citeRow(row))
   const table = [
-    "| Dimension | Score (1-5) | Evidence | Source |",
-    "|-----------|-------------|----------|--------|",
-    ...rows.map((row) => `| ${row.label} | ${row.score} | ${row.evidence} | ${row.source} / ${"fromCompany" in row && row.fromCompany ? COMPANY_FILE : HIRING_FILE} |`),
+    "| Dimension | Score (1-5) | Bar | Evidence | Source |",
+    "|-----------|-------------|-----|----------|--------|",
+    ...rows.map((row) => `| ${row.label} | ${row.score} | ${row.bar} | ${row.evidence} | ${row.source} / ${row.file} |`),
   ]
   const section = [
     `# Score: ${name} → ${req.title}`,
@@ -345,6 +388,9 @@ function scored(
     "## Summary",
     `- Recommendation: ${recommendation}`,
     `- One-line rationale: ${rationale}`,
+    "",
+    `## Why ${overall}`,
+    ...(rows.length ? rows.map((row) => `- ${citeRow(row)}`) : ["- No bar to cite"]),
     "",
     "## Dimension scores",
     ...table,
