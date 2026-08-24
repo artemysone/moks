@@ -86,10 +86,98 @@ export function parseNaturalWorkIntent(
   if (!hint) return
   if (parseSendIntent(undefined, hint)) return
   if (parseWriteIntent(undefined, hint)) return
+  if (parseMoveIntent(undefined, hint)) return
   if (parseTakeIntent(undefined, hint)) return
   if (parseCompareIntent(undefined, hint)) return
   if (/\bready for review\b/i.test(hint)) return { hint }
   if (/^(?:please\s+|can you\s+)?(?:get|make|prep(?:are)?|work)\b/i.test(hint)) return { hint }
+}
+
+const MOVE_COMMANDS = new Set(["move"])
+
+const STAGE_ALIASES: Record<string, string> = {
+  sourced: "Sourced",
+  contacted: "Contacted",
+  replied: "Replied",
+  screen: "Screen",
+  "technical screen": "Screen",
+  "tech screen": "Screen",
+  technical_screen: "Screen",
+  "technical-screen": "Screen",
+  phone: "Phone",
+  "phone screen": "Phone",
+  onsite: "Onsite",
+  interview: "Interview",
+  offer: "Offer",
+  hired: "Hired",
+  rejected: "Rejected",
+  withdrawn: "Withdrawn",
+}
+
+export function normalizeStage(raw: string) {
+  const cleaned = raw.trim().replace(/[.!?]+$/g, "").replace(/\s+/g, " ")
+  const key = cleaned.toLowerCase().replace(/^the\s+/, "")
+  if (STAGE_ALIASES[key]) return STAGE_ALIASES[key]
+  const collapsed = key.replace(/[_-]+/g, " ")
+  if (STAGE_ALIASES[collapsed]) return STAGE_ALIASES[collapsed]
+  const titled = Object.values(STAGE_ALIASES).find((stage) => stage.toLowerCase() === key)
+  if (titled) return titled
+  return cleaned.replace(/^./, (ch) => ch.toUpperCase())
+}
+
+export type MoveIntent = {
+  hint: string
+  name: string
+  stage: string
+}
+
+export function parseMoveIntent(command?: string, message = ""): MoveIntent | undefined {
+  if (command && !MOVE_COMMANDS.has(command)) return
+  const hint = message.trim()
+  const text = command === "move" && hint && !/^(?:please\s+|can you\s+)?(?:move|advance|put)\b/i.test(hint)
+    ? `move ${hint}`
+    : hint
+  if (!text) return
+  if (parseSendIntent(undefined, text) || parseWriteIntent(undefined, text)) return
+  const match = text.match(
+    /^(?:please\s+|can you\s+)?(?:move|advance|put)\s+(.+?)\s+to\s+(?:the\s+)?(.+?)$/i,
+  )
+  if (!match) return
+  const name = match[1]!.trim().replace(/^(?:this|the|a|an|candidate)\s+/i, "").trim()
+  const stage = normalizeStage(match[2] ?? "")
+  if (!name || !stage) return
+  return { hint: text, name, stage }
+}
+
+export function cardByName(cards: Card[], name: string) {
+  const key = name.trim().toLowerCase()
+  if (!key) return
+  const slug = CandidateCard.safeId(name)
+  return (
+    cards.find((card) => card.id.toLowerCase() === key) ??
+    cards.find((card) => card.id.toLowerCase() === slug) ??
+    cards.find((card) => (card.extra.name ?? "").toLowerCase() === key) ??
+    cards.find((card) => (card.extra.name ?? "").toLowerCase().includes(key)) ??
+    cards.find((card) => card.id.toLowerCase().includes(slug))
+  )
+}
+
+export async function moveOnCard(cwd: string, intent: MoveIntent) {
+  const root = await ReqWorkspace.companyRoot(cwd)
+  if (!root || !(await ReqWorkspace.isLiveCompany(root))) {
+    throw new Error(ReqWorkspace.notACompanyDirectory(cwd))
+  }
+  const packet = (await ReqWorkspace.focusedReq(cwd)) ?? ((await ReqWorkspace.isPacket(cwd)) ? cwd : undefined)
+  if (!packet) throw new Error(ReqWorkspace.notACompanyDirectory(cwd))
+  const cards = await CandidateCard.list(packet)
+  if (cards.length === 0) throw new Error("no candidate cards in this folder")
+  const card = cardByName(cards, intent.name)
+  if (!card) {
+    throw new Error(`unknown card: ${intent.name} — name one of: ${cards.map((item) => item.id).toSorted().join(", ")}`)
+  }
+  const stage = normalizeStage(intent.stage)
+  const file = await CandidateCard.write(packet, { ...card, stage })
+  return { id: card.id, stage, file, relative: path.relative(cwd, file) || file }
 }
 
 

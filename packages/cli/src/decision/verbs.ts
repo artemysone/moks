@@ -2,6 +2,7 @@ import path from "path"
 import { CandidateCard } from "@/product/candidate-card"
 import { ReqWorkspace } from "@/product/req-workspace"
 import { CandidateAdd } from "@/product/candidate-add"
+import { CardWrite } from "@/product/card-write"
 import { requireCompanyDirectory, requireOpenedHiringDir, withLedger, type LedgerHandle } from "./session"
 import { HiringSession } from "@/product/hiring-session"
 
@@ -79,6 +80,7 @@ const ACTION_MUTATION: Record<string, string> = {
   hire: "AdvanceStage",
   advance: "AdvanceStage",
   advancestage: "AdvanceStage",
+  move: "AdvanceStage",
   tag: "AddTag",
   addtag: "AddTag",
   outreach: "SendOutreach",
@@ -167,35 +169,46 @@ export async function commit(input: CommitInput) {
 }
 
 async function commitWithHandle(handle: LedgerHandle, input: CommitInput) {
-  await CandidateAdd.adoptLocalCards(handle)
+  const local = await writeAdvanceOnExistingCard(handle, input)
+  try {
+    await CandidateAdd.adoptLocalCards(handle)
+  } catch (error) {
+    if (local && isCardOnlyBlocker(error)) return localAdvanceResult(handle, input, local)
+    throw error
+  }
   const { api } = handle
-  const filled = await fillCommitDefaults(handle, input)
-  const changes = resolveChanges(handle, filled)
-  if (changes.length === 0) throw new Error("nothing to commit")
-  const rationale = (filled.rationale ?? filled.reason ?? filled.body ?? "").trim()
-  if (!rationale) throw new Error("rationale is required")
-  const authorKind = input.author_kind ?? (input.source === "tool" ? "agent" : "human")
-  const changeset = api.commitChangeset(
-    handle.db,
-    handle.vault,
-    {
-      rationale,
-      author_id: input.author_id ?? (authorKind === "agent" ? "agent" : defaultAuthor()),
-      author_kind: authorKind,
-      agent_meta: {
-        source: input.source,
-        req: handle.req ? path.relative(handle.company, handle.req) : null,
-        action: input.action,
-        ...(input.meta && typeof input.meta === "object" && !Array.isArray(input.meta) ? input.meta : {}),
+  try {
+    const filled = await fillCommitDefaults(handle, input)
+    const changes = resolveChanges(handle, filled)
+    if (changes.length === 0) throw new Error("nothing to commit")
+    const rationale = (filled.rationale ?? filled.reason ?? filled.body ?? "").trim()
+    if (!rationale) throw new Error("rationale is required")
+    const authorKind = input.author_kind ?? (input.source === "tool" ? "agent" : "human")
+    const changeset = api.commitChangeset(
+      handle.db,
+      handle.vault,
+      {
+        rationale,
+        author_id: input.author_id ?? (authorKind === "agent" ? "agent" : defaultAuthor()),
+        author_kind: authorKind,
+        agent_meta: {
+          source: input.source,
+          req: handle.req ? path.relative(handle.company, handle.req) : null,
+          action: input.action,
+          ...(input.meta && typeof input.meta === "object" && !Array.isArray(input.meta) ? input.meta : {}),
+        },
+        changes,
       },
-      changes,
-    },
-    { policy: handle.policy.policy, stages: handle.policy.stages },
-  )
-  await projectCard(handle, input, changeset.changes)
-  const adverse = changeset.changes.some((change) => isAdverseMutation(change.mutation, change.payload))
-  await HiringSession.refreshSnapshot(handle.company)
-  return { changeset, path: handle.company, adverse, next: COMMIT_TASTE_NEXT }
+      { policy: handle.policy.policy, stages: handle.policy.stages },
+    )
+    await projectCard(handle, input, changeset.changes)
+    const adverse = changeset.changes.some((change) => isAdverseMutation(change.mutation, change.payload))
+    await HiringSession.refreshSnapshot(handle.company)
+    return { changeset, path: handle.company, adverse, next: COMMIT_TASTE_NEXT }
+  } catch (error) {
+    if (local && isCardOnlyBlocker(error)) return localAdvanceResult(handle, input, local)
+    throw error
+  }
 }
 
 const TERMINAL_STAGES = new Set(["Hired", "Rejected", "Withdrawn"])
@@ -779,13 +792,77 @@ async function projectCard(
   await CandidateCard.write(dir, next)
 }
 
-// AdvanceStage stays on the changeset until apply/push. Card + status
-// keep the applied/mirror stage so review can show the bless hop without
-// rewriting the file.
+// Folder is the truth: AdvanceStage writes the card immediately.
+// Missing ATS id is not a blocker.
 function stageFromChanges(changes: Array<{ mutation: string; payload: unknown }>) {
   for (const change of changes) {
     if (change.mutation === "Reject") return "Rejected"
     if (change.mutation === "Withdraw") return "Withdrawn"
+    if (change.mutation === "AdvanceStage") {
+      const to = (change.payload as { to?: unknown } | undefined)?.to
+      if (typeof to === "string" && to.trim()) return CardWrite.normalizeStage(to)
+    }
+  }
+}
+
+function isCardOnlyBlocker(error: unknown) {
+  const raw = error instanceof Error ? error.message : String(error)
+  return /unknown entity|unknown mutation|mock ATS has no jobs|no ledger/.test(raw)
+}
+
+async function writeAdvanceOnExistingCard(handle: LedgerHandle, input: CommitInput) {
+  const mutation = input.mutation ?? (input.action ? mutationForAction(input.action) : undefined)
+  const parsed = CardWrite.parseMoveIntent(undefined, input.action ?? "")
+  const to = input.to ?? parsed?.stage
+  const who = input.target?.id ?? parsed?.name
+  if (!to || !who) return
+  if (mutation && mutation !== "AdvanceStage" && !parsed) return
+  const dir = handle.req ?? ((await ReqWorkspace.isPacket(handle.company)) ? handle.company : undefined)
+  if (!dir) return
+  const cards = await CandidateCard.list(dir)
+  const card = CardWrite.cardByName(cards, who) ?? (await CandidateCard.read(dir, who))
+  if (!card) return
+  const hasApp = handle.api.listApplications(handle.db).some(
+    (row) => row.candidateId === card.id || row.id === who || row.candidateId === who,
+  )
+  if (hasApp) return
+  const stage = CardWrite.normalizeStage(to)
+  if (card.stage === stage) return { id: card.id, stage, card }
+  await CandidateCard.write(dir, { ...card, stage })
+  return { id: card.id, stage, card: { ...card, stage } }
+}
+
+function localAdvanceResult(
+  handle: LedgerHandle,
+  input: CommitInput,
+  local: { id: string; stage: string },
+) {
+  const rationale = (input.rationale ?? input.reason ?? input.body ?? `move ${local.id} to ${local.stage}`).trim()
+  return {
+    changeset: {
+      id: `card:${local.id}`,
+      parent_id: null,
+      hash: "",
+      author_kind: (input.author_kind ?? (input.source === "tool" ? "agent" : "human")) as "human" | "agent",
+      author_id: input.author_id ?? (input.source === "tool" ? "agent" : defaultAuthor()),
+      agent_meta: { source: input.source, local_card: true },
+      rationale,
+      status: "applied" as const,
+      created_at: Date.now(),
+      reviewed_by: null,
+      applied_at: Date.now(),
+      audit: false,
+      changes: [
+        {
+          mutation: "AdvanceStage",
+          entity_type: "candidate",
+          entity_ref: local.id,
+          payload: { to: local.stage },
+        },
+      ],
+    },
+    path: handle.company,
+    adverse: isAdverseMutation("AdvanceStage", { to: local.stage }),
   }
 }
 

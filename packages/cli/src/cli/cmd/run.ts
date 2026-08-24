@@ -135,6 +135,7 @@ function isLocalWriteOrScaffold(command?: string, message = "", files: string[] 
     command === "open-req" ||
     command === "add-candidate" ||
     Boolean(CardWrite.parseWriteIntent(command, message)) ||
+    Boolean(CardWrite.parseMoveIntent(command, message)) ||
     Boolean(CardWrite.parseCompareIntent(command, message)) ||
     Boolean(CardWrite.parseTakeIntent(command, message)) ||
     Boolean(CardWrite.parseNaturalWorkIntent(command, message, agent)) ||
@@ -180,6 +181,7 @@ function isHeadlessScaffoldCommand(args: {
     CardWrite.parseSendIntent(args.command, message) ||
       CandidateAdd.parseAddIntent(args.command, message, args.file ?? [], args.agent) ||
       CardWrite.parseWriteIntent(args.command, message) ||
+      CardWrite.parseMoveIntent(args.command, message) ||
       CardWrite.parseCompareIntent(args.command, message) ||
       CardWrite.parseTakeIntent(args.command, message) ||
       CardWrite.parseNaturalWorkIntent(args.command, message, args.agent) ||
@@ -392,6 +394,33 @@ async function runHeadlessCardWrite(args: {
     return
   }
   UI.println(`draft: wrote ${result.relative} (not sent)`)
+  await printPacketTree(directory)
+}
+
+async function runHeadlessMove(args: {
+  command?: string
+  message?: string[]
+  dir?: string
+  json?: boolean
+  format?: string
+  ["--"]?: string[]
+}) {
+  const directory = await resolveRunDirectory(args.dir)
+  const raw = [...(args.message ?? []), ...(args["--"] ?? [])].join(" ")
+  const intent = CardWrite.parseMoveIntent(args.command, raw)
+  if (!intent) {
+    UI.error("not a local move")
+    process.exit(1)
+  }
+  const result = await CardWrite.moveOnCard(directory, intent).catch((error) => {
+    UI.error(error instanceof Error ? error.message : String(error))
+    process.exit(1)
+  })
+  if (args.json || args.format === "json") {
+    console.log(JSON.stringify({ command: "move", ...result }, null, 2))
+    return
+  }
+  UI.println(`move: wrote ${result.relative} (stage ${result.stage})`)
   await printPacketTree(directory)
 }
 
@@ -643,6 +672,10 @@ export const RunCommand = effectCmd({
       }
       if (CardWrite.parseCompareIntent(args.command, message)) {
         yield* Effect.promise(() => runHeadlessCompare(args))
+        return
+      }
+      if (CardWrite.parseMoveIntent(args.command, message)) {
+        yield* Effect.promise(() => runHeadlessMove(args))
         return
       }
       if (CardWrite.parseWriteIntent(args.command, message)) {
