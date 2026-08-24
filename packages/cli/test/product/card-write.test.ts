@@ -43,6 +43,48 @@ test("writeOnCard scores from card + HIRING.md without inventing jobs", async ()
   expect(card?.body).not.toContain("Acme Corp")
 })
 
+test("score cites HIRING.md / COMPANY.md bar plus card evidence", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "COMPANY.md"),
+        "# Acme\n\n## Bar\n- Ship weekly in public\n",
+      )
+      const req = path.join(dir, "staff-platform")
+      await Bun.write(
+        path.join(req, "HIRING.md"),
+        [
+          "# Staff Platform",
+          "",
+          "## Scorecard",
+          "| Dimension | Bar | Notes |",
+          "|-----------|-----|-------|",
+          "| Backend ownership | Owned services end-to-end | |",
+          "",
+        ].join("\n"),
+      )
+      await CandidateCard.write(req, {
+        id: "kenji-okada",
+        stage: "Sourced",
+        extra: { name: "Kenji Okada" },
+        body: "# Kenji Okada\n\nOwned the payments edge service. On-call for that path.\n",
+      })
+      await ReqWorkspace.writeFocus(dir, "staff-platform")
+    },
+  })
+  await CardWrite.writeOnCard(tmp.path, { kind: "score", hint: "kenji-okada" })
+  const card = await CandidateCard.read(path.join(tmp.path, "staff-platform"), "kenji-okada")
+  expect(card?.score).toBeGreaterThanOrEqual(1)
+  expect(card?.body).toMatch(/## Why \d/)
+  expect(card?.body).toContain("HIRING.md")
+  expect(card?.body).toContain("Owned services end-to-end")
+  expect(card?.body).toContain("Owned the payments edge service")
+  expect(card?.body).toContain("candidates/kenji-okada.md")
+  expect(card?.body).toContain("COMPANY.md")
+  expect(card?.body).toContain("Ship weekly in public")
+  expect(card?.body).toMatch(/3 because|2 — no card line/)
+})
+
 test("writeOnCard draft adds Outreach and never claims send", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {
