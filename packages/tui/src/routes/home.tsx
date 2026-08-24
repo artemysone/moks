@@ -12,6 +12,10 @@ import { useEditorContext } from "../context/editor"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useTuiConfig } from "../config"
 import { HomeSessionDestinationProvider } from "./home/session-destination"
+import { ConnectPills } from "../feature-plugins/home/connect-pills-view"
+import { useTheme } from "../context/theme"
+import { useDialog } from "../ui/dialog"
+import { DialogProvider as DialogProviderList } from "../component/dialog-provider"
 
 let once = false
 
@@ -26,6 +30,8 @@ export function Home() {
   const editor = useEditorContext()
   const dimensions = useTerminalDimensions()
   const tuiConfig = useTuiConfig()
+  const { theme } = useTheme()
+  const dialog = useDialog()
   const promptMaxWidth = createMemo(() => {
     const configured = tuiConfig.prompt?.max_width
     if (configured === "auto") return Math.max(75, Math.floor(dimensions().width * 0.7))
@@ -74,6 +80,9 @@ export function Home() {
           </pluginRuntime.Slot>
         </box>
         <box height={1} minHeight={0} flexShrink={1} />
+        <box width="100%" maxWidth={promptMaxWidth()} flexShrink={0} paddingBottom={1}>
+          <ConnectPills theme={theme} onOpen={() => dialog.replace(() => <DialogProviderList />)} />
+        </box>
         <box width="100%" maxWidth={promptMaxWidth()} zIndex={1000} paddingTop={1} flexShrink={0}>
           <pluginRuntime.Slot name="home_prompt" mode="replace" ref={bind}>
             <Prompt ref={bind} right={<pluginRuntime.Slot name="home_prompt_right" />} />

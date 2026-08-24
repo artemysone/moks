@@ -1,22 +1,21 @@
-import type { TuiPluginApi } from "@moks/plugin/tui"
 import { For } from "solid-js"
-import { CONNECT_PILLS, CONNECT_PILLS_COMMAND } from "./connect-pills"
+import { CONNECT_PILLS } from "./connect-pills"
 
-export function ConnectPills(props: { api: TuiPluginApi }) {
-  const theme = () => props.api.theme.current
-  const open = () => props.api.keymap.dispatchCommand(CONNECT_PILLS_COMMAND)
-
+export function ConnectPills(props: {
+  theme: { backgroundElement: unknown; text: unknown }
+  onOpen: () => void
+}) {
   return (
-    <box flexDirection="row" gap={1} flexShrink={0} paddingBottom={1}>
+    <box flexDirection="row" gap={1} flexShrink={0}>
       <For each={[...CONNECT_PILLS]}>
         {(name) => (
           <box
-            backgroundColor={theme().backgroundElement}
+            backgroundColor={props.theme.backgroundElement}
             paddingLeft={1}
             paddingRight={1}
-            onMouseUp={open}
+            onMouseUp={props.onOpen}
           >
-            <text fg={theme().textMuted}>{name}</text>
+            <text fg={props.theme.text}>{name}</text>
           </box>
         )}
       </For>
