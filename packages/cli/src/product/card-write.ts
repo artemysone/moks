@@ -8,6 +8,7 @@ export type WriteKind = "score" | "draft"
 export type WriteIntent = {
   kind: WriteKind
   hint: string
+  files?: string[]
 }
 
 const SEND_COMMANDS = new Set(["send", "mail", "email", "outreach-for-real"])
@@ -156,7 +157,8 @@ export async function writeOnCard(cwd: string, intent: WriteIntent) {
     .text()
     .catch(() => "")
   const cards = await CandidateCard.list(packet)
-  const named = namedCardId(intent.hint)
+  const hint = [intent.hint, ...(intent.files ?? [])].filter(Boolean).join(" ")
+  const named = cardIdsFromMention(hint, intent.files)[0] ?? namedCardId(hint)
   if (named) {
     const here = cards.find((card) => card.id.toLowerCase() === named.toLowerCase())
     if (!here) {
@@ -168,7 +170,7 @@ export async function writeOnCard(cwd: string, intent: WriteIntent) {
       }
     }
   }
-  const card = resolveCard(cards, intent.hint)
+  const card = resolveCard(cards, hint)
   const req = parseReq(hiring, companyMd)
   const next =
     intent.kind === "score"
@@ -210,6 +212,33 @@ async function stageCardWrite(cwd: string, kind: WriteKind, card: Card) {
   })
 }
 
+
+export function idFromCardPath(token: string) {
+  const raw = token.replace(/^@/, "").replace(/^["'`]+|[,"'`;]+$/g, "").trim()
+  if (!raw) return
+  const normalized = raw.replaceAll("\\", "/")
+  const base = path.basename(normalized)
+  if (!base.toLowerCase().endsWith(".md") || base === ".gitkeep") return
+  if (normalized.includes("/") && !/\/candidates\//i.test(`/${normalized}`)) return
+  const id = CandidateCard.safeId(base.replace(/\.md$/i, ""))
+  return id || undefined
+}
+
+export function cardIdsFromMention(hint: string, files: string[] = []) {
+  const tokens = [
+    ...files,
+    ...[...hint.matchAll(/@([^\s]+)/g)].map((match) => match[1]!),
+    ...[...hint.matchAll(/(?:^|[\s"'`])((?:\.\.\/|\.\/|[\w.-]+\/)*candidates\/[\w.-]+\.md)/gi)].map((match) => match[1]!),
+    ...[...hint.matchAll(/(?:^|[\s"'`])([\w.-]+\.md)\b/gi)].map((match) => match[1]!),
+  ]
+  const ids: string[] = []
+  for (const token of tokens) {
+    const id = idFromCardPath(token)
+    if (id && !ids.some((item) => item.toLowerCase() === id.toLowerCase())) ids.push(id)
+  }
+  return ids
+}
+
 function namedCardId(hint: string) {
   const cand = hint.match(/\b(cand[_-][a-z0-9]+)\b/i)
   if (cand) return cand[1]
@@ -242,9 +271,13 @@ function listed(cards: Card[]) {
   return cards.map((card) => (card.stage ? `${card.id} (${card.stage})` : card.id)).join(", ")
 }
 
-export function resolveCard(cards: Card[], hint: string): Card {
+export function resolveCard(cards: Card[], hint: string, files: string[] = []): Card {
   if (cards.length === 0) throw new Error("no candidate cards — run moks pull in a focused req")
-  const ids = [...hint.matchAll(/\b(cand[_-][a-z0-9]+)\b/gi)].map((match) => match[1].toLowerCase())
+  const mentioned = cardIdsFromMention(hint, files)
+  const ids = [
+    ...mentioned.map((id) => id.toLowerCase()),
+    ...[...hint.matchAll(/\b(cand[_-][a-z0-9]+)\b/gi)].map((match) => match[1].toLowerCase()),
+  ]
   const named = stripHintName(hint).toLowerCase()
   const scoreable = scoreableCards(cards)
   const byId = cards.find((card) => ids.includes(card.id.toLowerCase()))
@@ -560,7 +593,7 @@ function upsertSection(body: string, heading: string, section: string) {
 
 
 
-export async function compareOnCards(cwd: string, hint: string) {
+export async function compareOnCards(cwd: string, hint: string, files: string[] = []) {
   const root = await ReqWorkspace.companyRoot(cwd)
   if (!root || !(await ReqWorkspace.isLiveCompany(root))) {
     throw new Error(ReqWorkspace.notACompanyDirectory(cwd))
@@ -574,7 +607,8 @@ export async function compareOnCards(cwd: string, hint: string) {
   const companyMd = await Bun.file(path.join(root, COMPANY_FILE))
     .text()
     .catch(() => "")
-  const pair = splitComparePair(hint)
+  const mentioned = cardIdsFromMention(hint, files)
+  const pair = mentioned.length >= 2 ? [mentioned[0]!, mentioned[1]!] : splitComparePair(hint)
   if (!pair) throw new Error("compare needs two cards in this req — name both")
   const cards = await CandidateCard.list(packet)
   const left = resolveCard(cards, pair[0])

@@ -111,6 +111,63 @@ test("compare outside a company directory fails loud", async () => {
   )
 })
 
+test("cardIdsFromMention reads @file and candidates/*.md", () => {
+  expect(CardWrite.cardIdsFromMention("score @candidates/maya-chen.md")).toEqual(["maya-chen"])
+  expect(CardWrite.cardIdsFromMention("draft candidates/kenji-okada.md")).toEqual(["kenji-okada"])
+  expect(CardWrite.cardIdsFromMention("compare", ["candidates/maya-chen.md", "@kenji-okada.md"])).toEqual([
+    "maya-chen",
+    "kenji-okada",
+  ])
+})
+
+async function twoCards(dir: string) {
+  await Bun.write(path.join(dir, "COMPANY.md"), "# Acme\n")
+  const req = path.join(dir, "staff-platform")
+  await Bun.write(path.join(req, "HIRING.md"), "# Staff Platform\n")
+  await CandidateCard.write(req, {
+    id: "maya-chen",
+    stage: "Sourced",
+    extra: { name: "Maya Chen" },
+    body: "# Maya Chen\n\nOwned the payments edge.\n",
+  })
+  await CandidateCard.write(req, {
+    id: "kenji-okada",
+    stage: "Sourced",
+    extra: { name: "Kenji Okada" },
+    body: "# Kenji Okada\n\nShips weekly notes.\n",
+  })
+  await ReqWorkspace.writeFocus(dir, "staff-platform")
+}
+
+test("score @candidates/maya-chen.md hits Maya only, not Kenji", async () => {
+  await using tmp = await tmpdir({ init: twoCards })
+  await CardWrite.writeOnCard(tmp.path, { kind: "score", hint: "score @candidates/maya-chen.md" })
+  const maya = await CandidateCard.read(path.join(tmp.path, "staff-platform"), "maya-chen")
+  const kenji = await CandidateCard.read(path.join(tmp.path, "staff-platform"), "kenji-okada")
+  expect(maya?.body).toContain("# Score:")
+  expect(kenji?.body).not.toContain("# Score:")
+})
+
+test("draft of an attached kenji file does not write Maya", async () => {
+  await using tmp = await tmpdir({ init: twoCards })
+  await CardWrite.writeOnCard(tmp.path, {
+    kind: "draft",
+    hint: "draft this",
+    files: ["staff-platform/candidates/kenji-okada.md"],
+  })
+  const maya = await CandidateCard.read(path.join(tmp.path, "staff-platform"), "maya-chen")
+  const kenji = await CandidateCard.read(path.join(tmp.path, "staff-platform"), "kenji-okada")
+  expect(kenji?.body).toContain("# Outreach")
+  expect(maya?.body).not.toContain("# Outreach")
+})
+
+test("compare @maya-chen.md vs @kenji-okada.md stays on those files", async () => {
+  await using tmp = await tmpdir({ init: twoCards })
+  const result = await CardWrite.compareOnCards(tmp.path, "compare @maya-chen.md vs @kenji-okada.md")
+  expect(new Set([result.left, result.right])).toEqual(new Set(["maya-chen", "kenji-okada"]))
+  expect(result.pick).toBeNull()
+})
+
 test("score cites HIRING.md / COMPANY.md bar plus card evidence", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {

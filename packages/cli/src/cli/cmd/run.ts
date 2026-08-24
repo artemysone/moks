@@ -273,6 +273,7 @@ async function runHeadlessCompare(args: {
   dir?: string
   json?: boolean
   format?: string
+  file?: string[]
   ["--"]?: string[]
 }) {
   const directory = await resolveRunDirectory(args.dir)
@@ -282,7 +283,7 @@ async function runHeadlessCompare(args: {
     UI.error("not a local compare")
     process.exit(1)
   }
-  const result = await CardWrite.compareOnCards(directory, intent.hint).catch((error) => {
+  const result = await CardWrite.compareOnCards(directory, intent.hint, args.file ?? []).catch((error) => {
     UI.error(error instanceof Error ? error.message : String(error))
     process.exit(1)
   })
@@ -299,6 +300,7 @@ async function runHeadlessCardWrite(args: {
   dir?: string
   json?: boolean
   format?: string
+  file?: string[]
   ["--"]?: string[]
 }) {
   const directory = await resolveRunDirectory(args.dir)
@@ -308,7 +310,7 @@ async function runHeadlessCardWrite(args: {
     UI.error("not a local score/draft write")
     process.exit(1)
   }
-  const result = await CardWrite.writeOnCard(directory, intent).catch((error) => {
+  const result = await CardWrite.writeOnCard(directory, { ...intent, files: args.file ?? [] }).catch((error) => {
     UI.error(error instanceof Error ? error.message : String(error))
     process.exit(1)
   })
