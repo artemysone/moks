@@ -31,24 +31,28 @@ export type QuestionStep = {
   reply?: QuestionReply
 }
 
-export function createQuestionBodyState(requestID: string): QuestionBodyState {
+export function questionIsFreeText(info?: QuestionInfo): boolean {
+  return Boolean(info && info.custom !== false && info.options.length === 0)
+}
+
+export function createQuestionBodyState(requestID: string, request?: QuestionRequest): QuestionBodyState {
   return {
     requestID,
     tab: 0,
     answers: [],
     custom: [],
     selected: 0,
-    editing: false,
+    editing: questionIsFreeText(request?.questions[0]),
     submitting: false,
   }
 }
 
-export function questionSync(state: QuestionBodyState, requestID: string): QuestionBodyState {
+export function questionSync(state: QuestionBodyState, requestID: string, request?: QuestionRequest): QuestionBodyState {
   if (state.requestID === requestID) {
     return state
   }
 
-  return createQuestionBodyState(requestID)
+  return createQuestionBodyState(requestID, request)
 }
 
 export function questionSingle(request: QuestionRequest): boolean {
@@ -106,12 +110,12 @@ export function questionAnswers(state: QuestionBodyState, count: number): string
   return Array.from({ length: count }, (_, idx) => state.answers[idx] ?? [])
 }
 
-export function questionSetTab(state: QuestionBodyState, tab: number): QuestionBodyState {
+export function questionSetTab(state: QuestionBodyState, tab: number, request?: QuestionRequest): QuestionBodyState {
   return {
     ...state,
     tab,
     selected: 0,
-    editing: false,
+    editing: questionIsFreeText(request?.questions[tab]),
   }
 }
 
@@ -188,7 +192,7 @@ function questionPick(
   }
 
   return {
-    state: questionSetTab(next, state.tab + 1),
+    state: questionSetTab(next, state.tab + 1, request),
   }
 }
 

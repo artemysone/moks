@@ -19,6 +19,7 @@ export const description = `Use this tool when you need to ask the user question
 
 Usage notes:
 - When \`custom\` is enabled (default), a "Type your own answer" option is added automatically; don't include "Other" or catch-all options
+- If the answer is a typed string (a name, band, URL, path), set \`options\` to [] and keep \`custom\` enabled. The user types and submits that string in the question UI. Do not add a choice like "I'll type a …" and then wait for the composer.
 - Answers are returned as arrays of labels; set \`multiple: true\` to allow selecting more than one
 - If you recommend a specific option, make that the first option in the list and add "(Recommended)" at the end of the label`
 

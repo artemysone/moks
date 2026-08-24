@@ -11,6 +11,10 @@ import { useBindings, useMoksModeStack } from "../../keymap"
 
 const QUESTION_MODE = "question"
 
+function isFreeText(question?: QuestionRequest["questions"][number]) {
+  return Boolean(question && question.custom !== false && (question.options?.length ?? 0) === 0)
+}
+
 export function QuestionPrompt(props: { request: QuestionRequest; directory?: string }) {
   const sdk = useSDK()
   const { theme } = useTheme()
@@ -27,7 +31,7 @@ export function QuestionPrompt(props: { request: QuestionRequest; directory?: st
     answers: [] as QuestionAnswer[],
     custom: [] as string[],
     selected: 0,
-    editing: false,
+    editing: isFreeText(props.request.questions[0]),
   })
 
   let textarea: TextareaRenderable | undefined
@@ -78,8 +82,7 @@ export function QuestionPrompt(props: { request: QuestionRequest; directory?: st
       })
       return
     }
-    setStore("tab", store.tab + 1)
-    setStore("selected", 0)
+    selectTab(store.tab + 1)
   }
 
   function toggle(answer: string) {
@@ -100,6 +103,7 @@ export function QuestionPrompt(props: { request: QuestionRequest; directory?: st
   function selectTab(index: number) {
     setStore("tab", index)
     setStore("selected", 0)
+    setStore("editing", isFreeText(questions()[index]))
   }
 
   function selectOption() {

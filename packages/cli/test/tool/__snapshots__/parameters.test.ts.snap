@@ -227,6 +227,10 @@ exports[`tool parameters JSON Schema (wire shape) question 1`] = `
       "description": "Questions to ask",
       "items": {
         "properties": {
+          "custom": {
+            "description": "Allow typing a custom answer (default: true). For a typed string, leave options empty so the user submits it in the question UI.",
+            "type": "boolean",
+          },
           "header": {
             "description": "Very short label (max 30 chars)",
             "type": "string",
@@ -236,7 +240,7 @@ exports[`tool parameters JSON Schema (wire shape) question 1`] = `
             "type": "boolean",
           },
           "options": {
-            "description": "Available choices",
+            "description": "Available choices. Empty when the answer is a typed string (name, band, URL).",
             "items": {
               "properties": {
                 "description": {

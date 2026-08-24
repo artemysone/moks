@@ -3,6 +3,7 @@ import type { QuestionRequest } from "@moks/sdk/v2"
 import {
   createQuestionBodyState,
   questionConfirm,
+  questionIsFreeText,
   questionReject,
   questionSave,
   questionSelect,
@@ -100,6 +101,31 @@ describe("run question shared", () => {
     expect(next.reply).toEqual({
       requestID: "question-1",
       answers: [["custom mode"]],
+    })
+  })
+
+  test("submits a typed string from the question itself when options are empty", () => {
+    const ask = req({
+      questions: [
+        {
+          question: "What band?",
+          header: "Band",
+          options: [],
+          custom: true,
+        },
+      ],
+    })
+
+    expect(questionIsFreeText(ask.questions[0])).toBe(true)
+
+    let state = createQuestionBodyState("question-1", ask)
+    expect(state.editing).toBe(true)
+
+    state = questionStoreCustom(state, 0, "Talking Heads")
+    const next = questionSave(state, ask)
+    expect(next.reply).toEqual({
+      requestID: "question-1",
+      answers: [["Talking Heads"]],
     })
   })
 
