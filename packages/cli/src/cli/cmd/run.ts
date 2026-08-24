@@ -565,14 +565,6 @@ export const RunCommand = effectCmd({
         yield* Effect.promise(() => runHeadlessRecruitWork(args))
         return
       }
-      if (CandidateAdd.parseAddIntent(args.command, message, args.file ?? [], args.agent)) {
-        yield* Effect.promise(() => runHeadlessAddCandidate(args))
-        return
-      }
-      if (args.command && !isLocalWriteOrScaffold(args.command, message, args.file ?? [], args.agent)) {
-        UI.error(`unknown command: ${args.command} — use ${LOCAL_RUN_COMMANDS}`)
-        process.exit(1)
-      }
       if (CardWrite.parseCompareIntent(args.command, message)) {
         yield* Effect.promise(() => runHeadlessCompare(args))
         return
@@ -580,6 +572,14 @@ export const RunCommand = effectCmd({
       if (CardWrite.parseWriteIntent(args.command, message)) {
         yield* Effect.promise(() => runHeadlessCardWrite(args))
         return
+      }
+      if (CandidateAdd.parseAddIntent(args.command, message, args.file ?? [], args.agent)) {
+        yield* Effect.promise(() => runHeadlessAddCandidate(args))
+        return
+      }
+      if (args.command && !isLocalWriteOrScaffold(args.command, message, args.file ?? [], args.agent)) {
+        UI.error(`unknown command: ${args.command} — use ${LOCAL_RUN_COMMANDS}`)
+        process.exit(1)
       }
       if (isRecruitResume(args)) {
         yield* Effect.promise(() => runHeadlessRecruitResume(args))

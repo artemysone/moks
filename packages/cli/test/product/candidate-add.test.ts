@@ -38,6 +38,12 @@ test("parseAddIntent detects add-candidate command and prose", () => {
     files: ["kenji-sato.md", "nora-voss.md"],
     names: [],
   })
+  expect(
+    CandidateAdd.parseAddIntent(undefined, "score @candidates/maya-chen.md", ["candidates/maya-chen.md"], "recruit"),
+  ).toBeUndefined()
+  expect(
+    CandidateAdd.parseAddIntent(undefined, "draft @kenji-okada.md", ["staff-platform/candidates/kenji-okada.md"], "recruit"),
+  ).toBeUndefined()
   expect(CandidateAdd.parseAddIntent(undefined, "get Maya ready", [], "recruit")).toBeUndefined()
   expect(CandidateAdd.parseAddIntent(undefined, "work this candidate", [], "recruit")).toBeUndefined()
 })
@@ -466,4 +472,28 @@ test("recruit two --file resumes writes two cards", async () => {
   const packet = path.join(tmp.path, "staff-platform")
   expect(await CandidateCard.read(packet, "kenji-sato")).toBeDefined()
   expect(await CandidateCard.read(packet, "nora-voss")).toBeDefined()
+}, 20_000)
+
+test("language score @existing card file scores it, does not add-candidate", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await ReqWorkspace.scaffoldReq(dir, "Staff Platform")
+      await ReqWorkspace.writeFocus(dir, "staff-platform")
+      await CandidateCard.write(path.join(dir, "staff-platform"), {
+        id: "maya-chen",
+        stage: "Sourced",
+        extra: { name: "Maya Chen" },
+        body: "# Maya Chen\n\nOwned the payments edge.\n",
+      })
+    },
+  })
+  const card = path.join(tmp.path, "staff-platform", "candidates", "maya-chen.md")
+  const result = await moksRun(
+    ["--agent", "recruit", "--file", card, "--", "score @candidates/maya-chen.md"],
+    tmp.path,
+  )
+  expect(result.combined).not.toMatch(/cannot-read-resume|add-candidate/i)
+  expect(result.code).toBe(0)
+  const scored = await CandidateCard.read(path.join(tmp.path, "staff-platform"), "maya-chen")
+  expect(scored?.body).toContain("# Score:")
 }, 20_000)
