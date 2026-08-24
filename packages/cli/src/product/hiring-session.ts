@@ -36,7 +36,7 @@ export function nextStep(input: {
   if (input.stagedIds.length > 0) return `review ${input.stagedIds[0]}`
   let next = ""
   const leftoverOn = input.leftoverReq ?? input.focused
-  if (input.leftover === "score") next = leftoverOn ? `score leftover on ${leftoverOn}` : "score leftover"
+  if (input.leftover === "score") next = leftoverOn ? `talk leftover on ${leftoverOn}` : "talk leftover"
   else if (input.leftover === "rescore") next = leftoverOn ? `rescore leftover on ${leftoverOn}` : "rescore leftover"
   else if (input.leftover === "draft") next = leftoverOn ? `draft leftover on ${leftoverOn}` : "draft leftover"
   else if (input.leftover === "commit") next = leftoverOn ? `commit leftover on ${leftoverOn}` : "commit leftover"

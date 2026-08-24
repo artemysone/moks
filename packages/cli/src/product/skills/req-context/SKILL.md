@@ -11,14 +11,14 @@ The focused req is the packet (env Focused req). Load `COMPANY.md` plus that req
 
 ## Discover inputs
 
-Resolve in order (stop when found):
+Resolve in order (stop when found). Folder-only is enough. MCP is optional; never a gate.
 
 1. User-attached paths (`-f` / @ files)
-2. If Ashby MCP tools are available (`ashby_list_jobs`, `ashby_get_job`, …), prefer reading open jobs/req metadata via those tools
-3. Focused packet: that req's `HIRING.md`, optional `candidates/<id>.md`
+2. Focused packet: that req's `HIRING.md`, optional `candidates/<id>.md`
+3. If Ashby MCP tools are available (`ashby_list_jobs`, `ashby_get_job`, …), you may read open jobs/req metadata via those tools
 4. Samples only if nothing else: ship path under product fixtures/hiring
 
-Read every file or MCP payload you will cite. Never call Ashby write tools (`ashby_change_stage`, `ashby_create_note`); dispositions go through `moks commit`. A human reviews and pushes.
+Read every file (or MCP payload if connected) you will cite. Do not refuse work because Ashby or any MCP is disconnected. Never call Ashby write tools (`ashby_change_stage`, `ashby_create_note`); dispositions go through `moks commit`. A human reviews and pushes.
 
 ## Output format
 
@@ -50,5 +50,5 @@ Read every file or MCP payload you will cite. Never call Ashby write tools (`ash
 
 - Quote or paraphrase only what files support; mark gaps under Missing context
 - If HIRING.md is absent or a stub, ask — do not fabricate a full JD
-- Keep the brief short enough to reuse in score-candidate and draft-outreach
+- Keep the brief short enough to reuse in talk / taste / commit (and draft-outreach when asked)
 - After the brief, if title, level, team/HM, location, or must-haves are TBD, use the question tool for the next 2–4 gaps. Do not stop at a checklist.

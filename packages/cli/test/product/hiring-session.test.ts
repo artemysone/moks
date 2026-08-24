@@ -8,10 +8,10 @@ import { HiringSession } from "../../src/product/hiring-session"
 import { ReqWorkspace } from "../../src/product/req-workspace"
 import { tmpdir } from "../fixture/fixture"
 
-test("nextStep is review when staged, else leftover score/draft/commit", () => {
+test("nextStep is review when staged, else leftover talk/draft/commit — not score", () => {
   expect(HiringSession.nextStep({ focused: "staff-platform", stagedIds: ["cs_1", "cs_2"] })).toBe("review cs_1")
   expect(HiringSession.nextStep({ focused: "staff-platform", stagedIds: [], leftover: "score" })).toBe(
-    "score leftover on staff-platform",
+    "talk leftover on staff-platform",
   )
   expect(HiringSession.nextStep({ focused: "staff-platform", stagedIds: [], leftover: "rescore" })).toBe(
     "rescore leftover on staff-platform",
@@ -128,7 +128,7 @@ test("reviewer leaving and coming back gets the real next step", async () => {
   const after = await HiringSession.loadSnapshot(company.path)
   expect(after.focused).toBe("staff-platform")
   expect(after.staged.count).toBe(0)
-  expect(after.next).toMatch(/score leftover on staff-platform|draft leftover on staff-platform|commit leftover on staff-platform|nothing left/)
+  expect(after.next).toMatch(/talk leftover on staff-platform|draft leftover on staff-platform|commit leftover on staff-platform|nothing left/)
   expect(after.next).not.toMatch(/open-req/)
 })
 
@@ -356,6 +356,8 @@ test("pile/score writes the card file and status tree shows it before review", a
   expect(piledText).toContain("candidates/")
   expect(piledText).toContain("maya-chen.md")
   expect(piledText).not.toMatch(/^review /m)
+  expect(afterPile.next).toBe("talk leftover on staff-platform")
+  expect(afterPile.next).not.toMatch(/score leftover|score-candidate/)
 
   const scored = await CardWrite.writeOnCard(company.path, { kind: "score", hint: "maya-chen" })
   expect(await Bun.file(scored.file).exists()).toBe(true)
@@ -363,4 +365,20 @@ test("pile/score writes the card file and status tree shows it before review", a
   const scoredText = HiringSession.formatSnapshot(afterScore.session).join("\n")
   expect(scoredText).toContain("maya-chen.md")
   expect(afterScore.session.cards.find((card) => card.id === "maya-chen")?.score).toBeDefined()
+})
+
+test("after add, leftover next is talk leftover — not score leftover", () => {
+  const card = {
+    id: "maya-chen",
+    stage: "Sourced",
+    extra: { name: "Maya" },
+    body: "# Maya Chen\n\nStaff platform engineer.\n",
+  }
+  expect(HiringSession.leftoverOnCard(card)).toBe("score")
+  expect(
+    HiringSession.nextStep({ focused: "staff-platform", stagedIds: [], leftover: HiringSession.leftoverOnCard(card) }),
+  ).toBe("talk leftover on staff-platform")
+  expect(
+    HiringSession.nextStep({ focused: "staff-platform", stagedIds: [], leftover: HiringSession.leftoverOnCard(card) }),
+  ).not.toMatch(/score leftover|score-candidate/)
 })

@@ -1,4 +1,4 @@
-/** Recruit language on the landing — pile / score / draft / get-ready / send. Not a verb menu. */
+/** Recruit language on the landing — pile / talk / taste / commit / send. Not a verb menu. */
 
 export function isSendAsk(text: string) {
   const hint = text.trim()

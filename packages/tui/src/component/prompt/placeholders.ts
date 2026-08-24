@@ -1,7 +1,7 @@
 const OPEN_REQ = "open a req"
 
 export const DEFAULT_PLACEHOLDERS = {
-  normal: ["add names or files", "get this candidate ready", "taste what's staged"],
+  normal: ["add names or files", "talk this candidate", "taste what's staged"],
   shell: ["ls candidates", "pwd"],
 }
 

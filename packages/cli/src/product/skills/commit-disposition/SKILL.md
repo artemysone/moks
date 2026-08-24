@@ -19,7 +19,7 @@ Adverse actions: reject, offer, hire. Human push requires `--confirm` for those.
 
 ## Before recommending
 
-Look for `candidates/<id>.md` and cite its frontmatter `score` plus body. If the card has no score, say so and prefer running **score-candidate** first unless the user wants a `note`.
+Look for `candidates/<id>.md` and cite its body (and frontmatter `score` if present). If the card has no score, say so. Do not block commit on scoring. Score-candidate is optional — not the default next step.
 
 ## Output format
 

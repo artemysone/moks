@@ -2,6 +2,7 @@ import type { TuiPlugin, TuiPluginApi } from "@moks/plugin/tui"
 import type { BuiltinTuiPlugin } from "../builtins"
 import path from "path"
 import { createMemo, createResource, Show } from "solid-js"
+import { ConnectPills } from "./connect-pills-view"
 import { Tips } from "./tips-view"
 import { useTuiPaths } from "../../context/runtime"
 import { useBindings } from "../../keymap"
@@ -33,7 +34,8 @@ function View(props: {
   }))
 
   return (
-    <box width="100%" maxWidth={75} alignItems="center" paddingTop={3} flexShrink={1}>
+    <box width="100%" maxWidth={75} alignItems="center" paddingTop={3} flexShrink={1} gap={1}>
+      <ConnectPills api={props.api} />
       <Show when={props.show}>
         <Tips api={props.api} connected={props.connected} company={props.company} sessionNext={props.sessionNext} />
       </Show>
