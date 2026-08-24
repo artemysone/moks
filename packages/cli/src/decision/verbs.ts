@@ -861,6 +861,7 @@ function localAdvanceResult(
     },
     path: handle.company,
     adverse: isAdverseMutation("AdvanceStage", { to: local.stage }),
+    next: COMMIT_TASTE_NEXT,
   }
 }
 
