@@ -195,15 +195,22 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
               )
             const content = JSON.stringify({ resources: filtered.map(formatMcpResource) }, null, 2)
             const truncated = yield* truncate.output(content, {}, input.agent)
+            const metadata: {
+              count: number
+              servers: typeof resourceServers
+              server?: string
+              truncated: boolean
+              outputPath?: string
+            } = {
+              count: filtered.length,
+              servers: resourceServers,
+              truncated: truncated.truncated,
+            }
+            if (parsed.server) metadata.server = parsed.server
+            if (truncated.truncated) metadata.outputPath = truncated.outputPath
             const output = {
               title: parsed.server ? `MCP resources: ${parsed.server}` : "MCP resources",
-              metadata: {
-                count: filtered.length,
-                servers: resourceServers,
-                ...(parsed.server ? { server: parsed.server } : {}),
-                truncated: truncated.truncated,
-                ...(truncated.truncated && { outputPath: truncated.outputPath }),
-              },
+              metadata,
               output: truncated.content,
             }
             yield* plugin.trigger(
@@ -278,15 +285,22 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
               )
             const content = JSON.stringify({ resourceTemplates: filtered.map(formatMcpResourceTemplate) }, null, 2)
             const truncated = yield* truncate.output(content, {}, input.agent)
+            const metadata: {
+              count: number
+              servers: typeof resourceServers
+              server?: string
+              truncated: boolean
+              outputPath?: string
+            } = {
+              count: filtered.length,
+              servers: resourceServers,
+              truncated: truncated.truncated,
+            }
+            if (parsed.server) metadata.server = parsed.server
+            if (truncated.truncated) metadata.outputPath = truncated.outputPath
             const output = {
               title: parsed.server ? `MCP resource templates: ${parsed.server}` : "MCP resource templates",
-              metadata: {
-                count: filtered.length,
-                servers: resourceServers,
-                ...(parsed.server ? { server: parsed.server } : {}),
-                truncated: truncated.truncated,
-                ...(truncated.truncated && { outputPath: truncated.outputPath }),
-              },
+              metadata,
               output: truncated.content,
             }
             yield* plugin.trigger(

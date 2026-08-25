@@ -180,40 +180,39 @@ function recordedAdapter(input: {
     target: [],
   }
 
+  const adapter: WorkspaceAdapter = {
+    name: "recorded",
+    description: "recorded",
+    configure(info) {
+      calls.configure.push(structuredClone(info))
+      return input.configure?.(info) ?? info
+    },
+    async create(info, env, from) {
+      calls.create.push({
+        info: structuredClone(info),
+        env: { ...env },
+        from: from ? structuredClone(from) : undefined,
+      })
+      await input.create?.(info, env, from)
+    },
+    async remove(info) {
+      calls.remove.push(structuredClone(info))
+      await input.remove?.(info)
+    },
+    target(info) {
+      calls.target.push(structuredClone(info))
+      return input.target(info)
+    },
+  }
+  if (input.list) {
+    adapter.list = async () => {
+      calls.list += 1
+      return input.list?.() ?? []
+    }
+  }
   return {
     calls,
-    adapter: {
-      name: "recorded",
-      description: "recorded",
-      configure(info) {
-        calls.configure.push(structuredClone(info))
-        return input.configure?.(info) ?? info
-      },
-      async create(info, env, from) {
-        calls.create.push({
-          info: structuredClone(info),
-          env: { ...env },
-          from: from ? structuredClone(from) : undefined,
-        })
-        await input.create?.(info, env, from)
-      },
-      ...(input.list
-        ? {
-            async list() {
-              calls.list += 1
-              return input.list?.() ?? []
-            },
-          }
-        : {}),
-      async remove(info) {
-        calls.remove.push(structuredClone(info))
-        await input.remove?.(info)
-      },
-      target(info) {
-        calls.target.push(structuredClone(info))
-        return input.target(info)
-      },
-    },
+    adapter,
   }
 }
 

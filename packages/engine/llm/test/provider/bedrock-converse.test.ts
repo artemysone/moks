@@ -24,7 +24,21 @@ const utf8Encoder = new TextEncoder()
 // Build a single AWS event-stream frame for a Converse stream event. Each
 // frame carries `:message-type=event` + `:event-type=<name>` headers and a
 // JSON payload body.
-const eventFrame = (type: string, payload: object) =>
+interface EventPayload {
+  readonly role?: string
+  readonly message?: string
+  readonly stopReason?: string
+  readonly contentBlockIndex?: number
+  readonly delta?: {
+    readonly text?: string
+    readonly toolUse?: { readonly input?: string }
+    readonly reasoningContent?: { readonly text?: string; readonly signature?: string }
+  }
+  readonly start?: { readonly toolUse?: { readonly toolUseId?: string; readonly name?: string } }
+  readonly usage?: { readonly inputTokens?: number; readonly outputTokens?: number; readonly totalTokens?: number }
+}
+
+const eventFrame = (type: string, payload: EventPayload) =>
   codec.encode({
     headers: {
       ":message-type": { type: "string", value: "event" },
@@ -45,7 +59,7 @@ const concat = (frames: ReadonlyArray<Uint8Array>) => {
   return out
 }
 
-const eventStreamBody = (...payloads: ReadonlyArray<readonly [string, object]>) =>
+const eventStreamBody = (...payloads: ReadonlyArray<readonly [string, EventPayload]>) =>
   concat(payloads.map(([type, payload]) => eventFrame(type, payload)))
 
 // Override the default SSE content-type with the binary event-stream type so

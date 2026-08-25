@@ -123,16 +123,24 @@ const layer = Layer.effect(
         if (message.type !== "assistant") continue
         for (const tool of message.content) {
           if (tool.type !== "tool" || (tool.state.status !== "pending" && tool.state.status !== "running")) continue
+          if (tool.provider?.metadata === undefined) {
+            yield* events.publish(SessionEvent.Tool.Failed, {
+              sessionID,
+              timestamp: yield* DateTime.now,
+              assistantMessageID: message.id,
+              callID: tool.id,
+              error: { type: "unknown", message: "Tool execution interrupted" },
+              provider: { executed: tool.provider?.executed === true },
+            })
+            continue
+          }
           yield* events.publish(SessionEvent.Tool.Failed, {
             sessionID,
             timestamp: yield* DateTime.now,
             assistantMessageID: message.id,
             callID: tool.id,
             error: { type: "unknown", message: "Tool execution interrupted" },
-            provider: {
-              executed: tool.provider?.executed === true,
-              ...(tool.provider?.metadata === undefined ? {} : { metadata: tool.provider.metadata }),
-            },
+            provider: { executed: tool.provider.executed === true, metadata: tool.provider.metadata },
           })
         }
       }
@@ -218,11 +226,17 @@ const layer = Layer.effect(
       const publisher = createLLMEventPublisher(events, {
         sessionID: session.id,
         agent: agent.id,
-        model: {
-          id: ModelV2.ID.make(model.id),
-          providerID: ProviderV2.ID.make(model.provider),
-          ...(session.model?.variant === undefined ? {} : { variant: session.model.variant }),
-        },
+        model:
+          session.model?.variant === undefined
+            ? {
+                id: ModelV2.ID.make(model.id),
+                providerID: ProviderV2.ID.make(model.provider),
+              }
+            : {
+                id: ModelV2.ID.make(model.id),
+                providerID: ProviderV2.ID.make(model.provider),
+                variant: session.model.variant,
+              },
         snapshot: startSnapshot,
       })
       const withPublication = Semaphore.makeUnsafe(1).withPermit

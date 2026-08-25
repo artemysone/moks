@@ -64,14 +64,15 @@ async function requestTicket(
   dir: string,
   options?: { ticketHeader?: boolean; origin?: string },
 ) {
+  const headers: Record<string, string> = {
+    authorization: authorization(),
+    "x-moks-directory": dir,
+  }
+  if (options?.ticketHeader !== false) headers["x-moks-ticket"] = "1"
+  if (options?.origin) headers.origin = options.origin
   const response = await fetch(new URL(PtyPaths.connectToken.replace(":ptyID", id), listener.url), {
     method: "POST",
-    headers: {
-      authorization: authorization(),
-      "x-moks-directory": dir,
-      ...(options?.ticketHeader === false ? {} : { "x-moks-ticket": "1" }),
-      ...(options?.origin ? { origin: options.origin } : {}),
-    },
+    headers,
   })
 
   return response
@@ -112,8 +113,8 @@ async function openSocket(url: URL) {
 }
 
 async function expectSocketRejected(url: URL, init?: { headers?: Record<string, string> }) {
-  // Bun's WebSocket accepts an init object with headers; standard DOM types don't reflect that.
-  const Ctor = WebSocket as unknown as new (url: URL, init?: { headers?: Record<string, string> }) => WebSocket
+  // SAFETY: Bun's WebSocket accepts a headers init object omitted from DOM lib types.
+  const Ctor = WebSocket as new (url: URL, init?: { headers?: Record<string, string> }) => WebSocket
   const ws = new Ctor(url, init)
   await withTimeout(
     new Promise<void>((resolve, reject) => {

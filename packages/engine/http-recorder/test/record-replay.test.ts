@@ -22,7 +22,14 @@ const seedCassetteDirectory = (directory: string, name: string, interactions: Re
     ),
   )
 
-const post = (url: string, body: object) =>
+interface JsonBody {
+  readonly id?: string
+  readonly step?: number
+  readonly token?: string
+  readonly ok?: boolean
+}
+
+const post = (url: string, body: JsonBody) =>
   Effect.gen(function* () {
     const http = yield* HttpClient.HttpClient
     const request = HttpClientRequest.post(url, {

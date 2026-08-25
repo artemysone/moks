@@ -21,14 +21,17 @@ import { useEvent } from "../context/event"
 
 type SessionListFilter = { scope?: "project"; path?: string }
 
+type SessionListQuery = { roots: true; limit: number; search?: string } & SessionListFilter
+
 export function createDialogSessionListQuery(input: { search?: string; filter: SessionListFilter }) {
   const search = input.search?.trim()
-  return {
+  const query: SessionListQuery = {
     roots: true,
     limit: search ? 30 : 100,
-    ...(search ? { search } : {}),
     ...input.filter,
   }
+  if (search) query.search = search
+  return query
 }
 
 export function loadDialogSessionList<T>(input: {

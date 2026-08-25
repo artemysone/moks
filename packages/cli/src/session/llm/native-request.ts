@@ -153,15 +153,20 @@ const requireBaseURL = (model: Provider.Model, url: string | undefined) => {
 export const model = (input: Provider.Model | RequestInput, headers?: Record<string, string>) => {
   const model = "model" in input ? input.model : input
   const url = baseURL(input)
-  const options = {
-    ...("model" in input && input.apiKey ? { apiKey: input.apiKey } : {}),
-    ...(url ? { baseURL: url } : {}),
+  const options: {
+    apiKey?: string
+    baseURL?: string
+    headers?: Record<string, string>
+    limits: { context: number; output: number }
+  } = {
     headers: Object.keys({ ...model.headers, ...headers }).length === 0 ? undefined : { ...model.headers, ...headers },
     limits: {
       context: model.limit.context,
       output: model.limit.output,
     },
   }
+  if ("model" in input && input.apiKey) options.apiKey = input.apiKey
+  if (url) options.baseURL = url
   if (model.api.npm === "@ai-sdk/openai") return OpenAI.configure(options).responses(model.api.id)
   if (model.api.npm === "@ai-sdk/azure")
     return Azure.configure({ ...options, baseURL: requireBaseURL(model, url) }).responses(model.api.id)

@@ -71,18 +71,18 @@ const auth = (input: Config) => {
   )
 }
 
-const configuredRoute = <Body, Prepared>(route: RouteDef<Body, Prepared>, input: Config) =>
-  route.with({
+const configuredRoute = <Body, Prepared>(route: RouteDef<Body, Prepared>, input: Config) => {
+  const query = { ...input.queryParams }
+  if (input.apiVersion && query["api-version"] === undefined) query["api-version"] = input.apiVersion
+  return route.with({
     auth: auth(input),
     endpoint: {
       // AtLeastOne guarantees at least one is set; baseURL wins if both are.
       baseURL: input.baseURL ?? resourceBaseURL(input.resourceName!),
-      query: {
-        ...(input.apiVersion ? { "api-version": input.apiVersion } : {}),
-        ...input.queryParams,
-      },
+      query,
     },
   })
+}
 
 export const configure = (input: Config) => {
   const configuredResponsesRoute = configuredRoute(responsesRoute, input)

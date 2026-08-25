@@ -1,8 +1,9 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { Database } from "bun:sqlite";
+import { Database, type SQLQueryBindings } from "bun:sqlite";
 
 export type SqliteDb = Database;
+export type SqlBindings = SQLQueryBindings[];
 
 export function openSqlite(path: string): SqliteDb {
   mkdirSync(dirname(path), { recursive: true });

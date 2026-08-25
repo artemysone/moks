@@ -220,12 +220,12 @@ describe("plugin.snowflake-cortex", () => {
     const options = await hooks.auth!.loader!(getAuth as any, {} as any)
 
     const originalFetch = globalThis.fetch
-    globalThis.fetch = (async () => {
-      return new Response(JSON.stringify({ message: "Conversation complete" }), {
+    const fetchStub: typeof fetch = async () =>
+      new Response(JSON.stringify({ message: "Conversation complete" }), {
         status: 400,
         headers: { "content-type": "application/json" },
       })
-    }) as unknown as typeof fetch
+    globalThis.fetch = fetchStub
 
     try {
       const response = await options.fetch("https://example.test/v1/chat", {
@@ -247,7 +247,7 @@ describe("plugin.snowflake-cortex", () => {
 
     const originalFetch = globalThis.fetch
     const sseChunk = `data: {"choices":[{"delta":{"role":"","content":"hello"}}]}\n\n`
-    globalThis.fetch = (async () => {
+    const fetchStub: typeof fetch = async () => {
       const stream = new ReadableStream({
         start(ctrl) {
           ctrl.enqueue(new TextEncoder().encode(sseChunk))
@@ -258,7 +258,8 @@ describe("plugin.snowflake-cortex", () => {
         status: 200,
         headers: { "content-type": "text/event-stream" },
       })
-    }) as unknown as typeof fetch
+    }
+    globalThis.fetch = fetchStub
 
     try {
       const response = await options.fetch("https://example.test/v1/chat", {

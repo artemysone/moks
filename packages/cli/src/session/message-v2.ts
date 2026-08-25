@@ -128,6 +128,26 @@ function providerMeta(metadata: Record<string, any> | undefined) {
   return Object.keys(rest).length > 0 ? rest : undefined
 }
 
+type ToolOutputAvailable = {
+  type: `tool-${string}`
+  state: "output-available"
+  toolCallId: string
+  input: unknown
+  output: unknown
+  providerExecuted?: boolean
+  callProviderMetadata?: ReturnType<typeof providerMeta>
+}
+
+type ToolOutputError = {
+  type: `tool-${string}`
+  state: "output-error"
+  toolCallId: string
+  input: unknown
+  errorText: string
+  providerExecuted?: boolean
+  callProviderMetadata?: ReturnType<typeof providerMeta>
+}
+
 export const toModelMessagesEffect = Effect.fnUntraced(function* (
   input: WithParts[],
   model: Provider.Model,
@@ -277,11 +297,15 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       for (const part of msg.parts) {
         if (part.type === "text") {
           const text = part.text === "" && hasSignedReasoning ? " " : part.text
-          assistantMessage.parts.push({
-            type: "text",
+          const textPart = {
+            type: "text" as const,
             text,
-            ...(differentModel ? {} : { providerMetadata: part.metadata }),
-          })
+          }
+          if (!differentModel) {
+            assistantMessage.parts.push({ ...textPart, providerMetadata: part.metadata })
+          } else {
+            assistantMessage.parts.push(textPart)
+          }
         }
         if (part.type === "step-start")
           assistantMessage.parts.push({
@@ -312,52 +336,57 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
                   }
                 : outputText
 
-            assistantMessage.parts.push({
+            const completed: ToolOutputAvailable = {
               type: ("tool-" + part.tool) as `tool-${string}`,
               state: "output-available",
               toolCallId: part.callID,
               input: part.state.input,
               output,
-              ...(part.metadata?.providerExecuted ? { providerExecuted: true } : {}),
-              ...(differentModel ? {} : { callProviderMetadata: providerMeta(part.metadata) }),
-            })
+            }
+            if (part.metadata?.providerExecuted) completed.providerExecuted = true
+            if (!differentModel) completed.callProviderMetadata = providerMeta(part.metadata)
+            assistantMessage.parts.push(completed)
           }
           if (part.state.status === "error") {
             const output = part.state.metadata?.interrupted === true ? part.state.metadata.output : undefined
             if (typeof output === "string") {
-              assistantMessage.parts.push({
+              const recovered: ToolOutputAvailable = {
                 type: ("tool-" + part.tool) as `tool-${string}`,
                 state: "output-available",
                 toolCallId: part.callID,
                 input: part.state.input,
                 output,
-                ...(part.metadata?.providerExecuted ? { providerExecuted: true } : {}),
-                ...(differentModel ? {} : { callProviderMetadata: providerMeta(part.metadata) }),
-              })
+              }
+              if (part.metadata?.providerExecuted) recovered.providerExecuted = true
+              if (!differentModel) recovered.callProviderMetadata = providerMeta(part.metadata)
+              assistantMessage.parts.push(recovered)
             } else {
-              assistantMessage.parts.push({
+              const failed: ToolOutputError = {
                 type: ("tool-" + part.tool) as `tool-${string}`,
                 state: "output-error",
                 toolCallId: part.callID,
                 input: part.state.input,
                 errorText: part.state.error,
-                ...(part.metadata?.providerExecuted ? { providerExecuted: true } : {}),
-                ...(differentModel ? {} : { callProviderMetadata: providerMeta(part.metadata) }),
-              })
+              }
+              if (part.metadata?.providerExecuted) failed.providerExecuted = true
+              if (!differentModel) failed.callProviderMetadata = providerMeta(part.metadata)
+              assistantMessage.parts.push(failed)
             }
           }
           // Handle pending/running tool calls to prevent dangling tool_use blocks
           // Anthropic/Claude APIs require every tool_use to have a corresponding tool_result
-          if (part.state.status === "pending" || part.state.status === "running")
-            assistantMessage.parts.push({
+          if (part.state.status === "pending" || part.state.status === "running") {
+            const interrupted: ToolOutputError = {
               type: ("tool-" + part.tool) as `tool-${string}`,
               state: "output-error",
               toolCallId: part.callID,
               input: part.state.input,
               errorText: "[Tool execution was interrupted]",
-              ...(part.metadata?.providerExecuted ? { providerExecuted: true } : {}),
-              ...(differentModel ? {} : { callProviderMetadata: providerMeta(part.metadata) }),
-            })
+            }
+            if (part.metadata?.providerExecuted) interrupted.providerExecuted = true
+            if (!differentModel) interrupted.callProviderMetadata = providerMeta(part.metadata)
+            assistantMessage.parts.push(interrupted)
+          }
         }
         if (part.type === "reasoning") {
           if (differentModel) {

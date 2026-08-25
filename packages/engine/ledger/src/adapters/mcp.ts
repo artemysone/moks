@@ -1,107 +1,94 @@
 import type { McpServerConfig } from "../config.ts";
 import {
-  JOB_STATUSES,
-  isStage,
-  type Application,
+  parseApplication,
+  parseAtsId,
+  parseCandidate,
+  parseJob,
+  parseRemoteResult,
   type AtsId,
   type AtsSnapshot,
-  type Candidate,
   type Job,
+  type Candidate,
+  type Application,
 } from "../domain.ts";
+import { isJsonObject, isJsonString, jsonNumber, jsonString, parseJsonText, type Json } from "../json.ts";
 import { McpError } from "../mcp/errors.ts";
 import { openSyncMcpClient, type SyncMcpClient } from "../mcp/sync-client.ts";
-import { MCP_TOOL_ATS_APPLY, MCP_TOOL_ATS_SNAPSHOT, MCP_TOOL_SOURCE_SEARCH } from "../mcp/types.ts";
+import { MCP_TOOL_ATS_APPLY, MCP_TOOL_ATS_SNAPSHOT, MCP_TOOL_SOURCE_SEARCH, type AtsApplyArgs, type SourceSearchArgs } from "../mcp/types.ts";
 import type { SourcedCandidate, SourcingAdapter, SourcingQuery } from "./sourcing.ts";
 import type { ApplyChange, ApplyResult, AtsAdapter } from "./types.ts";
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
-  }
-  return null;
-}
-
-function isStringField(record: Record<string, unknown>, keys: string[]): boolean {
-  return keys.every((key) => typeof record[key] === "string");
-}
-
-function parseSnapshot(value: unknown, expectedAts: AtsId): AtsSnapshot {
-  const record = asRecord(value);
+function parseSnapshot(value: Json, expectedAts: AtsId): AtsSnapshot {
   if (
-    !record ||
-    !Array.isArray(record.jobs) ||
-    !Array.isArray(record.candidates) ||
-    !Array.isArray(record.applications)
+    !isJsonObject(value) ||
+    !Array.isArray(value.jobs) ||
+    !Array.isArray(value.candidates) ||
+    !Array.isArray(value.applications)
   ) {
     throw new McpError("mcp_bad_response", "ats_snapshot must return { ats, jobs, candidates, applications }");
   }
-  if (record.ats !== expectedAts) {
-    throw new McpError("mcp_bad_response", `ats_snapshot ats must be ${expectedAts}, got ${String(record.ats)}`);
+  const ats = jsonString(value.ats);
+  if (ats === undefined || parseAtsId(ats) !== expectedAts) {
+    throw new McpError("mcp_bad_response", `ats_snapshot ats must be ${expectedAts}, got ${String(value.ats)}`);
   }
-  for (const job of record.jobs) {
-    const row = asRecord(job);
-    if (
-      !row ||
-      !isStringField(row, ["id", "remoteId", "title", "team", "location", "status"]) ||
-      !(JOB_STATUSES as readonly string[]).includes(row.status as string)
-    ) {
+  const jobs: Job[] = [];
+  for (const job of value.jobs) {
+    const parsed = parseJob(job);
+    if (!parsed) {
       throw new McpError("mcp_bad_response", "ats_snapshot returned a malformed job");
     }
+    jobs.push(parsed);
   }
-  for (const candidate of record.candidates) {
-    const row = asRecord(candidate);
-    if (!row || !isStringField(row, ["id", "remoteId", "name", "email", "headline"])) {
+  const candidates: Candidate[] = [];
+  for (const candidate of value.candidates) {
+    const parsed = parseCandidate(candidate);
+    if (!parsed) {
       throw new McpError("mcp_bad_response", "ats_snapshot returned a malformed candidate");
     }
+    candidates.push(parsed);
   }
-  for (const application of record.applications) {
-    const row = asRecord(application);
-    if (
-      !row ||
-      !isStringField(row, ["id", "remoteId", "jobId", "candidateId", "stage"]) ||
-      !isStage(row.stage as string)
-    ) {
+  const applications: Application[] = [];
+  for (const application of value.applications) {
+    const parsed = parseApplication(application);
+    if (!parsed) {
       throw new McpError("mcp_bad_response", "ats_snapshot returned a malformed application");
     }
+    applications.push(parsed);
   }
-  return {
-    ats: expectedAts,
-    jobs: record.jobs as Job[],
-    candidates: record.candidates as Candidate[],
-    applications: record.applications as Application[],
-  };
+  return { ats: expectedAts, jobs, candidates, applications };
 }
 
-function parseApplyResult(value: unknown): ApplyResult {
-  const record = asRecord(value);
-  if (record && record.ok === true) {
-    return { ok: true, remoteResult: record.remoteResult };
+function parseApplyResult(value: Json): ApplyResult {
+  if (!isJsonObject(value)) {
+    throw new McpError("mcp_bad_response", "ats_apply must return { ok: true, remoteResult } or { ok: false, reason }");
   }
-  if (record && record.ok === false && typeof record.reason === "string") {
-    return { ok: false, reason: record.reason };
+  if (value.ok === true) {
+    return { ok: true, remoteResult: parseRemoteResult(value.remoteResult) };
+  }
+  if (value.ok === false && isJsonString(value.reason)) {
+    return { ok: false, reason: value.reason };
   }
   throw new McpError("mcp_bad_response", "ats_apply must return { ok: true, remoteResult } or { ok: false, reason }");
 }
 
-function parseSourcedCandidates(value: unknown): SourcedCandidate[] {
-  const record = asRecord(value);
-  if (!record || !Array.isArray(record.candidates)) {
+function parseSourcedCandidates(value: Json): SourcedCandidate[] {
+  if (!isJsonObject(value) || !Array.isArray(value.candidates)) {
     throw new McpError("mcp_bad_response", "source_search must return { candidates }");
   }
-  return record.candidates.map((candidate) => {
-    const row = asRecord(candidate);
-    if (!row || !isStringField(row, ["id", "name", "headline", "source"])) {
+  return value.candidates.map((candidate) => {
+    if (!isJsonObject(candidate)) {
       throw new McpError("mcp_bad_response", "source_search returned a malformed candidate");
     }
-    const sourced: SourcedCandidate = {
-      id: row.id as string,
-      name: row.name as string,
-      headline: row.headline as string,
-      source: row.source as string,
-    };
-    if (typeof row.score === "number") {
-      sourced.score = row.score;
+    const id = jsonString(candidate.id);
+    const name = jsonString(candidate.name);
+    const headline = jsonString(candidate.headline);
+    const source = jsonString(candidate.source);
+    if (!id || !name || !headline || !source) {
+      throw new McpError("mcp_bad_response", "source_search returned a malformed candidate");
     }
+    const sourced: SourcedCandidate = { id, name, headline, source };
+    const score = jsonNumber(candidate.score);
+    if (score !== undefined) sourced.score = score;
     return sourced;
   });
 }
@@ -115,20 +102,17 @@ export function createMcpAtsAdapter(config: McpServerConfig, options: { id: AtsI
       return parseSnapshot(client.callTool(MCP_TOOL_ATS_SNAPSHOT, {}), options.id);
     },
     apply(change: ApplyChange): ApplyResult {
-      // sync.ts attaches a per-change idempotency key so the server can dedupe
-      // replayed applies (operator re-push after a timeout, rebase of a
-      // partially applied changeset).
-      const { idempotencyKey } = change as ApplyChange & { idempotencyKey?: unknown };
-      return parseApplyResult(
-        client.callTool(MCP_TOOL_ATS_APPLY, {
-          entityType: change.entityType,
-          entityRef: change.entityRef,
-          mutation: change.mutation,
-          precondition: change.precondition,
-          payload: change.payload,
-          ...(typeof idempotencyKey === "string" && idempotencyKey.length > 0 ? { idempotencyKey } : {}),
-        }),
-      );
+      const args: AtsApplyArgs = {
+        entityType: change.entityType,
+        entityRef: change.entityRef,
+        mutation: change.mutation,
+        precondition: parseJsonText(JSON.stringify(change.precondition)),
+        payload: parseJsonText(JSON.stringify(change.payload)),
+      };
+      if (change.idempotencyKey !== undefined && change.idempotencyKey.length > 0) {
+        args.idempotencyKey = change.idempotencyKey;
+      }
+      return parseApplyResult(client.callTool(MCP_TOOL_ATS_APPLY, args));
     },
     close() {
       client.close();
@@ -142,12 +126,9 @@ export function createMcpSourcingAdapter(config: McpServerConfig): SourcingAdapt
   return {
     id: "juicebox",
     search(query: SourcingQuery): SourcedCandidate[] {
-      return parseSourcedCandidates(
-        client.callTool(MCP_TOOL_SOURCE_SEARCH, {
-          role: query.role,
-          ...(query.limit !== undefined ? { limit: query.limit } : {}),
-        }),
-      );
+      const args: SourceSearchArgs = { role: query.role };
+      if (query.limit !== undefined) args.limit = query.limit;
+      return parseSourcedCandidates(client.callTool(MCP_TOOL_SOURCE_SEARCH, args));
     },
     close() {
       client.close();

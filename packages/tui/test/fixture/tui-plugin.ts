@@ -14,6 +14,7 @@ export function createTuiPluginApi(opts: Opts = {}) {
   const values = new Map<string, unknown>()
   const color = RGBA.fromInts(200, 200, 200)
   const dialog = { clear() {}, replace() {}, setSize() {}, size: "medium" as const, depth: 0, open: false }
+  // SAFETY: fixture supplies the plugin surfaces tests touch; remaining TuiPluginApi fields stay unused.
   return {
     attention: { notify: async () => ({ ok: false, notification: false, sound: false }), ...opts.attention },
     client: opts.client,
@@ -32,5 +33,5 @@ export function createTuiPluginApi(opts: Opts = {}) {
     theme: { current: new Proxy({}, { get: () => color }) },
     tuiConfig: createTuiResolvedConfig(),
     ui: { dialog },
-  } as unknown as TuiPluginApi
+  } as TuiPluginApi
 }

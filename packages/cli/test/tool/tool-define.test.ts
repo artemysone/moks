@@ -98,7 +98,9 @@ describe("Tool.define", () => {
       )
       const ctx = makeCtx()
       const tool = yield* info.init()
-      const execute = tool.execute as unknown as (args: unknown, ctx: Tool.Context) => ReturnType<typeof tool.execute>
+      type ExecuteUntyped = (args: unknown, ctx: Tool.Context) => ReturnType<typeof tool.execute>
+      // SAFETY: this test drives the untyped LLM payload path through execute.
+      const execute = tool.execute as ExecuteUntyped
 
       yield* execute({}, ctx)
       yield* execute({ count: "7" }, ctx)
@@ -132,7 +134,9 @@ describe("Tool.define", () => {
         }),
       )
       const tool = yield* info.init()
-      const execute = tool.execute as unknown as (args: unknown, ctx: Tool.Context) => ReturnType<typeof tool.execute>
+      type ExecuteUntyped = (args: unknown, ctx: Tool.Context) => ReturnType<typeof tool.execute>
+      // SAFETY: this test drives invalid LLM payloads through execute.
+      const execute = tool.execute as ExecuteUntyped
 
       // Missing required `question` field on the first questions[] entry.
       const exit = yield* execute({ questions: [{ options: ["a"] }] }, makeCtx()).pipe(Effect.exit)

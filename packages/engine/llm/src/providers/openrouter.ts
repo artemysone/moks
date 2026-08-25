@@ -53,17 +53,20 @@ export const protocol = Protocol.make({
   stream: OpenAIChat.protocol.stream,
 })
 
-const bodyOptions = (input: unknown) => {
+type OpenRouterBodyOptions = {
+  usage?: { include: true } | Exclude<OpenRouterOptions["usage"], boolean>
+  reasoning?: OpenRouterOptions["reasoning"]
+  prompt_cache_key?: string
+}
+
+const bodyOptions = (input: unknown): OpenRouterBodyOptions => {
   const openrouter = isRecord(input) ? input : {}
-  return {
-    ...(openrouter.usage === true
-      ? { usage: { include: true } }
-      : isRecord(openrouter.usage)
-        ? { usage: openrouter.usage }
-        : {}),
-    ...(isRecord(openrouter.reasoning) ? { reasoning: openrouter.reasoning } : {}),
-    ...(typeof openrouter.promptCacheKey === "string" ? { prompt_cache_key: openrouter.promptCacheKey } : {}),
-  }
+  const options: OpenRouterBodyOptions = {}
+  if (openrouter.usage === true) options.usage = { include: true }
+  else if (isRecord(openrouter.usage)) options.usage = openrouter.usage
+  if (isRecord(openrouter.reasoning)) options.reasoning = openrouter.reasoning
+  if (typeof openrouter.promptCacheKey === "string") options.prompt_cache_key = openrouter.promptCacheKey
+  return options
 }
 
 export const route = Route.make({

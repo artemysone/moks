@@ -53,11 +53,19 @@ const run = (
   options: { trace?: Trace; limits?: CodeMode.ExecutionLimits } = {},
 ): Promise<CodeMode.Result> => {
   const trace = options.trace ?? makeTrace()
+  if (options.limits) {
+    return Effect.runPromise(
+      CodeMode.execute({
+        tools: { host: { sleepy: sleepyTool(trace), fail: failingTool } },
+        code,
+        limits: options.limits,
+      }),
+    )
+  }
   return Effect.runPromise(
     CodeMode.execute({
       tools: { host: { sleepy: sleepyTool(trace), fail: failingTool } },
       code,
-      ...(options.limits ? { limits: options.limits } : {}),
     }),
   )
 }

@@ -143,11 +143,12 @@ export function permissionLabel(option: PermissionOption): string {
 }
 
 export function permissionReply(requestID: string, reply: PermissionReply["reply"], message?: string): PermissionReply {
-  return {
+  const next: PermissionReply = {
     requestID,
     reply,
-    ...(message && message.trim() ? { message: message.trim() } : {}),
   }
+  if (message && message.trim()) next.message = message.trim()
+  return next
 }
 
 export function permissionShift(state: PermissionBodyState, dir: -1 | 1): PermissionBodyState {

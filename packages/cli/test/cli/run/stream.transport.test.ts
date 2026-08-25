@@ -235,14 +235,22 @@ function runningTool(input: {
     type: "tool",
     callID: input.callID,
     tool: input.tool,
-    state: {
-      status: "running",
-      input: input.body,
-      ...(input.metadata ? { metadata: input.metadata } : {}),
-      time: {
-        start: 1,
-      },
-    },
+    state: input.metadata
+      ? {
+          status: "running",
+          input: input.body,
+          metadata: input.metadata,
+          time: {
+            start: 1,
+          },
+        }
+      : {
+          status: "running",
+          input: input.body,
+          time: {
+            start: 1,
+          },
+        },
   }
 }
 

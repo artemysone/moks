@@ -27,24 +27,29 @@ export const Plugin = define({
             if (!validAlias(name)) continue
             const description = typeof entry === "string" ? undefined : entry.description
             const hidden = typeof entry === "string" ? undefined : entry.hidden
+            if (local(entry)) {
+              entries.set(
+                name,
+                Reference.LocalSource.make({
+                  type: "local",
+                  path: AbsolutePath.make(
+                    localPath(directory, global.home, typeof entry === "string" ? entry : entry.path),
+                  ),
+                  ...(description === undefined ? undefined : { description }),
+                  ...(hidden === undefined ? undefined : { hidden }),
+                }),
+              )
+              continue
+            }
             entries.set(
               name,
-              local(entry)
-                ? Reference.LocalSource.make({
-                    type: "local",
-                    path: AbsolutePath.make(
-                      localPath(directory, global.home, typeof entry === "string" ? entry : entry.path),
-                    ),
-                    ...(description === undefined ? {} : { description }),
-                    ...(hidden === undefined ? {} : { hidden }),
-                  })
-                : Reference.GitSource.make({
-                    type: "git",
-                    repository: typeof entry === "string" ? entry : entry.repository,
-                    ...(entry.branch === undefined ? {} : { branch: entry.branch }),
-                    ...(description === undefined ? {} : { description }),
-                    ...(hidden === undefined ? {} : { hidden }),
-                  }),
+              Reference.GitSource.make({
+                type: "git",
+                repository: typeof entry === "string" ? entry : entry.repository,
+                ...(entry.branch === undefined ? undefined : { branch: entry.branch }),
+                ...(description === undefined ? undefined : { description }),
+                ...(hidden === undefined ? undefined : { hidden }),
+              }),
             )
           }
         }

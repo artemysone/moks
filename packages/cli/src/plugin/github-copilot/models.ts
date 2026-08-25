@@ -104,12 +104,18 @@ function build(key: string, remote: SelectableItem, url: string, prev?: Model): 
   const model: CopilotModel = {
     id: key,
     providerID: "github-copilot",
-    api: {
-      id: remote.id,
-      url: isMsgApi ? `${url}/v1` : url,
-      npm: isMsgApi ? "@ai-sdk/anthropic" : "@ai-sdk/github-copilot",
-      ...(endpoint ? { endpoint } : {}),
-    },
+    api: endpoint
+      ? {
+          id: remote.id,
+          url: isMsgApi ? `${url}/v1` : url,
+          npm: isMsgApi ? "@ai-sdk/anthropic" : "@ai-sdk/github-copilot",
+          endpoint,
+        }
+      : {
+          id: remote.id,
+          url: isMsgApi ? `${url}/v1` : url,
+          npm: isMsgApi ? "@ai-sdk/anthropic" : "@ai-sdk/github-copilot",
+        },
     // API response wins
     status: "active",
     limit: {
@@ -170,11 +176,10 @@ function build(key: string, remote: SelectableItem, url: string, prev?: Model): 
   } else {
     if (efforts?.length && remote.capabilities.supports.adaptive_thinking) {
       efforts.forEach((effort) => {
+        const thinking: { type: "adaptive"; display?: "summarized" } = { type: "adaptive" }
+        if (model.api.id.includes("opus-4.7")) thinking.display = "summarized"
         variants[effort] = {
-          thinking: {
-            type: "adaptive",
-            ...(model.api.id.includes("opus-4.7") ? { display: "summarized" } : {}),
-          },
+          thinking,
           effort,
         }
       })

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openSqlite } from "../db.ts";
+import { openSqlite, type SqlBindings } from "../db.ts";
 import { migrateMockAts } from "../schema.ts";
 import { createMockAdapter, seedMockAts } from "./mock.ts";
 
@@ -37,7 +37,9 @@ const validFixture = {
   ],
 };
 
-function writeFixture(body: unknown): string {
+import type { Json } from "../json.ts";
+
+function writeFixture(body: Json): string {
   const dir = mkdtempSync(join(tmpdir(), "moks-fixture-"));
   const path = join(dir, "mock-ats.json");
   writeFileSync(path, JSON.stringify(body));
@@ -121,7 +123,7 @@ describe("createMockAdapter", () => {
       payload: { body: "Strong systems answers" },
     });
     expect(noted.ok).toBe(true);
-    const notes = db.prepare("SELECT body FROM notes").all() as Array<{ body: string }>;
+    const notes = db.prepare<{ body: string }, SqlBindings>("SELECT body FROM notes").all();
     expect(notes).toEqual([{ body: "Strong systems answers" }]);
   });
 

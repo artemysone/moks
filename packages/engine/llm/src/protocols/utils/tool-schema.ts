@@ -53,10 +53,10 @@ const openAI = (schema: JsonSchema): JsonSchema => {
       : {
           ...Object.fromEntries(Object.entries(schema).filter(([key]) => key !== "anyOf")),
           type: "object",
-          properties: variants.reduce(
-            (properties, variant) => ({ ...(isRecord(variant.properties) ? variant.properties : {}), ...properties }),
-            {},
-          ),
+          properties: variants.reduce((properties, variant) => {
+            if (!isRecord(variant.properties)) return { ...properties }
+            return { ...variant.properties, ...properties }
+          }, {}),
           additionalProperties: false,
         }
   const normalized = removeNullSchemas(flattened)

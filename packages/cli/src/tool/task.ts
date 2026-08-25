@@ -182,12 +182,17 @@ export const TaskTool = Tool.define(
         modelID: msg.info.modelID,
         providerID: msg.info.providerID,
       }
-      const metadata = {
+      const metadata: {
+        parentSessionId: string
+        sessionId: string
+        model: typeof model
+        background?: boolean
+      } = {
         parentSessionId: ctx.sessionID,
         sessionId: nextSession.id,
         model,
-        ...(runInBackground ? { background: true } : {}),
       }
+      if (runInBackground) metadata.background = true
 
       yield* ctx.metadata({
         title: params.description,

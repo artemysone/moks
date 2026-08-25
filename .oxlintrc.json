@@ -39,13 +39,51 @@
     // Type-aware: catch unhandled promises
     "typescript/no-floating-promises": "warn",
     // Warn when spreading non-plain objects (Headers, class instances, etc.)
-    "typescript/no-misused-spread": "warn"
+    "typescript/no-misused-spread": "warn",
+
+    "anti-slop/no-chained-type-assertions": "error",
+    "anti-slop/no-conditional-empty-object-spread": "error",
+    "anti-slop/no-known-value-widening": "error",
+    "anti-slop/no-module-mocking": "error",
+    "anti-slop/no-object-parameters": "error",
+    "anti-slop/no-reflect-apply": "error",
+    "anti-slop/no-reflect-get": "error",
+    "anti-slop/no-runtime-typeof": "error",
+    "anti-slop/no-shape-in-symbol-names": "error",
+    "anti-slop/no-unknown-parameters": "error",
+    "anti-slop/no-unknown-returns": "error",
+    "anti-slop/no-unknown-type-aliases": "error",
+    "anti-slop/no-unsafe-dictionary-type": "error",
+    "anti-slop/no-widen-then-assert": "error",
+    "anti-slop/require-safety-comment-for-type-assertion": "error",
+    "anti-slop-effect/no-service-constructor-imports": "error"
   },
-  "options": {
-    "typeAware": true
-  },
-  "options": {
-    "typeAware": true
-  },
-  "ignorePatterns": ["**/node_modules", "**/dist", "**/.build", "**/*.d.ts", "**/sdk.gen.ts"]
+  "ignorePatterns": [
+    "**/node_modules",
+    "**/dist",
+    "**/.build",
+    "**/*.d.ts",
+    "**/sdk.gen.ts",
+    "**/*.gen.ts",
+    "**/generated/**",
+    "**/generated-effect/**",
+    ".agent/**",
+    ".agents/**",
+    ".claude/**",
+    ".codex/**",
+    ".continue/**",
+    ".cursor/**",
+    ".gemini/**",
+    ".opencode/**",
+    ".pi/**",
+    ".roo/**",
+    ".windsurf/**",
+    ".serena/**",
+    ".omo/**",
+    "tools/oxlint/anti-slop/**"
+  ],
+  "jsPlugins": [
+    { "name": "anti-slop", "specifier": "./tools/oxlint/anti-slop/index.ts" },
+    { "name": "anti-slop-effect", "specifier": "./tools/oxlint/anti-slop/effect/index.ts" }
+  ]
 }

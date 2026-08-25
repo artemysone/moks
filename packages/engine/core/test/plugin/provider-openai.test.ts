@@ -30,7 +30,8 @@ function required<T>(value: T | undefined): T {
 function fakeSelectorSdk(calls: string[]) {
   const make = (method: string) => (id: string) => {
     calls.push(`${method}:${id}`)
-    return { modelId: id, provider: method, specificationVersion: "v3" } as unknown as LanguageModelV3
+    // SAFETY: selector stubs only expose modelId, provider, and specificationVersion.
+    return { modelId: id, provider: method, specificationVersion: "v3" } as LanguageModelV3
   }
   return {
     responses: make("responses"),

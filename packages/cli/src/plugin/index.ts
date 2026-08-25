@@ -139,12 +139,19 @@ const layer = Layer.effect(
         const { Server } = yield* Effect.promise(() => import("../server/server"))
 
         const serverUrl = Server.url
-        const client = createMoksClient({
+        const clientOptions = {
           baseUrl: serverUrl?.toString() ?? "http://localhost:4096",
           directory: ctx.directory,
           headers: ServerAuth.headers(),
-          ...(serverUrl ? {} : { fetch: async (...args) => Server.Default().app.fetch(...args) }),
-        })
+        }
+        const client = createMoksClient(
+          serverUrl
+            ? clientOptions
+            : {
+                ...clientOptions,
+                fetch: async (...args) => Server.Default().app.fetch(...args),
+              },
+        )
         const cfg = yield* config.get()
         const input: PluginInput = {
           client,

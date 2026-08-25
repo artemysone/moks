@@ -122,11 +122,12 @@ const handlePluginAuth = Effect.fn("Cli.providers.pluginAuth")(function* (
           })
         }
         if ("key" in result) {
-          yield* put(saveProvider, {
-            type: "api",
-            key: result.key,
-            ...(result.metadata ? { metadata: result.metadata } : {}),
-          })
+          yield* put(
+            saveProvider,
+            result.metadata
+              ? { type: "api", key: result.key, metadata: result.metadata }
+              : { type: "api", key: result.key },
+          )
         }
         yield* spinner.stop("Login successful")
       }
@@ -155,11 +156,12 @@ const handlePluginAuth = Effect.fn("Cli.providers.pluginAuth")(function* (
           })
         }
         if ("key" in result) {
-          yield* put(saveProvider, {
-            type: "api",
-            key: result.key,
-            ...(result.metadata ? { metadata: result.metadata } : {}),
-          })
+          yield* put(
+            saveProvider,
+            result.metadata
+              ? { type: "api", key: result.key, metadata: result.metadata }
+              : { type: "api", key: result.key },
+          )
         }
         yield* Prompt.log.success("Login successful")
       }
@@ -195,11 +197,12 @@ const handlePluginAuth = Effect.fn("Cli.providers.pluginAuth")(function* (
     if (result.type === "success") {
       const saveProvider = result.provider ?? provider
       const merged = { ...(metadata.metadata ?? {}), ...(result.metadata ?? {}) }
-      yield* put(saveProvider, {
-        type: "api",
-        key: result.key ?? apiKey,
-        ...(Object.keys(merged).length ? { metadata: merged } : {}),
-      })
+      yield* put(
+        saveProvider,
+        Object.keys(merged).length
+          ? { type: "api", key: result.key ?? apiKey, metadata: merged }
+          : { type: "api", key: result.key ?? apiKey },
+      )
       yield* Prompt.log.success("Login successful")
     }
     yield* Prompt.outro("Done")

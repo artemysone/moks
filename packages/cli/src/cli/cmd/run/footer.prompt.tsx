@@ -107,12 +107,13 @@ function clamp(rows: number): number {
 }
 
 function clonePrompt(prompt: RunPrompt): RunPrompt {
-  return {
+  const next: RunPrompt = {
     text: prompt.text,
     parts: structuredClone(prompt.parts),
-    ...(prompt.mode ? { mode: prompt.mode } : {}),
-    ...(prompt.command ? { command: prompt.command } : {}),
   }
+  if (prompt.mode) next.mode = prompt.mode
+  if (prompt.command) next.command = prompt.command
+  return next
 }
 
 function emptyPrompt(shell: boolean): RunPrompt {
@@ -797,8 +798,8 @@ export function createPromptState(input: PromptInput): PromptState {
       : {
           text: area.plainText,
           parts: structuredClone(parts),
-          ...(command ? { command } : {}),
         }
+    if (!shell() && command) draft.command = command
   }
 
   const push = (value: RunPrompt) => {
@@ -892,12 +893,13 @@ export function createPromptState(input: PromptInput): PromptState {
       }
       const normalized = normalizePromptContent(content)
 
-      restore({
+      const restored: RunPrompt = {
         text: normalized,
         parts: realignEditorPromptParts(normalized, current.parts),
-        ...(current.mode ? { mode: current.mode } : {}),
-        ...(current.command ? { command: current.command } : {}),
-      })
+      }
+      if (current.mode) restored.mode = current.mode
+      if (current.command) restored.command = current.command
+      restore(restored)
     } catch {
       restore(current)
       input.onStatus("failed to open editor")

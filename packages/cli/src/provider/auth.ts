@@ -201,11 +201,12 @@ const layer: Layer.Layer<Service, never, Auth.Service | Plugin.Service> = Layer.
       if (!result || result.type !== "success") return yield* new OauthCallbackFailed({})
 
       if ("key" in result) {
-        yield* auth.set(input.providerID, {
-          type: "api",
-          key: result.key,
-          ...(result.metadata ? { metadata: result.metadata } : {}),
-        })
+        yield* auth.set(
+          input.providerID,
+          result.metadata
+            ? { type: "api", key: result.key, metadata: result.metadata }
+            : { type: "api", key: result.key },
+        )
       }
 
       if ("refresh" in result) {

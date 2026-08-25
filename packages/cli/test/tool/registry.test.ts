@@ -41,7 +41,6 @@ const brokenPluginLayer = Layer.succeed(
           tool: {
             broken_plugin_tool: {
               description: "plugin tool with missing args",
-              args: undefined as unknown as Record<string, never>,
               execute: async () => "ok",
             },
           },

@@ -105,7 +105,7 @@ const layer = configLayer()
 const it = testEffect(layer)
 const configIt = (options?: Parameters<typeof configLayer>[0]) => testEffect(configLayer(options))
 
-const schemaConfig = (config: object) => ({ $schema: "https://opencode.ai/config.json", ...config })
+const schemaConfig = (config: ConfigV1.Info) => ({ $schema: "https://opencode.ai/config.json", ...config })
 
 const provideCurrentInstance = <A, E, R>(effect: Effect.Effect<A, E, R>, ctx: InstanceContext) =>
   effect.pipe(Effect.provideService(InstanceRef, ctx))
@@ -138,14 +138,14 @@ afterEach(async () => {
   await clear(true)
 })
 
-const writeManagedSettingsEffect = (settings: object, filename?: string) =>
+const writeManagedSettingsEffect = (settings: ConfigV1.Info, filename?: string) =>
   FSUtil.use.writeWithDirs(path.join(managedConfigDir, filename ?? "moks.json"), JSON.stringify(settings))
 
-async function writeConfig(dir: string, config: object, name = "moks.json") {
+async function writeConfig(dir: string, config: ConfigV1.Info, name = "moks.json") {
   await Filesystem.write(path.join(dir, name), JSON.stringify(config))
 }
 
-const writeConfigEffect = (dir: string, config: object, name = "moks.json") =>
+const writeConfigEffect = (dir: string, config: ConfigV1.Info, name = "moks.json") =>
   FSUtil.use.writeWithDirs(path.join(dir, name), JSON.stringify(config))
 
 const withInstanceDir = <A, E, R>(dir: string, effect: Effect.Effect<A, E, R>) =>
@@ -173,7 +173,7 @@ const withGlobalConfigDir = <A, E, R>(dir: string, effect: Effect.Effect<A, E, R
   )
 
 const withGlobalConfig = <A, E, R>(
-  input: { config?: object; name?: string },
+  input: { config?: ConfigV1.Info; name?: string },
   fn: (input: { dir: string }) => Effect.Effect<A, E, R>,
 ) =>
   Effect.gen(function* () {
@@ -183,7 +183,7 @@ const withGlobalConfig = <A, E, R>(
   })
 
 const withConfigTree = <A, E, R>(
-  input: { global?: object; project?: object; local?: object },
+  input: { global?: ConfigV1.Info; project?: ConfigV1.Info; local?: ConfigV1.Info },
   effect: Effect.Effect<A, E, R>,
 ) =>
   Effect.gen(function* () {
@@ -210,12 +210,12 @@ const wellKnown = (input: {
   wellKnown?: unknown
 }) => {
   const seen: { wellKnown?: string; remote?: string; authorization?: string } = {}
+  const fallback: { config?: unknown; remote_config?: { url: string; headers?: Record<string, string> } } = {}
+  if (input.config !== undefined) fallback.config = input.config
+  if (input.remoteConfig !== undefined) fallback.remote_config = input.remoteConfig
   const client = remoteConfigClient({
     seen,
-    wellKnown: input.wellKnown ?? {
-      ...(input.config !== undefined ? { config: input.config } : {}),
-      ...(input.remoteConfig !== undefined ? { remote_config: input.remoteConfig } : {}),
-    },
+    wellKnown: input.wellKnown ?? fallback,
     remote: input.remote,
     remoteHtml: input.remoteHtml,
   })

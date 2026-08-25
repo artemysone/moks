@@ -2,7 +2,12 @@ import { describe, expect, test } from "bun:test"
 import { accessTokenIsExpiring, pollDeviceCodeToken, requestDeviceCode, XaiAuthPlugin } from "../../src/plugin/xai"
 import { OAUTH_DUMMY_KEY } from "../../src/auth"
 
-function makeJwt(payload: object): string {
+interface JwtClaims {
+  readonly exp?: number | string
+  readonly sub?: string
+}
+
+function makeJwt(payload: JwtClaims): string {
   const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url")
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url")
   return `${header}.${body}.sig`

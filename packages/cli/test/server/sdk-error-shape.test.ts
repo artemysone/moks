@@ -22,7 +22,8 @@ function client(directory: string) {
   return createMoksClient({
     baseUrl: "http://test",
     directory,
-    fetch: ((req: Request) => Server.Default().app.fetch(req)) as unknown as typeof fetch,
+    // SAFETY: SDK client only needs a fetch-shaped function; the server app fetch matches that contract.
+    fetch: ((req: Request) => Server.Default().app.fetch(req)) as typeof fetch,
   })
 }
 

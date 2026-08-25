@@ -107,7 +107,8 @@ const writeCacheText = (text: string, mtimeMs?: number) =>
     }
   })
 
-const writeCache = (data: object, mtimeMs?: number) => writeCacheText(JSON.stringify(data), mtimeMs)
+const writeCache = (data: Record<string, ModelsDev.Provider>, mtimeMs?: number) =>
+  writeCacheText(JSON.stringify(data), mtimeMs)
 
 const provided = <A, E>(state: Ref.Ref<MockState>, eff: Effect.Effect<A, E, ModelsDev.Service>) =>
   eff.pipe(Effect.provide(buildLayer(state)))

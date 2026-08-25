@@ -86,7 +86,8 @@ export function connectResponsesWebSocket(options: ConnectResponsesWebSocketOpti
       typeof Bun === "undefined"
         ? undefined
         : ProxyEnv.getProxyForUrl(options.url.replace(/^wss:/, "https:").replace(/^ws:/, "http:"))
-    const connect = { headers, ...(proxy ? { proxy } : {}) }
+    const connect: { headers: Record<string, string>; proxy?: string } = { headers }
+    if (proxy) connect.proxy = proxy
     const socket = new WebSocket(options.url, connect)
     const timeout = options.timeout
       ? setTimeout(() => {

@@ -167,9 +167,8 @@ function isEvent(value: unknown): value is Event {
     return false
   }
 
-  const type = Reflect.get(value, "type")
-  const properties = Reflect.get(value, "properties")
-  return typeof type === "string" && !!properties && typeof properties === "object"
+  if (!("type" in value) || !("properties" in value)) return false
+  return typeof value.type === "string" && !!value.properties && typeof value.properties === "object"
 }
 
 function isGlobalEvent(value: unknown): value is GlobalEvent {
@@ -177,8 +176,8 @@ function isGlobalEvent(value: unknown): value is GlobalEvent {
     return false
   }
 
-  const payload = Reflect.get(value, "payload")
-  return !!payload && typeof payload === "object"
+  if (!("payload" in value)) return false
+  return !!value.payload && typeof value.payload === "object"
 }
 
 function globalPayloadEvent(value: unknown): Event | undefined {
@@ -600,10 +599,9 @@ function createLayer(input: StreamInput) {
 
         const messages = (sessionID: string, limit?: number) =>
           Effect.promise(() =>
-            input.sdk.session.messages({
-              sessionID,
-              ...(typeof limit === "number" ? { limit } : {}),
-            }),
+            input.sdk.session.messages(
+              typeof limit === "number" ? { sessionID, limit } : { sessionID },
+            ),
           ).pipe(
             Effect.map((item) => item.data ?? []),
             Effect.orElseSucceed(() => []),
@@ -611,12 +609,11 @@ function createLayer(input: StreamInput) {
 
         const replayMessages = () =>
           Effect.promise(() =>
-            input.sdk.session.messages({
-              sessionID: input.sessionID,
-              ...(input.replayLimit === undefined
-                ? {}
-                : { limit: Math.max(input.replayLimit, SUBAGENT_BOOTSTRAP_LIMIT) }),
-            }),
+            input.sdk.session.messages(
+              input.replayLimit === undefined
+                ? { sessionID: input.sessionID }
+                : { sessionID: input.sessionID, limit: Math.max(input.replayLimit, SUBAGENT_BOOTSTRAP_LIMIT) },
+            ),
           ).pipe(Effect.flatMap((item) => (item.error ? Effect.fail(item.error) : Effect.succeed(item.data ?? []))))
 
         const replayRequests = () =>
@@ -905,17 +902,19 @@ function createLayer(input: StreamInput) {
           state.data = next.data
           const visible = next.commits.at(-1)
           if (visible) {
-            state.wait?.onVisibleOutput?.({
+            const anchor: LocalReplayAnchor = {
               kind: visible.kind,
               text: visible.text,
               phase: visible.phase,
               messageID: visible.messageID,
               partID: visible.partID,
               toolState: visible.toolState,
-              ...(visible.partID && state.data.visible.has(visible.partID)
-                ? { visible: state.data.visible.get(visible.partID) }
-                : {}),
-            })
+            }
+            if (visible.partID) {
+              const visibleText = state.data.visible.get(visible.partID)
+              if (visibleText !== undefined) anchor.visible = visibleText
+            }
+            state.wait?.onVisibleOutput?.(anchor)
           }
 
           if (

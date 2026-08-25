@@ -8,7 +8,7 @@ import {
   type IdTokenClaims,
 } from "../../src/plugin/openai/codex"
 
-function createTestJwt(payload: object): string {
+function createTestJwt(payload: IdTokenClaims): string {
   const header = Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url")
   return `${header}.${body}.sig`

@@ -85,20 +85,20 @@ async function plugin(
       : "./tui.js"
   }
   await fs.mkdir(p, { recursive: true })
-  await Bun.write(
-    path.join(p, "package.json"),
-    JSON.stringify(
-      {
-        name: "acme",
-        version: "1.0.0",
-        ...(server ? { main: "./server.js" } : {}),
-        ...(Object.keys(exports).length ? { exports } : {}),
-        ...(themes?.length ? { "oc-themes": themes } : {}),
-      },
-      null,
-      2,
-    ),
-  )
+  const manifest: {
+    name: string
+    version: string
+    main?: string
+    exports?: Record<string, unknown>
+    "oc-themes"?: unknown
+  } = {
+    name: "acme",
+    version: "1.0.0",
+  }
+  if (server) manifest.main = "./server.js"
+  if (Object.keys(exports).length) manifest.exports = exports
+  if (themes?.length) manifest["oc-themes"] = themes
+  await Bun.write(path.join(p, "package.json"), JSON.stringify(manifest, null, 2))
   return p
 }
 

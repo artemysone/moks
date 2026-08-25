@@ -28,13 +28,24 @@ const request = LLM.request({
   generation: { maxTokens: 20, temperature: 0 },
 })
 
-const deltaChunk = (delta: object, finishReason: string | null = null) => ({
+interface ChatDelta {
+  readonly role?: string
+  readonly content?: string | number
+}
+
+interface ChatUsage {
+  readonly prompt_tokens?: number
+  readonly completion_tokens?: number
+  readonly total_tokens?: number
+}
+
+const deltaChunk = (delta: ChatDelta, finishReason: string | null = null) => ({
   id: "chatcmpl_fixture",
   choices: [{ delta, finish_reason: finishReason }],
   usage: null,
 })
 
-const usageChunk = (usage: object) => ({
+const usageChunk = (usage: ChatUsage) => ({
   id: "chatcmpl_fixture",
   choices: [],
   usage,

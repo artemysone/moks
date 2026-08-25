@@ -1,9 +1,10 @@
 import { MessageChannel, Worker, receiveMessageOnPort } from "node:worker_threads";
 import { fileURLToPath } from "node:url";
 import type { McpServerConfig } from "../config.ts";
+import { isJsonObject, jsonString, parseJsonText, type Json } from "../json.ts";
 import { MCP_DEFAULT_TIMEOUT_MS, assertMcpServerConfig } from "./client.ts";
-import { McpError } from "./errors.ts";
-import type { BridgeRequest, BridgeResponse, McpToolInfo } from "./types.ts";
+import { isMcpErrorCode, McpError } from "./errors.ts";
+import type { BridgeRequest, BridgeResponse, McpCallArgs, McpToolInfo } from "./types.ts";
 
 /**
  * Synchronous facade over the async MCP client. `AtsAdapter.pull/apply` and
@@ -13,7 +14,7 @@ import type { BridgeRequest, BridgeResponse, McpToolInfo } from "./types.ts";
  */
 export type SyncMcpClient = {
   listTools(): McpToolInfo[];
-  callTool(name: string, args?: Record<string, unknown>): unknown;
+  callTool(name: string, args?: McpCallArgs): Json;
   close(): void;
   /** Pid of the spawned stdio server, once connected (null before / for HTTP). */
   serverPid(): number | null;
@@ -29,6 +30,42 @@ let liveClients = 0;
 /** Live bridge workers (opened and not yet closed). Lets tests assert cleanup. */
 export function openSyncMcpClientCount(): number {
   return liveClients;
+}
+
+function parseBridgeResponse(message: Json): BridgeResponse {
+  if (!isJsonObject(message)) {
+    throw new McpError("mcp_unavailable", "mcp worker sent no response");
+  }
+  if (message.ok === true) {
+    return { ok: true, value: message.value ?? null };
+  }
+  if (message.ok === false && isJsonObject(message.error)) {
+    const code = jsonString(message.error.code);
+    const detailText = jsonString(message.error.detail);
+    if (code !== undefined && isMcpErrorCode(code) && detailText !== undefined) {
+      return { ok: false, error: { code, detail: detailText } };
+    }
+  }
+  throw new McpError("mcp_unavailable", "mcp worker sent no response");
+}
+
+function parseToolInfoList(value: Json): McpToolInfo[] {
+  if (!Array.isArray(value)) {
+    throw new McpError("mcp_bad_response", "listTools must return an array");
+  }
+  return value.map((item) => {
+    if (!isJsonObject(item)) {
+      throw new McpError("mcp_bad_response", "listTools returned a malformed tool");
+    }
+    const name = jsonString(item.name);
+    if (name === undefined) {
+      throw new McpError("mcp_bad_response", "listTools returned a malformed tool");
+    }
+    const info: McpToolInfo = { name };
+    const description = jsonString(item.description);
+    if (description !== undefined) info.description = description;
+    return info;
+  });
 }
 
 export function openSyncMcpClient(config: McpServerConfig): SyncMcpClient {
@@ -75,7 +112,7 @@ export function openSyncMcpClient(config: McpServerConfig): SyncMcpClient {
     escalate.unref();
   }
 
-  function request(message: Omit<BridgeRequest, "signal">, waitMs: number): unknown {
+  function request(message: Omit<BridgeRequest, "signal">, waitMs: number): Json {
     if (closed) {
       throw new McpError("mcp_unavailable", "mcp client is closed");
     }
@@ -89,14 +126,14 @@ export function openSyncMcpClient(config: McpServerConfig): SyncMcpClient {
       killSpawnedServer();
       throw new McpError("mcp_timeout", `${message.op} did not complete within ${waitMs}ms`);
     }
-    const received = receiveMessageOnPort(port1) as { message: BridgeResponse } | undefined;
+    const received = receiveMessageOnPort(port1);
     if (!received) {
       markClosed();
       void worker.terminate();
       killSpawnedServer();
       throw new McpError("mcp_unavailable", "mcp worker sent no response");
     }
-    const response = received.message;
+    const response = parseBridgeResponse(parseJsonText(JSON.stringify(received.message)));
     if (!response.ok) {
       throw new McpError(response.error.code, response.error.detail);
     }
@@ -109,7 +146,7 @@ export function openSyncMcpClient(config: McpServerConfig): SyncMcpClient {
 
   return {
     listTools() {
-      return request({ op: "listTools" }, waitMs) as McpToolInfo[];
+      return parseToolInfoList(request({ op: "listTools" }, waitMs));
     },
     callTool(name, args = {}) {
       return request({ op: "callTool", name, args }, waitMs);

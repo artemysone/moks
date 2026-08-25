@@ -30,6 +30,13 @@ const tokens = (usage: Usage | undefined) => {
 const record = (value: unknown): Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : { value }
 
+type ToolProvider = { executed: boolean; metadata?: ProviderMetadata }
+
+const provider = (executed: boolean, metadata: ProviderMetadata | undefined): ToolProvider => {
+  if (metadata === undefined) return { executed }
+  return { executed, metadata }
+}
+
 const message = (value: unknown) => {
   if (typeof value === "string") return value
   try {
@@ -223,10 +230,7 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
         assistantMessageID: tool.assistantMessageID,
         callID,
         error: { type: "unknown", message },
-        provider: {
-          executed: tool.providerExecuted,
-          ...(tool.providerMetadata === undefined ? {} : { metadata: tool.providerMetadata }),
-        },
+        provider: provider(tool.providerExecuted, tool.providerMetadata),
       })
     }
   })
@@ -327,10 +331,7 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
           callID: event.id,
           tool: event.name,
           input: record(event.input),
-          provider: {
-            executed: tool.providerExecuted,
-            ...(event.providerMetadata === undefined ? {} : { metadata: event.providerMetadata }),
-          },
+          provider: provider(tool.providerExecuted, event.providerMetadata),
         })
         return
       }
@@ -345,10 +346,10 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
         }
         tool.settled = true
         const result = settledOutput(event.output, event.result)
-        const provider = {
-          executed: event.providerExecuted === true || tool.providerExecuted,
-          ...(event.providerMetadata === undefined ? {} : { metadata: event.providerMetadata }),
-        }
+        const settledProvider = provider(
+          event.providerExecuted === true || tool.providerExecuted,
+          event.providerMetadata,
+        )
         if ("error" in result) {
           yield* events.publish(SessionEvent.Tool.Failed, {
             sessionID: input.sessionID,
@@ -357,20 +358,24 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
             callID: event.id,
             error: result.error,
             result: event.result,
-            provider,
+            provider: settledProvider,
           })
           return
         }
-        yield* events.publish(SessionEvent.Tool.Success, {
+        const success = {
           sessionID: input.sessionID,
           timestamp: yield* timestamp,
           assistantMessageID: tool.assistantMessageID,
           callID: event.id,
           ...result,
           outputPaths,
-          ...(provider.executed ? { result: event.result } : {}),
-          provider,
-        })
+          provider: settledProvider,
+        }
+        if (settledProvider.executed) {
+          yield* events.publish(SessionEvent.Tool.Success, { ...success, result: event.result })
+          return
+        }
+        yield* events.publish(SessionEvent.Tool.Success, success)
         return
       }
       case "tool-error": {
@@ -386,10 +391,7 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
           assistantMessageID: tool.assistantMessageID,
           callID: event.id,
           error: { type: "unknown", message: event.message },
-          provider: {
-            executed: tool.providerExecuted,
-            ...(event.providerMetadata === undefined ? {} : { metadata: event.providerMetadata }),
-          },
+          provider: provider(tool.providerExecuted, event.providerMetadata),
         })
         return
       }

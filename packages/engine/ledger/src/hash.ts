@@ -1,12 +1,13 @@
-import type { SqliteDb } from "./db.ts";
-import type { AuthorKind } from "./domain.ts";
+import type { SqlBindings, SqliteDb } from "./db.ts";
+import { parseAgentMeta, parseCasField, type AgentMeta, type AuthorKind, type CasField } from "./domain.ts";
+import { isJsonNumber, isJsonObject, isJsonString, parseJsonText, type Json } from "./json.ts";
 
 export type CanonicalChange = {
   entity_type: string;
   entity_ref: string;
   mutation: string;
   effect_class: string;
-  precondition: unknown;
+  precondition: CasField;
   payload_ref: string;
   payload_hash: string;
 };
@@ -14,37 +15,33 @@ export type CanonicalChange = {
 export type CanonicalBody = {
   author_kind: AuthorKind;
   author_id: string;
-  agent_meta: unknown;
+  agent_meta: AgentMeta | null;
   rationale: string;
   changes: CanonicalChange[];
 };
 
 export const GENESIS_PARENT_HASH = "";
 
-export function canonicalJson(value: unknown): string {
-  if (value === null || typeof value !== "object") {
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
-  }
-  const record = value as Record<string, unknown>;
-  const keys = Object.keys(record).sort();
-  return `{${keys.map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(",")}}`;
+export function canonicalJson(value: Json): string {
+  if (value === null || value === true || value === false) return JSON.stringify(value);
+  if (isJsonString(value) || isJsonNumber(value)) return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
+  if (!isJsonObject(value)) return JSON.stringify(value);
+  const keys = Object.keys(value).sort();
+  return `{${keys.map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key]!)}`).join(",")}}`;
 }
 
 export function hashChangeset(parentHash: string, body: CanonicalBody): string {
   const hasher = new Bun.CryptoHasher("sha256");
   hasher.update(parentHash);
-  hasher.update(canonicalJson(body));
+  hasher.update(canonicalJson(parseJsonText(JSON.stringify(body))));
   return hasher.digest("hex");
 }
 
+type VaultCipherRow = { enc_payload: Uint8Array };
+
 export function payloadCipherHash(db: SqliteDb, payloadRef: string): string {
-  const row = db.prepare("SELECT enc_payload FROM pii_vault WHERE ref = ?").get(payloadRef) as
-    | { enc_payload: Uint8Array }
-    | undefined
-    | null;
+  const row = db.prepare<VaultCipherRow, SqlBindings>("SELECT enc_payload FROM pii_vault WHERE ref = ?").get(payloadRef);
   if (row == null || row.enc_payload == null) {
     return "";
   }
@@ -83,14 +80,14 @@ function parseBody(db: SqliteDb, cs: ChangesetRow, changeRows: ChangeRow[]): Can
   return {
     author_kind: cs.author_kind,
     author_id: cs.author_id,
-    agent_meta: cs.agent_meta === null ? null : (JSON.parse(cs.agent_meta) as unknown),
+    agent_meta: cs.agent_meta === null ? null : parseAgentMeta(parseJsonText(cs.agent_meta)),
     rationale: cs.rationale,
     changes: changeRows.map((change) => ({
       entity_type: change.entity_type,
       entity_ref: change.entity_ref,
       mutation: change.mutation,
       effect_class: change.effect_class,
-      precondition: JSON.parse(change.precondition) as unknown,
+      precondition: parseCasField(parseJsonText(change.precondition)),
       payload_ref: change.payload_ref,
       payload_hash: payloadCipherHash(db, change.payload_ref),
     })),
@@ -99,13 +96,13 @@ function parseBody(db: SqliteDb, cs: ChangesetRow, changeRows: ChangeRow[]): Can
 
 export function verifyChain(db: SqliteDb): ChainVerification {
   const changesets = db
-    .prepare("SELECT id, parent_id, hash, author_kind, author_id, agent_meta, rationale FROM changesets")
-    .all() as ChangesetRow[];
+    .prepare<ChangesetRow, SqlBindings>("SELECT id, parent_id, hash, author_kind, author_id, agent_meta, rationale FROM changesets")
+    .all();
   const changeRows = db
-    .prepare(
+    .prepare<ChangeRow, SqlBindings>(
       "SELECT changeset_id, entity_type, entity_ref, mutation, effect_class, precondition, payload_ref FROM changes ORDER BY changeset_id, seq ASC, id ASC",
     )
-    .all() as ChangeRow[];
+    .all();
 
   const changesByCs = new Map<string, ChangeRow[]>();
   for (const row of changeRows) {

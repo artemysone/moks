@@ -850,8 +850,11 @@ describe("HttpApiCodegen.generate", () => {
     const JsonNumber = Schema.toCodecJson(Schema.Number)
     const link = JsonNumber.ast.encoding?.[0]
     if (link === undefined) throw new Error("Expected JSON number encoding")
-    // This helper is present at runtime but omitted from the public declaration surface.
-    const replaceEncoding: unknown = Reflect.get(SchemaAST, "replaceEncoding")
+    interface SchemaAstReplace {
+      readonly replaceEncoding?: unknown
+    }
+    // SAFETY: replaceEncoding exists on the runtime SchemaAST object and is omitted from public types.
+    const replaceEncoding = (SchemaAST as SchemaAstReplace).replaceEncoding
     if (typeof replaceEncoding !== "function") throw new Error("Expected SchemaAST.replaceEncoding")
     const ast: unknown = replaceEncoding(JsonNumber.ast, [
       new SchemaAST.Link(Schema.String.check(Schema.isMinLength(2)).ast, link.transformation),

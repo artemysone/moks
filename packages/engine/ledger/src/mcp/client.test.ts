@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
 import type { McpServerConfig } from "../config.ts";
-import { connectMcp } from "./client.ts";
+import { isJsonObject, type Json } from "../json.ts";
+import { connectMcp, type McpConnection } from "./client.ts";
 import { McpError } from "./errors.ts";
 import { openSyncMcpClient } from "./sync-client.ts";
 import { MCP_TOOL_ATS_APPLY, MCP_TOOL_ATS_SNAPSHOT, MCP_TOOL_SOURCE_SEARCH } from "./types.ts";
@@ -12,22 +13,22 @@ function fixtureConfig(timeoutMs = 8_000): McpServerConfig {
   return { command: ["bun", FIXTURE_SERVER], timeoutMs };
 }
 
-async function expectMcpErrorAsync(promise: Promise<unknown>): Promise<McpError> {
+async function expectMcpErrorAsync(promise: Promise<Json | McpConnection | void>): Promise<McpError> {
   try {
     await promise;
-  } catch (error) {
-    expect(error).toBeInstanceOf(McpError);
-    return error as McpError;
+  } catch (cause) {
+    if (cause instanceof McpError) return cause;
+    throw cause;
   }
   throw new Error("expected McpError");
 }
 
-function expectMcpError(fn: () => unknown): McpError {
+function expectMcpError(fn: () => void): McpError {
   try {
     fn();
-  } catch (error) {
-    expect(error).toBeInstanceOf(McpError);
-    return error as McpError;
+  } catch (cause) {
+    if (cause instanceof McpError) return cause;
+    throw cause;
   }
   throw new Error("expected McpError");
 }
@@ -41,7 +42,8 @@ describe("connectMcp (async client)", () => {
       expect(tools).toContain(MCP_TOOL_ATS_APPLY);
       expect(tools).toContain(MCP_TOOL_SOURCE_SEARCH);
 
-      const snapshot = (await connection.callTool(MCP_TOOL_ATS_SNAPSHOT)) as { ats: string; jobs: unknown[] };
+      const snapshot = await connection.callTool(MCP_TOOL_ATS_SNAPSHOT);
+      if (!isJsonObject(snapshot) || !Array.isArray(snapshot.jobs)) throw new Error("expected snapshot");
       expect(snapshot.ats).toBe("ashby");
       expect(snapshot.jobs).toHaveLength(1);
     } finally {
@@ -103,15 +105,17 @@ describe("openSyncMcpClient (sync bridge)", () => {
       const tools = client.listTools().map((tool) => tool.name);
       expect(tools).toContain(MCP_TOOL_ATS_SNAPSHOT);
 
-      const snapshot = client.callTool(MCP_TOOL_ATS_SNAPSHOT) as { ats: string; applications: unknown[] };
+      const snapshot = client.callTool(MCP_TOOL_ATS_SNAPSHOT);
+      if (!isJsonObject(snapshot) || !Array.isArray(snapshot.applications)) throw new Error("expected snapshot");
       expect(snapshot.ats).toBe("ashby");
       expect(snapshot.applications).toHaveLength(3);
 
-      const search = client.callTool(MCP_TOOL_SOURCE_SEARCH, { role: "backend", limit: 1 }) as {
-        candidates: Array<{ id: string }>;
-      };
+      const search = client.callTool(MCP_TOOL_SOURCE_SEARCH, { role: "backend", limit: 1 });
+      if (!isJsonObject(search) || !Array.isArray(search.candidates) || !isJsonObject(search.candidates[0])) {
+        throw new Error("expected search");
+      }
       expect(search.candidates).toHaveLength(1);
-      expect(search.candidates[0]?.id).toBe("mcp_ada");
+      expect(search.candidates[0].id).toBe("mcp_ada");
     } finally {
       client.close();
     }
@@ -156,12 +160,14 @@ describe("openSyncMcpClient (sync bridge)", () => {
       expect(error.code).toBe("mcp_timeout");
       pid = client.serverPid();
       expect(pid).not.toBeNull();
-      expect(processAlive(pid as number)).toBe(true);
+      if (pid === null) throw new Error("expected pid");
+      expect(processAlive(pid)).toBe(true);
     } finally {
       client.close();
     }
-    await waitForExit(pid as number, 8_000);
-    expect(processAlive(pid as number)).toBe(false);
+    if (pid === null) throw new Error("expected pid");
+    await waitForExit(pid, 8_000);
+    expect(processAlive(pid)).toBe(false);
   });
 });
 

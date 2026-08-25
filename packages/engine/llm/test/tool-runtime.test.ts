@@ -98,16 +98,19 @@ describe("LLMClient tools", () => {
 
       const second = bodies[1]
       if (!second || typeof second !== "object") throw new Error("Expected second request body")
-      const messages = Reflect.get(second, "messages")
-      const tools = Reflect.get(second, "tools")
+      if (!("messages" in second) || !("tools" in second) || !("max_tokens" in second) || !("tool_choice" in second)) {
+        throw new Error("Expected second request body")
+      }
+      const messages = second.messages
+      const tools = second.tools
 
-      expect(Reflect.get(second, "max_tokens")).toBe(50)
-      expect(Reflect.get(second, "tool_choice")).toBe("auto")
+      expect(second.max_tokens).toBe(50)
+      expect(second.tool_choice).toBe("auto")
       expect(tools).toHaveLength(1)
       expect(
         Array.isArray(messages)
           ? messages.map((message) =>
-              message && typeof message === "object" ? Reflect.get(message, "role") : undefined,
+              message && typeof message === "object" && "role" in message ? message.role : undefined,
             )
           : undefined,
       ).toEqual(["user", "assistant", "tool"])
@@ -333,7 +336,10 @@ describe("LLMClient tools", () => {
         required: ["temperature", "condition"],
         additionalProperties: false,
       })
-      expect(Reflect.get(Reflect.get(typed?.outputSchema ?? {}, "properties") as object, "temperature")).toBeDefined()
+      const outputSchema = typed?.outputSchema
+      const properties =
+        outputSchema && typeof outputSchema === "object" && "properties" in outputSchema ? outputSchema.properties : undefined
+      expect(properties && typeof properties === "object" && "temperature" in properties ? properties.temperature : undefined).toBeDefined()
       expect(dynamic?.outputSchema).toEqual(schema)
     }),
   )

@@ -335,10 +335,10 @@ const lowerOptions = Effect.fn("OpenAIChat.lowerOptions")(function* (request: LL
   const reasoningEffort = OpenAIOptions.reasoningEffort(request)
   if (reasoningEffort && !OpenAIOptions.isReasoningEffort(reasoningEffort))
     return yield* invalid(`OpenAI Chat does not support reasoning effort ${reasoningEffort}`)
-  return {
-    ...(store !== undefined ? { store } : {}),
-    ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
-  }
+  if (store !== undefined && reasoningEffort) return { store, reasoning_effort: reasoningEffort }
+  if (store !== undefined) return { store }
+  if (reasoningEffort) return { reasoning_effort: reasoningEffort }
+  return {}
 })
 
 const fromRequest = Effect.fn("OpenAIChat.fromRequest")(function* (request: LLMRequest) {

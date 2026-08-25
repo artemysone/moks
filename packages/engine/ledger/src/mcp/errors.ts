@@ -21,5 +21,5 @@ export class McpError extends Error {
 }
 
 export function isMcpErrorCode(value: string): value is McpErrorCode {
-  return (MCP_ERROR_CODES as readonly string[]).includes(value);
+  return MCP_ERROR_CODES.some((code) => code === value);
 }

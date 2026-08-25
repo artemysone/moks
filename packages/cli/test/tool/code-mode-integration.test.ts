@@ -135,7 +135,8 @@ async function buildTool() {
   const listed = (await client.listTools()).tools as MCPToolDef[]
   const mcpTools: Record<string, MCP.McpTool> = {}
   for (const def of listed) {
-    mcpTools[McpCatalog.toolName(SERVER, def.name)] = { def, client: client as unknown as Client }
+    // SAFETY: convertTool only needs the MCP Client.callTool surface that RawJsonRpcClient implements.
+    mcpTools[McpCatalog.toolName(SERVER, def.name)] = { def, client: client as Client }
   }
 
   const layer = Layer.mergeAll(

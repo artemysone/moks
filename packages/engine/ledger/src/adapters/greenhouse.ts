@@ -1,19 +1,12 @@
 import { readFileSync } from "node:fs";
-import type { Application, AtsSnapshot, Candidate, Job, JobStatus } from "../domain.ts";
-import type { SqliteDb } from "../db.ts";
-import { JOB_STATUSES, isStage } from "../domain.ts";
+import type { Application, AtsSnapshot, Candidate, Job } from "../domain.ts";
+import type { SqlBindings, SqliteDb } from "../db.ts";
+import { parseAtsFixture } from "../domain.ts";
+import { parseJsonText } from "../json.ts";
 import { createChangeApplier } from "./apply.ts";
 import type { AtsAdapter } from "./types.ts";
 
-type FixtureFile = {
-  jobs: Job[];
-  candidates: Candidate[];
-  applications: Application[];
-};
-
-function isJobStatus(value: string): value is JobStatus {
-  return (JOB_STATUSES as readonly string[]).includes(value);
-}
+type CountRow = { n: number };
 
 /** Isolated Greenhouse tables — do not share `schema.ts` / mock ATS tables. */
 export function migrateGreenhouse(db: SqliteDb): void {
@@ -78,12 +71,12 @@ export function migrateGreenhouse(db: SqliteDb): void {
 }
 
 export function seedGreenhouse(db: SqliteDb, fixturePath: string): boolean {
-  const count = db.prepare("SELECT COUNT(*) AS n FROM greenhouse_jobs").get() as { n: number };
-  if (count.n > 0) {
+  const count = db.prepare<CountRow, SqlBindings>("SELECT COUNT(*) AS n FROM greenhouse_jobs").get();
+  if (count && count.n > 0) {
     return false;
   }
 
-  const fixture = JSON.parse(readFileSync(fixturePath, "utf8")) as FixtureFile;
+  const fixture = parseAtsFixture(parseJsonText(readFileSync(fixturePath, "utf8")));
   const insertJob = db.prepare(
     "INSERT INTO greenhouse_jobs (id, remote_id, title, team, location, status) VALUES (?, ?, ?, ?, ?, ?)",
   );
@@ -96,9 +89,6 @@ export function seedGreenhouse(db: SqliteDb, fixturePath: string): boolean {
 
   const seed = db.transaction(() => {
     for (const job of fixture.jobs) {
-      if (!isJobStatus(job.status)) {
-        throw new Error(`Invalid fixture job status: ${job.status}`);
-      }
       insertJob.run(job.id, job.remoteId, job.title, job.team, job.location, job.status);
     }
     for (const candidate of fixture.candidates) {
@@ -111,9 +101,6 @@ export function seedGreenhouse(db: SqliteDb, fixturePath: string): boolean {
       );
     }
     for (const application of fixture.applications) {
-      if (!isStage(application.stage)) {
-        throw new Error(`Invalid fixture stage: ${application.stage}`);
-      }
       insertApplication.run(
         application.id,
         application.remoteId,
@@ -140,20 +127,16 @@ export function createGreenhouseAdapter(db: SqliteDb, options: { fixturePath: st
     },
     pull(): AtsSnapshot {
       const jobs = db
-        .prepare(
-          "SELECT id, remote_id AS remoteId, title, team, location, status FROM greenhouse_jobs",
-        )
-        .all() as Job[];
+        .prepare<Job, SqlBindings>("SELECT id, remote_id AS remoteId, title, team, location, status FROM greenhouse_jobs")
+        .all();
       const candidates = db
-        .prepare(
-          "SELECT id, remote_id AS remoteId, name, email, headline FROM greenhouse_candidates",
-        )
-        .all() as Candidate[];
+        .prepare<Candidate, SqlBindings>("SELECT id, remote_id AS remoteId, name, email, headline FROM greenhouse_candidates")
+        .all();
       const applications = db
-        .prepare(
+        .prepare<Application, SqlBindings>(
           "SELECT id, remote_id AS remoteId, job_id AS jobId, candidate_id AS candidateId, stage FROM greenhouse_applications",
         )
-        .all() as Application[];
+        .all();
 
       return { ats: "greenhouse", jobs, candidates, applications };
     },

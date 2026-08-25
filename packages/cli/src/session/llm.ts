@@ -109,7 +109,8 @@ const live: Layer.Layer<
       const telemetryTracer = tracer
         ? new Proxy(tracer, {
             get(target, prop, receiver) {
-              if (prop !== "startSpan") return Reflect.get(target, prop, receiver)
+              // SAFETY: Proxy get keys are OtelTracer members; startSpan is intercepted below.
+              if (prop !== "startSpan") return target[prop as keyof typeof target]
               return (...args: Parameters<typeof target.startSpan>) => {
                 const span = target.startSpan(...args)
                 span.setAttribute("session.id", input.sessionID)

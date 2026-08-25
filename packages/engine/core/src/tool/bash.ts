@@ -112,8 +112,8 @@ const layer = Layer.effectDiscard(
           structured: StructuredOutput,
           toStructuredOutput: ({ output }) => ({
             truncated: output.truncated,
-            ...(output.exit === undefined ? {} : { exit: output.exit }),
-            ...(output.timeout === undefined ? {} : { timeout: output.timeout }),
+            ...(output.exit === undefined ? undefined : { exit: output.exit }),
+            ...(output.timeout === undefined ? undefined : { timeout: output.timeout }),
           }),
           toModelOutput: ({ output }) => [
             { type: "text", text: output.output },
@@ -179,7 +179,7 @@ const layer = Layer.effectDiscard(
                   output: `Command exceeded timeout of ${timeout} ms. Retry with a larger timeout if the command is expected to take longer.`,
                   truncated: false,
                   timeout: true,
-                  ...(warnings.length ? { warnings } : {}),
+                  ...(warnings.length ? { warnings } : undefined),
                 }
               }
 
@@ -191,7 +191,7 @@ const layer = Layer.effectDiscard(
                 exit: result.exitCode,
                 output: notice ? `${output}\n\n${notice}` : output,
                 truncated: result.outputTruncated === true,
-                ...(warnings.length ? { warnings } : {}),
+                ...(warnings.length ? { warnings } : undefined),
               }
             }).pipe(Effect.mapError(() => new ToolFailure({ message: `Unable to execute command: ${input.command}` }))),
         }),

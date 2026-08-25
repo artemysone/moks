@@ -16,17 +16,17 @@ function tempCwd(): string {
   return mkdtempSync(join(tmpdir(), "moks-mcp-"));
 }
 
-function writeConfig(cwd: string, mcp: McpConfig | Record<string, unknown>): void {
+function writeConfig(cwd: string, mcp: McpConfig): void {
   mkdirSync(join(cwd, ".moks"), { recursive: true });
   writeFileSync(join(cwd, ".moks", "config.json"), JSON.stringify({ mcp }, null, 2));
 }
 
-function expectMcpError(fn: () => unknown): McpError {
+function expectMcpError(fn: () => void): McpError {
   try {
     fn();
-  } catch (error) {
-    expect(error).toBeInstanceOf(McpError);
-    return error as McpError;
+  } catch (cause) {
+    if (cause instanceof McpError) return cause;
+    throw cause;
   }
   throw new Error("expected McpError");
 }
@@ -64,8 +64,8 @@ describe("McpAtsAdapter", () => {
         entityType: "application" as const,
         entityRef: "app_lena_200",
         mutation: "AdvanceStage" as const,
-        precondition: { id: "app_lena_200", remoteId: "AA-4001", stage: "Screen" },
-        payload: { to: "Interview" },
+        precondition: { id: "app_lena_200", remoteId: "AA-4001", stage: "Screen" as const },
+        payload: { to: "Interview" as const },
       };
       const applied = adapter.apply(change);
       expect(applied).toEqual({
@@ -239,8 +239,9 @@ describe("workspace wiring (MOKS_ATS=ashby over MCP)", () => {
       // recorded on the stale changeset (append-only), the advance is not.
       const stale = ws.getChangeset(notePlusAdvance.id);
       expect(stale.status).toBe("stale");
-      const noteResult = stale.changes[0]?.remote_result as { noteId: string };
-      expect(typeof noteResult.noteId).toBe("string");
+      const noteResult = stale.changes[0]?.remote_result;
+      if (!noteResult || !("noteId" in noteResult)) throw new Error("expected note remote result");
+      expect(noteResult.noteId).toEqual(expect.any(String));
       expect(stale.changes[1]?.remote_result).toBeNull();
       // The mirror was re-pulled and reflects the partially applied remote.
       expect(ws.status().pipeline.Interview).toBe(1);
@@ -258,7 +259,8 @@ describe("workspace wiring (MOKS_ATS=ashby over MCP)", () => {
       expect(repushed.pushed).toEqual([{ id: rebased.changeset.id, status: "applied" }]);
       const replayed = ws.getChangeset(rebased.changeset.id);
       expect(replayed.changes[0]?.remote_result).toEqual({ noteId: noteResult.noteId });
-      expect((replayed.changes[1]?.remote_result as { stage?: string } | null)?.stage).toBe("Offer");
+      const advanced = replayed.changes[1]?.remote_result;
+      expect(advanced && "stage" in advanced ? advanced.stage : undefined).toBe("Offer");
     } finally {
       ws.close();
     }

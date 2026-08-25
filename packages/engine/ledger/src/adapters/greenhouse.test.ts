@@ -39,7 +39,9 @@ const validFixture = {
   ],
 };
 
-function writeFixture(body: unknown): string {
+import type { Json } from "../json.ts";
+
+function writeFixture(body: Json): string {
   const dir = mkdtempSync(join(tmpdir(), "moks-gh-fixture-"));
   const path = join(dir, "mock-greenhouse.json");
   writeFileSync(path, JSON.stringify(body));

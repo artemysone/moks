@@ -160,16 +160,15 @@ const operationParameters = (
     }
     const base = projectSchema(document, resolved.schema)
     const description = nonEmptyString(resolved.description)
+    const schema = { ...base }
+    if (base.description === undefined && description !== undefined) schema.description = description
     unordered.push({
       name,
       location,
       required: resolved.required === true || location === "path",
       style,
       explode,
-      schema: {
-        ...base,
-        ...(base.description === undefined && description !== undefined ? { description } : {}),
-      },
+      schema,
     })
   }
   return {
@@ -272,14 +271,9 @@ export const inputSchema = (
   definitions: Readonly<Record<string, JsonSchema>>,
 ): JsonSchema => {
   const required = fields.filter((field) => field.required).map((field) => field.inputName)
-  return withDefinitions(
-    {
-      type: "object",
-      properties: Object.fromEntries(fields.map((field) => [field.inputName, field.schema])),
-      ...(required.length === 0 ? {} : { required }),
-    },
-    definitions,
-  )
+  const properties = Object.fromEntries(fields.map((field) => [field.inputName, field.schema]))
+  if (required.length === 0) return withDefinitions({ type: "object", properties }, definitions)
+  return withDefinitions({ type: "object", properties, required }, definitions)
 }
 
 const successfulResponses = (

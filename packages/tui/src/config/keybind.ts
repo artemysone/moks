@@ -459,7 +459,7 @@ export function parse(keybinds: KeybindOverrides): Keybinds {
 
 export const Keybinds = { parse }
 
-export function unknownKeys(input: object) {
+export function unknownKeys(input: KeybindOverrides) {
   return Object.keys(input).filter((key) => !KeybindNames.has(key))
 }
 

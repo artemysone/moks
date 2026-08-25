@@ -118,6 +118,7 @@ async function renderDiffViewer(vcsDiff: unknown[], height = 20, initialRoute?: 
     }
     const base = createTuiPluginApi({
       keymap,
+      // SAFETY: test client only implements the vcs.diff and session.diff calls the viewer makes.
       client: {
         vcs: {
           diff: async (input: unknown) => {
@@ -131,7 +132,7 @@ async function renderDiffViewer(vcsDiff: unknown[], height = 20, initialRoute?: 
             return { data: [] }
           },
         },
-      } as unknown as TuiPluginApi["client"],
+      } as TuiPluginApi["client"],
       state: {
         session: {
           get: () => session,

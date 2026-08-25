@@ -9,9 +9,10 @@ import { Effect } from "effect"
 const options = { toolCallId: "call_mcp", abortSignal: new AbortController().signal } as any
 
 function clientReturning(result: unknown) {
+  // SAFETY: convertTool only calls client.callTool; other Client methods stay unused.
   return {
     callTool: async () => result,
-  } as unknown as Client
+  } as Client
 }
 
 function mcpTool() {

@@ -132,6 +132,16 @@ for (const item of targets) {
   const workerPath = "./src/cli/tui/worker.ts"
   const treeSitterWorkerPath = "opentui-tree-sitter-worker.js"
   const bunfsRoot = item.os === "win32" ? "B:/~BUN/root/" : "/$bunfs/root/"
+  const define: Record<string, string> = {
+    FFF_LIBC: JSON.stringify(item.abi === "musl" ? "musl" : "gnu"),
+    MOKS_VERSION: `'${Script.version}'`,
+    MOKS_MODELS_DEV: generated.modelsData,
+    OTUI_TREE_SITTER_WORKER_PATH: bunfsRoot + treeSitterWorkerPath,
+    MOKS_WORKER_PATH: workerPath,
+    MOKS_CHANNEL: `'${Script.channel}'`,
+    MOKS_LIBC: item.os === "linux" ? `'${item.abi ?? "glibc"}'` : "",
+  }
+  if (item.os === "linux") define["process.env.OPENTUI_LIBC"] = JSON.stringify(item.abi ?? "glibc")
 
   await Bun.build({
     conditions: ["bun", "node"],
@@ -156,16 +166,7 @@ for (const item of targets) {
       [treeSitterWorkerPath]: treeSitterWorker,
     },
     entrypoints: ["./src/index.ts", workerPath, treeSitterWorkerPath],
-    define: {
-      FFF_LIBC: JSON.stringify(item.abi === "musl" ? "musl" : "gnu"),
-      MOKS_VERSION: `'${Script.version}'`,
-      MOKS_MODELS_DEV: generated.modelsData,
-      OTUI_TREE_SITTER_WORKER_PATH: bunfsRoot + treeSitterWorkerPath,
-      MOKS_WORKER_PATH: workerPath,
-      MOKS_CHANNEL: `'${Script.channel}'`,
-      MOKS_LIBC: item.os === "linux" ? `'${item.abi ?? "glibc"}'` : "",
-      ...(item.os === "linux" ? { "process.env.OPENTUI_LIBC": JSON.stringify(item.abi ?? "glibc") } : {}),
-    },
+    define: define,
   })
 
   // Smoke test: only run if binary is for current platform
@@ -182,19 +183,15 @@ for (const item of targets) {
   }
 
   await $`rm -rf ./dist/${name}/bin/tui`
+  const pkgJson = {
+    name,
+    version: Script.version,
+    preferUnplugged: true,
+    os: [item.os],
+    cpu: [item.arch],
+  }
   await Bun.file(`dist/${name}/package.json`).write(
-    JSON.stringify(
-      {
-        name,
-        version: Script.version,
-        preferUnplugged: true,
-        os: [item.os],
-        cpu: [item.arch],
-        ...(item.abi ? { libc: [item.abi] } : {}),
-      },
-      null,
-      2,
-    ),
+    JSON.stringify(item.abi ? { ...pkgJson, libc: [item.abi] } : pkgJson, null, 2),
   )
   binaries[name] = Script.version
 }

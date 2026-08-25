@@ -49,33 +49,33 @@ function user(id: string) {
 }
 
 function text(input: { id: string; messageID: string; text: string; time?: Record<string, number> }) {
+  const part = {
+    id: input.id,
+    messageID: input.messageID,
+    sessionID: "session-1",
+    type: "text",
+    text: input.text,
+  }
   return {
     type: "message.part.updated",
     properties: {
-      part: {
-        id: input.id,
-        messageID: input.messageID,
-        sessionID: "session-1",
-        type: "text",
-        text: input.text,
-        ...(input.time ? { time: input.time } : {}),
-      },
+      part: input.time ? { ...part, time: input.time } : part,
     },
   }
 }
 
 function reasoning(input: { id: string; messageID: string; text: string; time?: Record<string, number> }) {
+  const part = {
+    id: input.id,
+    messageID: input.messageID,
+    sessionID: "session-1",
+    type: "reasoning",
+    text: input.text,
+  }
   return {
     type: "message.part.updated",
     properties: {
-      part: {
-        id: input.id,
-        messageID: input.messageID,
-        sessionID: "session-1",
-        type: "reasoning",
-        text: input.text,
-        ...(input.time ? { time: input.time } : {}),
-      },
+      part: input.time ? { ...part, time: input.time } : part,
     },
   }
 }
@@ -94,18 +94,18 @@ function delta(messageID: string, partID: string, value: string) {
 }
 
 function tool(input: { id: string; messageID: string; tool: string; state: Record<string, unknown>; callID?: string }) {
+  const part = {
+    id: input.id,
+    messageID: input.messageID,
+    sessionID: "session-1",
+    type: "tool",
+    tool: input.tool,
+    state: input.state,
+  }
   return {
     type: "message.part.updated",
     properties: {
-      part: {
-        id: input.id,
-        messageID: input.messageID,
-        sessionID: "session-1",
-        type: "tool",
-        tool: input.tool,
-        ...(input.callID ? { callID: input.callID } : {}),
-        state: input.state,
-      },
+      part: input.callID ? { ...part, callID: input.callID } : part,
     },
   }
 }

@@ -29,11 +29,17 @@ function mcpTool(
   inputSchema: Record<string, unknown> = { type: "object", properties: {} },
   outputSchema?: Record<string, unknown>,
 ): MCP.McpTool {
+  const def = (
+    outputSchema
+      ? { name, description: name, inputSchema, outputSchema }
+      : { name, description: name, inputSchema }
+  ) as MCPToolDef
   return {
-    def: { name, description: name, inputSchema, ...(outputSchema ? { outputSchema } : {}) } as MCPToolDef,
+    def,
+    // SAFETY: convertTool only calls client.callTool with the MCP argument bag.
     client: {
       callTool: async (params: { arguments?: Record<string, unknown> }) => handler(params.arguments ?? {}),
-    } as unknown as MCP.McpTool["client"],
+    } as MCP.McpTool["client"],
   }
 }
 
@@ -202,7 +208,8 @@ describe("code mode execute", () => {
           description: `${filler}${i}`,
           inputSchema: { type: "object", properties: { value: { type: "string" }, count: { type: "number" } } },
         } as MCPToolDef,
-        client: { callTool: async () => ({ content: [] }) } as unknown as MCP.McpTool["client"],
+        // SAFETY: convertTool only calls client.callTool; this stub returns empty content.
+        client: { callTool: async () => ({ content: [] }) } as MCP.McpTool["client"],
       }
     }
     tools["zeta_only_tool"] = mcpTool("only_tool", () => "", {

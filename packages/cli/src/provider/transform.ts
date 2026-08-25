@@ -825,19 +825,14 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
       if (model.api.id.includes("anthropic")) {
         if (adaptiveEfforts) {
           return Object.fromEntries(
-            adaptiveEfforts.map((effort) => [
-              effort,
-              {
-                thinking: {
-                  type: "adaptive",
-                  // Newer adaptive-only models default `display` to "omitted", which
-                  // returns empty thinking blocks. Force "summarized" so summaries
-                  // survive (4.6/Sonnet 4.6 already default to "summarized").
-                  ...(adaptiveThinkingOmitted ? { display: "summarized" } : {}),
-                },
-                effort,
-              },
-            ]),
+            adaptiveEfforts.map((effort) => {
+              const thinking: { type: "adaptive"; display?: "summarized" } = { type: "adaptive" }
+              // Newer adaptive-only models default `display` to "omitted", which
+              // returns empty thinking blocks. Force "summarized" so summaries
+              // survive (4.6/Sonnet 4.6 already default to "summarized").
+              if (adaptiveThinkingOmitted) thinking.display = "summarized"
+              return [effort, { thinking, effort }]
+            }),
           )
         }
         return {
@@ -987,16 +982,11 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
           efforts = efforts.filter((v) => v !== "max" && v !== "xhigh")
         }
         return Object.fromEntries(
-          efforts.map((effort) => [
-            effort,
-            {
-              thinking: {
-                type: "adaptive",
-                ...(adaptiveThinkingOmitted ? { display: "summarized" } : {}),
-              },
-              effort,
-            },
-          ]),
+          efforts.map((effort) => {
+            const thinking: { type: "adaptive"; display?: "summarized" } = { type: "adaptive" }
+            if (adaptiveThinkingOmitted) thinking.display = "summarized"
+            return [effort, { thinking, effort }]
+          }),
         )
       }
 
@@ -1025,16 +1015,18 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
       // https://v5.ai-sdk.dev/providers/ai-sdk-providers/amazon-bedrock
       if (adaptiveEfforts) {
         return Object.fromEntries(
-          adaptiveEfforts.map((effort) => [
-            effort,
-            {
-              reasoningConfig: {
-                type: "adaptive",
-                maxReasoningEffort: effort,
-                ...(adaptiveThinkingOmitted ? { display: "summarized" } : {}),
-              },
-            },
-          ]),
+          adaptiveEfforts.map((effort) => {
+            const reasoningConfig: {
+              type: "adaptive"
+              maxReasoningEffort: string
+              display?: "summarized"
+            } = {
+              type: "adaptive",
+              maxReasoningEffort: effort,
+            }
+            if (adaptiveThinkingOmitted) reasoningConfig.display = "summarized"
+            return [effort, { reasoningConfig }]
+          }),
         )
       }
       // For Anthropic models on Bedrock, use reasoningConfig with budgetTokens
@@ -1118,13 +1110,11 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
           // native which inlines it). Claude 4.7+ defaults `display` to "omitted".
           return wrapInSapModelParams(
             Object.fromEntries(
-              adaptiveEfforts.map((effort) => [
-                effort,
-                {
-                  thinking: { type: "adaptive", ...(adaptiveThinkingOmitted ? { display: "summarized" } : {}) },
-                  output_config: { effort },
-                },
-              ]),
+              adaptiveEfforts.map((effort) => {
+                const thinking: { type: "adaptive"; display?: "summarized" } = { type: "adaptive" }
+                if (adaptiveThinkingOmitted) thinking.display = "summarized"
+                return [effort, { thinking, output_config: { effort } }]
+              }),
             ),
           )
         }
@@ -1657,10 +1647,10 @@ export function reasoningVariants(model: ModelsDev.Model, target: Provider.Model
   const budget = options.find((option) => option.type === "budget_tokens")
   if (!budget) return toggle ? nonEmptyVariants(reasoningToggle(target)) : undefined
 
-  return nonEmptyVariants({
-    ...(toggle ? reasoningToggle(target) : {}),
-    ...budgetVariants(target, budget.min, budget.max),
-  })
+  const variants: NonNullable<Provider.Model["variants"]> = {}
+  if (toggle) Object.assign(variants, reasoningToggle(target))
+  Object.assign(variants, budgetVariants(target, budget.min, budget.max))
+  return nonEmptyVariants(variants)
 }
 
 function effortVariants(model: Provider.Model, values: readonly unknown[]) {
@@ -1721,14 +1711,18 @@ function reasoningEffort(model: Provider.Model, effort: string) {
     case "@ai-sdk/google-vertex":
       return { thinkingConfig: { includeThoughts: true, thinkingLevel: effort } }
     case "@ai-sdk/amazon-bedrock":
-      if (anthropicAdaptiveEfforts(model.api.id))
-        return {
-          reasoningConfig: {
-            type: "adaptive",
-            maxReasoningEffort: effort,
-            ...(anthropicOmitsThinking(model.api.id) ? { display: "summarized" } : {}),
-          },
+      if (anthropicAdaptiveEfforts(model.api.id)) {
+        const reasoningConfig: {
+          type: "adaptive"
+          maxReasoningEffort: string
+          display?: "summarized"
+        } = {
+          type: "adaptive",
+          maxReasoningEffort: effort,
         }
+        if (anthropicOmitsThinking(model.api.id)) reasoningConfig.display = "summarized"
+        return { reasoningConfig }
+      }
       if (anthropicOpus45(model.api.id))
         return {
           reasoningConfig: {
@@ -1780,11 +1774,10 @@ function anthropicEffort(model: Provider.Model, effort: string) {
   // Kimi defaults to omitting adaptive thinking text unless summarized display is requested.
   if (isKimiFamily(model)) return { thinking: { type: "adaptive", display: "summarized" }, effort }
   if (!anthropicAdaptiveEfforts(model.api.id)) return
+  const thinking: { type: "adaptive"; display?: "summarized" } = { type: "adaptive" }
+  if (anthropicOmitsThinking(model.api.id)) thinking.display = "summarized"
   return {
-    thinking: {
-      type: "adaptive",
-      ...(anthropicOmitsThinking(model.api.id) ? { display: "summarized" } : {}),
-    },
+    thinking,
     effort,
   }
 }

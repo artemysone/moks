@@ -67,17 +67,17 @@ function tokens(input?: Usage) {
 }
 
 function chunk(input: { delta?: Record<string, unknown>; finish?: string; usage?: Usage }) {
-  return {
+  const choice: { delta: Record<string, unknown>; finish_reason?: string } = {
+    delta: input.delta ?? {},
+  }
+  if (input.finish) choice.finish_reason = input.finish
+  const result: Line = {
     id: "chatcmpl-test",
     object: "chat.completion.chunk",
-    choices: [
-      {
-        delta: input.delta ?? {},
-        ...(input.finish ? { finish_reason: input.finish } : {}),
-      },
-    ],
-    ...(input.usage ? { usage: tokens(input.usage) } : {}),
-  } satisfies Line
+    choices: [choice],
+  }
+  if (input.usage) result.usage = tokens(input.usage)
+  return result
 }
 
 function role() {

@@ -1,78 +1,76 @@
-import type { SqliteDb } from "./db.ts";
-import type { Application, ApplicationStage, Candidate, EntityType, Job } from "./domain.ts";
-import { isStage } from "./domain.ts";
+import type { SqlBindings, SqliteDb } from "./db.ts";
+import {
+  isApplication,
+  isCandidate,
+  isJob,
+  parseApplication,
+  parseCandidate,
+  parseEntityState,
+  parseJob,
+  type Application,
+  type ApplicationStage,
+  type Candidate,
+  type EntityState,
+  type EntityType,
+  type Job,
+} from "./domain.ts";
 import { LedgerError } from "./errors.ts";
+import { parseJsonText } from "./json.ts";
 
 export type MirrorRow = {
   entity_type: EntityType;
   entity_ref: string;
   ats: string;
   remote_id: string;
-  state: unknown;
+  state: EntityState;
   synced_at: number;
 };
 
+type MirrorSqlRow = {
+  entity_type: EntityType;
+  entity_ref: string;
+  ats: string;
+  remote_id: string;
+  state: string;
+  synced_at: number;
+};
+
+type MirrorStateRow = { entity_ref: string; remote_id: string; state: string };
+type MirrorEntityRow = { entity_ref: string; state: string };
+
 export function readMirrorEntity(db: SqliteDb, entityType: EntityType, entityRef: string): MirrorRow | undefined {
   const row = db
-    .prepare(
+    .prepare<MirrorSqlRow, SqlBindings>(
       "SELECT entity_type, entity_ref, ats, remote_id, state, synced_at FROM remote_mirror WHERE entity_type = ? AND entity_ref = ?",
     )
-    .get(entityType, entityRef) as
-    | { entity_type: EntityType; entity_ref: string; ats: string; remote_id: string; state: string; synced_at: number }
-    | undefined;
+    .get(entityType, entityRef);
   if (!row) {
     return undefined;
   }
+  const state = parseEntityState(entityType, parseJsonText(row.state));
+  if (!state) {
+    return undefined;
+  }
   return {
-    ...row,
-    state: JSON.parse(row.state) as unknown,
+    entity_type: row.entity_type,
+    entity_ref: row.entity_ref,
+    ats: row.ats,
+    remote_id: row.remote_id,
+    state,
+    synced_at: row.synced_at,
   };
 }
 
-export function asApplication(state: unknown): Application | undefined {
-  if (!state || typeof state !== "object") {
-    return undefined;
-  }
-  const row = state as Partial<Application>;
-  if (
-    typeof row.id !== "string" ||
-    typeof row.remoteId !== "string" ||
-    typeof row.jobId !== "string" ||
-    typeof row.candidateId !== "string" ||
-    typeof row.stage !== "string" ||
-    !isStage(row.stage)
-  ) {
-    return undefined;
-  }
-  return row as Application;
+export function asApplication(state: EntityState): Application | undefined {
+  return isApplication(state) ? state : undefined;
 }
 
-export function asCandidate(state: unknown): Candidate | undefined {
-  if (!state || typeof state !== "object") {
-    return undefined;
-  }
-  const row = state as Partial<Candidate>;
-  if (
-    typeof row.id !== "string" ||
-    typeof row.remoteId !== "string" ||
-    typeof row.name !== "string" ||
-    typeof row.email !== "string" ||
-    typeof row.headline !== "string"
-  ) {
-    return undefined;
-  }
-  return row as Candidate;
+export function asCandidate(state: EntityState): Candidate | undefined {
+  return isCandidate(state) ? state : undefined;
 }
 
-export function asJob(state: unknown): Job | undefined {
-  if (!state || typeof state !== "object") {
-    return undefined;
-  }
-  const row = state as Partial<Job>;
-  if (typeof row.id !== "string") {
-    return undefined;
-  }
-  return row as Job;
+export function asJob(state: EntityState): Job | undefined {
+  return isJob(state) ? state : undefined;
 }
 
 export type ApplicationListing = {
@@ -88,24 +86,24 @@ export type ApplicationListing = {
 
 export function listApplications(db: SqliteDb, jobRef?: string | null): ApplicationListing[] {
   const applications = db
-    .prepare(
+    .prepare<MirrorStateRow, SqlBindings>(
       "SELECT entity_ref, remote_id, state FROM remote_mirror WHERE entity_type = 'application' ORDER BY entity_ref ASC",
     )
-    .all() as Array<{ entity_ref: string; remote_id: string; state: string }>;
+    .all();
   const candidates = new Map<string, Candidate>();
   const jobs = new Map<string, Job>();
   for (const row of db
-    .prepare("SELECT entity_ref, state FROM remote_mirror WHERE entity_type = 'candidate'")
-    .all() as Array<{ entity_ref: string; state: string }>) {
-    const candidate = asCandidate(JSON.parse(row.state) as unknown);
+    .prepare<MirrorEntityRow, SqlBindings>("SELECT entity_ref, state FROM remote_mirror WHERE entity_type = 'candidate'")
+    .all()) {
+    const candidate = parseCandidate(parseJsonText(row.state));
     if (candidate) {
       candidates.set(row.entity_ref, candidate);
     }
   }
   for (const row of db
-    .prepare("SELECT entity_ref, state FROM remote_mirror WHERE entity_type = 'job'")
-    .all() as Array<{ entity_ref: string; state: string }>) {
-    const job = asJob(JSON.parse(row.state) as unknown);
+    .prepare<MirrorEntityRow, SqlBindings>("SELECT entity_ref, state FROM remote_mirror WHERE entity_type = 'job'")
+    .all()) {
+    const job = parseJob(parseJsonText(row.state));
     if (job) {
       jobs.set(row.entity_ref, job);
     }
@@ -113,7 +111,7 @@ export function listApplications(db: SqliteDb, jobRef?: string | null): Applicat
 
   const listings: ApplicationListing[] = [];
   for (const row of applications) {
-    const application = asApplication(JSON.parse(row.state) as unknown);
+    const application = parseApplication(parseJsonText(row.state));
     if (!application) {
       continue;
     }
@@ -136,16 +134,15 @@ export function listApplications(db: SqliteDb, jobRef?: string | null): Applicat
   return listings;
 }
 
-export function candidateRefFor(entityType: EntityType, entityRef: string, state: unknown): string {
+export function candidateRefFor(entityType: EntityType, entityRef: string, state: EntityState | undefined): string {
   if (entityType === "candidate") {
     return entityRef;
   }
   if (entityType === "application") {
-    const application = asApplication(state);
-    if (!application || application.candidateId.length === 0) {
+    if (!state || !isApplication(state) || state.candidateId.length === 0) {
       throw new LedgerError("unknown_entity: application is missing candidateId");
     }
-    return application.candidateId;
+    return state.candidateId;
   }
   if (entityType === "job") {
     return "_workspace";

@@ -104,11 +104,9 @@ function agents(info: typeof ConfigV1.Info.Type) {
 }
 
 export function migrateAgent(info: ConfigAgentV1.Info) {
-  const body = {
-    ...info.options,
-    ...(info.temperature === undefined ? {} : { temperature: info.temperature }),
-    ...(info.top_p === undefined ? {} : { top_p: info.top_p }),
-  }
+  const body = { ...info.options }
+  if (info.temperature !== undefined) body.temperature = info.temperature
+  if (info.top_p !== undefined) body.top_p = info.top_p
   return {
     model: info.model,
     variant: info.variant,
@@ -171,17 +169,24 @@ function migrateProvider(info: ConfigProviderV1.Info) {
   const lowerer = ConfigProviderOptionsV1.get(info.npm)
   const options = lowerer.provider(info.options ?? {})
   const url = info.api ?? options.url
-  return {
-    name: info.name,
-    env: info.env,
-    api: info.npm
+  const api = info.npm
+    ? url === undefined
       ? {
           type: "aisdk" as const,
           package: info.npm,
-          ...(url === undefined ? {} : { url }),
           settings: options.settings ?? {},
         }
-      : undefined,
+      : {
+          type: "aisdk" as const,
+          package: info.npm,
+          settings: options.settings ?? {},
+          url,
+        }
+    : undefined
+  return {
+    name: info.name,
+    env: info.env,
+    api,
     request: info.options && { headers: options.headers, body: options.body },
     models:
       info.models &&
@@ -214,20 +219,21 @@ function migrateModel(info: typeof ConfigProviderV1.Model.Type, packageName?: st
     info.tool_call !== undefined || info.modalities?.input !== undefined || info.modalities?.output !== undefined
       ? { tools: info.tool_call ?? false, input: info.modalities?.input ?? [], output: info.modalities?.output ?? [] }
       : undefined
+  const api = info.provider?.npm
+    ? {
+        type: "aisdk" as const,
+        package: info.provider.npm,
+        settings: {},
+        ...(info.id === undefined ? undefined : { id: info.id }),
+        ...(info.provider.api === undefined ? undefined : { url: info.provider.api }),
+      }
+    : info.id === undefined
+      ? undefined
+      : { id: info.id }
   return {
     family: info.family,
     name: info.name,
-    api: info.provider?.npm
-      ? {
-          ...(info.id === undefined ? {} : { id: info.id }),
-          type: "aisdk" as const,
-          package: info.provider.npm,
-          ...(info.provider.api === undefined ? {} : { url: info.provider.api }),
-          settings: {},
-        }
-      : info.id === undefined
-        ? undefined
-        : { id: info.id },
+    api,
     capabilities,
     request: (info.headers || request) && {
       headers: info.headers,

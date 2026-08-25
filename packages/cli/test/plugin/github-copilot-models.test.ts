@@ -9,6 +9,7 @@ afterEach(() => {
 })
 
 test("preserves temperature support from existing provider models", async () => {
+  // SAFETY: bun mock returns a fetch-shaped function used only by CopilotModels.get.
   globalThis.fetch = mock(() =>
     Promise.resolve(
       new Response(
@@ -55,7 +56,7 @@ test("preserves temperature support from existing provider models", async () => 
         { status: 200 },
       ),
     ),
-  ) as unknown as typeof fetch
+  ) as typeof fetch
 
   const result = await CopilotModels.get(
     "https://api.githubcopilot.com",
@@ -119,6 +120,7 @@ test("preserves temperature support from existing provider models", async () => 
 })
 
 test("converts Copilot AIC token prices to USD per million tokens", async () => {
+  // SAFETY: bun mock returns a fetch-shaped function used only by CopilotModels.get.
   globalThis.fetch = mock(() =>
     Promise.resolve(
       new Response(
@@ -171,7 +173,7 @@ test("converts Copilot AIC token prices to USD per million tokens", async () => 
         { status: 200 },
       ),
     ),
-  ) as unknown as typeof fetch
+  ) as typeof fetch
 
   const models = (await CopilotModels.get("https://api.githubcopilot.com")).models
 
@@ -188,6 +190,7 @@ test("converts Copilot AIC token prices to USD per million tokens", async () => 
 })
 
 test("uses zero cost when Copilot reports a zero billing batch size", async () => {
+  // SAFETY: bun mock returns a fetch-shaped function used only by CopilotModels.get.
   globalThis.fetch = mock(() =>
     Promise.resolve(
       new Response(
@@ -226,7 +229,7 @@ test("uses zero cost when Copilot reports a zero billing batch size", async () =
         { status: 200 },
       ),
     ),
-  ) as unknown as typeof fetch
+  ) as typeof fetch
 
   const model = (await CopilotModels.get("https://api.githubcopilot.com")).models["mercury-alpha"]
 
@@ -242,6 +245,7 @@ test("uses zero cost when Copilot reports a zero billing batch size", async () =
 })
 
 test("records Copilot advertised responses endpoint for non-GPT model IDs", async () => {
+  // SAFETY: bun mock returns a fetch-shaped function used only by CopilotModels.get.
   globalThis.fetch = mock(() =>
     Promise.resolve(
       new Response(
@@ -272,7 +276,7 @@ test("records Copilot advertised responses endpoint for non-GPT model IDs", asyn
         { status: 200 },
       ),
     ),
-  ) as unknown as typeof fetch
+  ) as typeof fetch
 
   const model = (await CopilotModels.get("https://api.githubcopilot.com")).models["mai-code-1-flash-picker"]
 
@@ -280,6 +284,7 @@ test("records Copilot advertised responses endpoint for non-GPT model IDs", asyn
 })
 
 test("clears existing variants so refreshed models calculate provider-specific variants", async () => {
+  // SAFETY: bun mock returns a fetch-shaped function used only by CopilotModels.get.
   globalThis.fetch = mock(() =>
     Promise.resolve(
       new Response(
@@ -310,7 +315,7 @@ test("clears existing variants so refreshed models calculate provider-specific v
         { status: 200 },
       ),
     ),
-  ) as unknown as typeof fetch
+  ) as typeof fetch
 
   const result = await CopilotModels.get(
     "https://api.githubcopilot.com",
@@ -379,7 +384,9 @@ test("clears existing variants so refreshed models calculate provider-specific v
 })
 
 test("remaps fallback oauth model urls to the enterprise host", async () => {
-  globalThis.fetch = mock(() => Promise.reject(new Error("timeout"))) as unknown as typeof fetch
+  // SAFETY: bun mock returns a fetch-shaped function used only by CopilotModels.get.
+  // SAFETY: bun mock returns a fetch-shaped function used only by CopilotModels.get.
+  globalThis.fetch = mock(() => Promise.reject(new Error("timeout"))) as typeof fetch
 
   const hooks = await CopilotAuthPlugin({
     client: {} as never,

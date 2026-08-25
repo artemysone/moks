@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { COMPLIANCE_SCHEMA } from "./compliance.ts";
 import { openSqlite } from "./db.ts";
+import type { CommitChangeInput } from "./ledger.ts";
 import { openWorkspace, type Workspace } from "./test-workspace.ts";
 
 function tempCwd(): string {
@@ -14,7 +15,7 @@ function writeHiring(cwd: string, policy: string): void {
   writeFileSync(join(cwd, "HIRING.md"), `# HIRING.md\n\n## Policy\n${policy}\n`);
 }
 
-function addNote(ws: Workspace, extras: Record<string, unknown> = {}) {
+function addNote(ws: Workspace, extras: Partial<CommitChangeInput> = {}) {
   return ws.commit({
     rationale: "Screen note",
     author_id: "recruiter",

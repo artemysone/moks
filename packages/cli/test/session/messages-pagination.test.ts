@@ -5,7 +5,7 @@ import { SessionProjector } from "@moks/core/session/projector"
 import { Effect, Option } from "effect"
 import { Session as SessionNs } from "@/session/session"
 import { MessageV2 } from "../../src/session/message-v2"
-import { MessageID, PartID, type SessionID } from "../../src/session/schema"
+import { MessageID, PartID, SessionID } from "../../src/session/schema"
 
 import { NotFoundError } from "@/storage/storage"
 import { testEffect } from "../lib/effect"
@@ -44,10 +44,8 @@ const fill = Effect.fn("Test.fill")(function* (
       role: "user",
       time: { created: time(i) },
       agent: "test",
-      model: { providerID: "test", modelID: "test" },
-      tools: {},
-      mode: "",
-    } as unknown as SessionV1.Info)
+      model: { providerID: ProviderV2.ID.make("test"), modelID: ModelV2.ID.make("test") },
+    })
     yield* session.updatePart({
       id: PartID.ascending(),
       sessionID,
@@ -68,10 +66,8 @@ const addUser = Effect.fn("Test.addUser")(function* (sessionID: SessionID, text?
     role: "user",
     time: { created: Date.now() },
     agent: "test",
-    model: { providerID: "test", modelID: "test" },
-    tools: {},
-    mode: "",
-  } as unknown as SessionV1.Info)
+    model: { providerID: ProviderV2.ID.make("test"), modelID: ModelV2.ID.make("test") },
+  })
   if (text) {
     yield* session.updatePart({
       id: PartID.ascending(),
@@ -107,7 +103,7 @@ const addAssistant = Effect.fn("Test.addAssistant")(function* (
     summary: opts?.summary,
     finish: opts?.finish,
     error: opts?.error,
-  } as unknown as SessionV1.Info)
+  })
   return id
 })
 
@@ -949,17 +945,27 @@ describe("MessageV2.filterCompacted", () => {
   test("works with array input", () => {
     // filterCompacted accepts any Iterable, not just generators
     const id = MessageID.ascending()
+    // SAFETY: filterCompacted only reads info.id; this fixture session id is not decoded.
+    const sessionID = "s1" as SessionID
     const items: SessionV1.WithParts[] = [
       {
         info: {
           id,
-          sessionID: "s1",
+          sessionID,
           role: "user",
           time: { created: 1 },
           agent: "test",
-          model: { providerID: "test", modelID: "test" },
-        } as unknown as SessionV1.Info,
-        parts: [{ type: "text", text: "hello" }] as unknown as SessionV1.Part[],
+          model: { providerID: ProviderV2.ID.make("test"), modelID: ModelV2.ID.make("test") },
+        },
+        parts: [
+          {
+            id: PartID.ascending(),
+            sessionID,
+            messageID: id,
+            type: "text",
+            text: "hello",
+          },
+        ],
       },
     ]
     const result = MessageV2.filterCompacted(items)

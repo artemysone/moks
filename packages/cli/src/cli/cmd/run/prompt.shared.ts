@@ -26,12 +26,13 @@ export type PromptMove = {
 }
 
 export function promptCopy(prompt: RunPrompt): RunPrompt {
-  return {
+  const next: RunPrompt = {
     text: prompt.text,
     parts: structuredClone(prompt.parts),
-    ...(prompt.mode ? { mode: prompt.mode } : {}),
-    ...(prompt.command ? { command: prompt.command } : {}),
   }
+  if (prompt.mode) next.mode = prompt.mode
+  if (prompt.command) next.command = prompt.command
+  return next
 }
 
 export function promptSame(a: RunPrompt, b: RunPrompt): boolean {

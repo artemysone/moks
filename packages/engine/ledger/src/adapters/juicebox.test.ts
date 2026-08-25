@@ -29,7 +29,9 @@ const validFixture = {
   ],
 };
 
-function writeFixture(body: unknown): string {
+import type { Json } from "../json.ts";
+
+function writeFixture(body: Json): string {
   const dir = mkdtempSync(join(tmpdir(), "moks-jb-fixture-"));
   const path = join(dir, "mock-juicebox.json");
   writeFileSync(path, JSON.stringify(body));

@@ -111,12 +111,12 @@ function wrap<Parameters extends Schema.Decoder<unknown>, Result extends Metadat
       const decode = Schema.decodeUnknownEffect(toolInfo.parameters)
       const execute = toolInfo.execute
       toolInfo.execute = (args, ctx) => {
-        const attrs = {
+        const attrs: Record<string, string> = {
           "tool.name": id,
           "session.id": ctx.sessionID,
           "message.id": ctx.messageID,
-          ...(ctx.callID ? { "tool.call_id": ctx.callID } : {}),
         }
+        if (ctx.callID) attrs["tool.call_id"] = ctx.callID
         return Effect.gen(function* () {
           const decoded = yield* decode(args).pipe(
             Effect.mapError(

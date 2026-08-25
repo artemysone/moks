@@ -248,7 +248,9 @@ export const CodeModeTool = Tool.define(
                 }
                 return { input }
               })()
-              calls[index] = { tool: name, status: "running", ...(shown ? { input: shown } : {}) }
+              const call: CallEntry = { tool: name, status: "running" }
+              if (shown) call.input = shown
+              calls[index] = call
               return publish()
             }),
           onToolCallEnd: ({ index, outcome }) =>
@@ -297,12 +299,13 @@ export const CodeModeTool = Tool.define(
             ? result.value
             : (JSON.stringify(result.value, null, 2) ?? String(result.value))
 
-        return {
+        const executed: Tool.ExecuteResult<Metadata> = {
           title: CODE_MODE_TOOL,
           metadata: { toolCalls: calls },
           output: withLogs(output),
-          ...(attachments.length > 0 ? { attachments } : {}),
-        } satisfies Tool.ExecuteResult<Metadata>
+        }
+        if (attachments.length > 0) executed.attachments = attachments
+        return executed
       }, Effect.orDie),
     }
     return init

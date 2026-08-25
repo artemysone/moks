@@ -47,11 +47,12 @@ export const Prompt = Schema.Struct({
   .pipe(
     statics((schema) => ({
       equivalence: Schema.toEquivalence(schema),
-      fromUserMessage: (input: Pick<Prompt, "text" | "files" | "agents">) =>
-        schema.make({
-          text: input.text,
-          ...(input.files === undefined ? {} : { files: input.files }),
-          ...(input.agents === undefined ? {} : { agents: input.agents }),
-        }),
+      fromUserMessage: (input: Pick<Prompt, "text" | "files" | "agents">) => {
+        if (input.files !== undefined && input.agents !== undefined)
+          return schema.make({ text: input.text, files: input.files, agents: input.agents })
+        if (input.files !== undefined) return schema.make({ text: input.text, files: input.files })
+        if (input.agents !== undefined) return schema.make({ text: input.text, agents: input.agents })
+        return schema.make({ text: input.text })
+      },
     })),
   )

@@ -55,7 +55,8 @@ describe("CodeMode host failure boundary", () => {
         description: "Return invalid output",
         input: Schema.Struct({}),
         output: Schema.Struct({ safe: Schema.String }),
-        run: () => Effect.succeed({ safe: 1, secret } as unknown as { readonly safe: string }),
+        // SAFETY: invalid host output on purpose so the runtime sanitizer is exercised.
+        run: () => Effect.succeed({ safe: 1, secret } as never),
       }),
     )
 
@@ -185,13 +186,14 @@ describe("CodeMode tool-call observation", () => {
       onToolCallEnd: (call) =>
         Effect.sync(() => {
           expect(call.durationMs).toBeGreaterThanOrEqual(0)
-          events.push({
+          const event: (typeof events)[number] = {
             phase: "end",
             index: call.index,
             name: call.name,
             outcome: call.outcome,
-            ...(call.message === undefined ? {} : { message: call.message }),
-          })
+          }
+          if (call.message !== undefined) event.message = call.message
+          events.push(event)
         }),
     })
 

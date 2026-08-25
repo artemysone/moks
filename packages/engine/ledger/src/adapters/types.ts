@@ -1,17 +1,17 @@
-import type { EntityType, Mutation } from "../domain.ts";
-import type { AtsSnapshot } from "../domain.ts";
+import type { AtsSnapshot, CasField, EntityType, Mutation, MutationPayload, RemoteResult } from "../domain.ts";
 
 export type ApplyChange = {
   entityType: EntityType;
   entityRef: string;
   mutation: Mutation;
-  precondition: unknown;
-  payload: unknown;
+  precondition: CasField;
+  payload: MutationPayload;
+  idempotencyKey?: string;
 };
 
-export type ApplyResult =
-  | { ok: true; remoteResult: unknown }
-  | { ok: false; reason: "precondition_failed" | "unsupported" | string };
+export type ApplyOk = { ok: true; remoteResult: RemoteResult | undefined };
+export type ApplyFail = { ok: false; reason: string };
+export type ApplyResult = ApplyOk | ApplyFail;
 
 /** Foreign system of record. Ashby / Greenhouse implement this later. */
 export type AtsAdapter = {

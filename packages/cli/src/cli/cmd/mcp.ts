@@ -481,16 +481,12 @@ export const McpAddCommand = effectCmd({
         const environment = entries(args.env ?? [], "environment variable")
         const headers = entries(args.header ?? [], "HTTP header")
         const mcpConfig: ConfigMCPV1.Info = args.url
-          ? {
-              type: "remote",
-              url: args.url,
-              ...(Object.keys(headers).length ? { headers } : {}),
-            }
-          : {
-              type: "local",
-              command,
-              ...(Object.keys(environment).length ? { environment } : {}),
-            }
+          ? Object.keys(headers).length
+            ? { type: "remote", url: args.url, headers }
+            : { type: "remote", url: args.url }
+          : Object.keys(environment).length
+            ? { type: "local", command, environment }
+            : { type: "local", command }
 
         const configPath = await resolveConfigPath(Global.Path.config, true)
         await addMcpToConfig(args.name, mcpConfig, configPath)

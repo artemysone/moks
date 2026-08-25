@@ -72,11 +72,9 @@ function wrapSSE(res: Response, ms: number, ctl: AbortController) {
 }
 
 function prepareOptions(model: ModelV2.Info, pkg: string) {
-  const options: Record<string, any> = {
-    name: model.providerID,
-    ...(model.api.type === "aisdk" ? (model.api.settings ?? {}) : {}),
-    ...model.request.body,
-  }
+  const options: Record<string, any> = { name: model.providerID }
+  if (model.api.type === "aisdk") Object.assign(options, model.api.settings)
+  Object.assign(options, model.request.body)
   if (model.api.type === "aisdk" && model.api.url) options.baseURL = model.api.url
 
   const customFetch = options.fetch

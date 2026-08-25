@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openSqlite, type SqliteDb } from "./db.ts";
+import { openSqlite, type SqlBindings, type SqliteDb } from "./db.ts";
 import { VaultError } from "./errors.ts";
 import { hashChangeset, payloadCipherHash, verifyChain, type CanonicalBody } from "./hash.ts";
 import { migrateWorkspace } from "./schema.ts";
@@ -19,7 +19,9 @@ afterEach(() => {
   }
 });
 
-function tempVaultEnv(): { db: SqliteDb; keyPath: string } {
+type VaultEnv = { db: SqliteDb; keyPath: string };
+
+function tempVaultEnv(): VaultEnv {
   const dir = mkdtempSync(join(tmpdir(), "moks-vault-shred-"));
   tempDirs.push(dir);
   const db = openSqlite(join(dir, "ledger.sqlite"));
@@ -117,9 +119,8 @@ describe("vault put/get/shred", () => {
       insertPayloadRefChangeset(db, ref);
       expect(verifyChain(db)).toEqual({ ok: true });
       const other = vault.put("cand_1", { email: "swapped@example.com" });
-      const swapped = db.prepare("SELECT enc_payload FROM pii_vault WHERE ref = ?").get(other) as {
-        enc_payload: Uint8Array;
-      };
+      const swapped = db.prepare<{ enc_payload: Uint8Array }, SqlBindings>("SELECT enc_payload FROM pii_vault WHERE ref = ?").get(other);
+      if (!swapped) throw new Error("missing swapped ciphertext");
       db.prepare("UPDATE pii_vault SET enc_payload = ? WHERE ref = ?").run(swapped.enc_payload, ref);
       expect(verifyChain(db)).toMatchObject({ ok: false, reason: "hash_mismatch" });
     } finally {

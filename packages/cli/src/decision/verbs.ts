@@ -3,6 +3,13 @@ import { CandidateCard } from "@/product/candidate-card"
 import { ReqWorkspace } from "@/product/req-workspace"
 import { CandidateAdd } from "@/product/candidate-add"
 import { CardWrite } from "@/product/card-write"
+import {
+  isAdvanceStagePayload,
+  parseMutationPayload,
+  type AgentMeta,
+  type Json,
+  type MutationPayload,
+} from "@moks/ledger"
 import { requireCompanyDirectory, requireOpenedHiringDir, withLedger, type LedgerHandle } from "./session"
 import { HiringSession } from "@/product/hiring-session"
 
@@ -11,7 +18,7 @@ export type CommitChange = {
   entity_ref: string
   mutation: string
   effect_class?: string
-  payload?: unknown
+  payload?: Json
 }
 
 export type CommitInput = {
@@ -30,7 +37,7 @@ export type CommitInput = {
   author_kind?: "human" | "agent"
   source?: string
   cwd?: string
-  meta?: unknown
+  meta?: AgentMeta
 }
 
 export type PushInput = {
@@ -87,10 +94,9 @@ const ACTION_MUTATION: Record<string, string> = {
   sendoutreach: "SendOutreach",
 }
 
-export function isAdverseMutation(mutation: string, payload?: unknown) {
+export function isAdverseMutation(mutation: string, payload?: MutationPayload) {
   if (ADVERSE_MUTATIONS.has(mutation)) return true
-  if (mutation !== "AdvanceStage" || !payload || typeof payload !== "object" || Array.isArray(payload)) return false
-  return (payload as { to?: unknown }).to === "Hired"
+  return mutation === "AdvanceStage" && payload !== undefined && isAdvanceStagePayload(payload) && payload.to === "Hired"
 }
 
 export function isAdverseAction(action: string) {
@@ -184,6 +190,10 @@ async function commitWithHandle(handle: LedgerHandle, input: CommitInput) {
     const rationale = (filled.rationale ?? filled.reason ?? filled.body ?? "").trim()
     if (!rationale) throw new Error("rationale is required")
     const authorKind = input.author_kind ?? (input.source === "tool" ? "agent" : "human")
+    const agent_meta: AgentMeta = { ...input.meta }
+    if (input.source !== undefined) agent_meta.source = input.source
+    if (handle.req) agent_meta.req = path.relative(handle.company, handle.req)
+    if (input.action !== undefined) agent_meta.action = input.action
     const changeset = api.commitChangeset(
       handle.db,
       handle.vault,
@@ -191,12 +201,7 @@ async function commitWithHandle(handle: LedgerHandle, input: CommitInput) {
         rationale,
         author_id: input.author_id ?? (authorKind === "agent" ? "agent" : defaultAuthor()),
         author_kind: authorKind,
-        agent_meta: {
-          source: input.source,
-          req: handle.req ? path.relative(handle.company, handle.req) : null,
-          action: input.action,
-          ...(input.meta && typeof input.meta === "object" && !Array.isArray(input.meta) ? input.meta : {}),
-        },
+        agent_meta,
         changes,
       },
       { policy: handle.policy.policy, stages: handle.policy.stages },
@@ -280,10 +285,9 @@ export async function listStagedReviews(input: { cwd?: string } = {}) {
     const rows = [...staged, ...approved].map((row) => {
       const detail = handle.api.getChangeset(handle.db, handle.vault, row.id)
       const change = detail.changes[0]
-      const meta = detail.agent_meta && typeof detail.agent_meta === "object" ? (detail.agent_meta as { action?: string }) : {}
       return {
         id: row.id,
-        action: meta.action ?? change?.mutation ?? "change",
+        action: detail.agent_meta?.action ?? change?.mutation ?? "change",
         target: change?.entity_ref ?? "",
         rationale: row.rationale.split(/\n/)[0] ?? "",
         status: row.status,
@@ -460,11 +464,9 @@ export async function push(input: PushInput) {
   })
 }
 
-function reqSlugFromMeta(meta: unknown) {
-  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return
-  const req = (meta as { req?: unknown }).req
-  if (typeof req !== "string") return
-  const slug = path.basename(req.trim())
+function reqSlugFromMeta(meta: AgentMeta | null | undefined) {
+  if (!meta?.req) return
+  const slug = path.basename(meta.req.trim())
   if (!slug || slug === "." || slug === "..") return
   return slug
 }
@@ -483,11 +485,8 @@ function logTargetId(handle: LedgerHandle, change: { entity_type: string; entity
   return hit?.candidateId ?? change.entity_ref
 }
 
-function logReason(row: { rationale: string; agent_meta: unknown }) {
-  const meta = row.agent_meta && typeof row.agent_meta === "object" && !Array.isArray(row.agent_meta)
-    ? (row.agent_meta as { review_reason?: unknown })
-    : {}
-  const review = typeof meta.review_reason === "string" ? meta.review_reason.trim() : ""
+function logReason(row: { rationale: string; agent_meta: AgentMeta | null }) {
+  const review = row.agent_meta?.review_reason?.trim() ?? ""
   if (review) return review
   return (row.rationale.split(/\n/)[0] ?? "").trim()
 }
@@ -531,11 +530,7 @@ export async function log(input: { cwd?: string; compliance?: boolean; limit?: n
     const decisions = scoped.slice(0, limit).map((row) => {
       const detail = api.getChangeset(handle.db, handle.vault, row.id)
       const change = detail.changes[0]
-      const meta =
-        detail.agent_meta && typeof detail.agent_meta === "object" && !Array.isArray(detail.agent_meta)
-          ? (detail.agent_meta as { action?: string; review_reason?: string })
-          : {}
-      const action = meta.action ?? change?.mutation ?? "change"
+      const action = detail.agent_meta?.action ?? change?.mutation ?? "change"
       const target = logTargetId(handle, change)
       const reason = logReason(detail)
       return {
@@ -628,7 +623,7 @@ function resolveChanges(handle: LedgerHandle, input: CommitInput) {
     entity_ref: string
     mutation: string
     effect_class: string
-    payload: unknown
+    payload: MutationPayload
   }> = []
 
   for (const change of input.changes ?? []) {
@@ -659,7 +654,7 @@ function normalizeChange(api: LedgerHandle["api"], change: CommitChange) {
     entity_ref: change.entity_ref,
     mutation: change.mutation,
     effect_class: change.effect_class ?? api.MUTATION_EFFECT_CLASS[change.mutation],
-    payload: change.payload ?? {},
+    payload: parseMutationPayload(change.mutation, change.payload ?? {}),
   }
 }
 
@@ -768,7 +763,7 @@ async function projectPulledCards(handle: LedgerHandle) {
 async function projectCard(
   handle: LedgerHandle,
   input: CommitInput,
-  changes: Array<{ mutation: string; entity_ref: string; payload: unknown }>,
+  changes: Array<{ mutation: string; entity_ref: string; payload: MutationPayload }>,
 ) {
   const id = input.target?.id
   if (!id || id.includes(":")) return
@@ -796,7 +791,7 @@ async function projectCard(
 // AdvanceStage stays on the changeset until apply/push. Card + status
 // keep the applied/mirror stage so review can show the bless hop without
 // rewriting the file. Card-only move (no ledger hop) writes via writeAdvanceOnExistingCard.
-function stageFromChanges(changes: Array<{ mutation: string; payload: unknown }>) {
+function stageFromChanges(changes: Array<{ mutation: string; payload: MutationPayload }>) {
   for (const change of changes) {
     if (change.mutation === "Reject") return "Rejected"
     if (change.mutation === "Withdraw") return "Withdrawn"

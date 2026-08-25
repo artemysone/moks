@@ -692,12 +692,11 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         },
       }
 
-      const aigateway = createAiGateway({
-        accountId,
-        gateway,
-        apiKey: apiToken,
-        ...(Object.values(opts).some((v) => v !== undefined) ? { options: opts } : {}),
-      })
+      const aigateway = createAiGateway(
+        Object.values(opts).some((v) => v !== undefined)
+          ? { accountId, gateway, apiKey: apiToken, options: opts }
+          : { accountId, gateway, apiKey: apiToken },
+      )
       const unified = createUnified({ apiKey: apiToken })
 
       return {

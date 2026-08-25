@@ -43,16 +43,17 @@ const openai: Lowerer = {
   request(options) {
     const result = snake(options)
     if (options.reasoningEffort !== undefined || options.reasoningSummary !== undefined) {
-      result.reasoning = {
-        ...(isRecord(result.reasoning) ? result.reasoning : {}),
-        ...(options.reasoningEffort !== undefined ? { effort: options.reasoningEffort } : {}),
-        ...(options.reasoningSummary !== undefined ? { summary: options.reasoningSummary } : {}),
-      }
+      const reasoning = isRecord(result.reasoning) ? { ...result.reasoning } : {}
+      if (options.reasoningEffort !== undefined) reasoning.effort = options.reasoningEffort
+      if (options.reasoningSummary !== undefined) reasoning.summary = options.reasoningSummary
+      result.reasoning = reasoning
       delete result.reasoning_effort
       delete result.reasoning_summary
     }
     if (options.textVerbosity !== undefined) {
-      result.text = { ...(isRecord(result.text) ? result.text : {}), verbosity: options.textVerbosity }
+      result.text = isRecord(result.text)
+        ? { ...result.text, verbosity: options.textVerbosity }
+        : { verbosity: options.textVerbosity }
       delete result.text_verbosity
     }
     return result
@@ -80,7 +81,9 @@ const anthropic: Lowerer = {
       delete result.task_budget
     }
     if (isRecord(options.metadata) && options.metadata.userId !== undefined) {
-      result.metadata = { ...(isRecord(result.metadata) ? result.metadata : {}), user_id: options.metadata.userId }
+      result.metadata = isRecord(result.metadata)
+        ? { ...result.metadata, user_id: options.metadata.userId }
+        : { user_id: options.metadata.userId }
     }
     return result
   },
@@ -97,10 +100,9 @@ const google: Lowerer = {
   },
   request(options) {
     const generationConfig = pick(options, ["thinkingConfig", "responseModalities", "mediaResolution", "imageConfig"])
-    return {
-      ...omit(options, ["thinkingConfig", "responseModalities", "mediaResolution", "imageConfig"]),
-      ...(Object.keys(generationConfig).length ? { generationConfig } : {}),
-    }
+    const result = omit(options, ["thinkingConfig", "responseModalities", "mediaResolution", "imageConfig"])
+    if (Object.keys(generationConfig).length) result.generationConfig = generationConfig
+    return result
   },
 }
 

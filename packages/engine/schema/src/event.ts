@@ -61,11 +61,10 @@ export function define<
   })
     .annotate({ identifier: input.type })
     .pipe(
-      statics(() => ({
-        type: input.type,
-        ...(input.durable === undefined ? {} : { durable: input.durable }),
-        data,
-      })),
+      statics(() => {
+        if (input.durable === undefined) return { type: input.type, data }
+        return { type: input.type, data, durable: input.durable }
+      }),
     ) satisfies Definition<Type, typeof data>
 }
 

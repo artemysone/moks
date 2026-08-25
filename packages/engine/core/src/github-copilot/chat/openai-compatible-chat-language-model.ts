@@ -675,10 +675,9 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
 
             const providerMetadata: SharedV3ProviderMetadata = {
               [providerOptionsName]: {},
-              // Include reasoning_opaque for Copilot multi-turn reasoning
-              ...(reasoningOpaque ? { copilot: { reasoningOpaque } } : {}),
-              ...metadataExtractor?.buildMetadata(),
             }
+            if (reasoningOpaque) providerMetadata.copilot = { reasoningOpaque }
+            Object.assign(providerMetadata, metadataExtractor?.buildMetadata())
             if (usage.completionTokensDetails.acceptedPredictionTokens != null) {
               providerMetadata[providerOptionsName].acceptedPredictionTokens =
                 usage.completionTokensDetails.acceptedPredictionTokens

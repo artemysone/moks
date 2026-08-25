@@ -17,6 +17,14 @@ import { SkillV2 } from "../skill"
 
 const mutable = <T>(value: T) => value as DeepMutable<T>
 
+type OAuthMethodUpdate = {
+  integrationID: Integration.ID
+  method: Integration.OAuthMethod
+  authorize: Integration.OAuthImplementation["authorize"]
+  refresh?: Integration.OAuthImplementation["refresh"]
+  label?: Integration.OAuthImplementation["label"]
+}
+
 export const make = Effect.fn("PluginHost.make")(function* (plugin: PluginV2.Interface) {
   const agents = yield* AgentV2.Service
   const aisdk = yield* AISDK.Service
@@ -122,7 +130,7 @@ export const make = Effect.fn("PluginHost.make")(function* (plugin: PluginV2.Int
                 if ("authorize" in input) {
                   const methodID = Integration.MethodID.make(input.method.id)
                   const refresh = input.refresh
-                  draft.method.update({
+                  const method: OAuthMethodUpdate = {
                     integrationID: Integration.ID.make(input.integrationID),
                     method: { ...input.method, id: methodID },
                     authorize: (inputs) =>
@@ -155,21 +163,20 @@ export const make = Effect.fn("PluginHost.make")(function* (plugin: PluginV2.Int
                           }
                         }),
                       ),
-                    ...(refresh
-                      ? {
-                          refresh: (value: Credential.OAuth) =>
-                            refresh(value).pipe(
-                              Effect.map((next) =>
-                                Credential.OAuth.make({
-                                  ...next,
-                                  methodID: Integration.MethodID.make(next.methodID),
-                                }),
-                              ),
-                            ),
-                        }
-                      : {}),
-                    ...(input.label ? { label: input.label } : {}),
-                  })
+                  }
+                  if (refresh) {
+                    method.refresh = (value) =>
+                      refresh(value).pipe(
+                        Effect.map((next) =>
+                          Credential.OAuth.make({
+                            ...next,
+                            methodID: Integration.MethodID.make(next.methodID),
+                          }),
+                        ),
+                      )
+                  }
+                  if (input.label) method.label = input.label
+                  draft.method.update(method)
                   return
                 }
                 if (input.method.type === "env") {

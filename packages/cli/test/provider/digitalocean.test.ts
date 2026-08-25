@@ -30,11 +30,16 @@ const withAuth = <A, E, R>(metadata: Record<string, string> | undefined, effect:
   withEnv(
     {
       MOKS_AUTH_CONTENT: JSON.stringify({
-        digitalocean: {
-          type: "api",
-          key: "sk_do_test",
-          ...(metadata ? { metadata } : {}),
-        },
+        digitalocean: metadata
+          ? {
+              type: "api",
+              key: "sk_do_test",
+              metadata,
+            }
+          : {
+              type: "api",
+              key: "sk_do_test",
+            },
       }),
     },
     effect,

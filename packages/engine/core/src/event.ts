@@ -321,15 +321,14 @@ export const layerWith = (options?: LayerOptions) =>
                             yield* projector(committed)
                           }
                           if (commit) yield* commit(seq)
+                          const sequence =
+                            input?.ownerID && row?.ownerID == null ? { seq, owner_id: input.ownerID } : { seq }
                           yield* db
                             .insert(EventSequenceTable)
                             .values([{ aggregate_id: aggregateID, seq, owner_id: input?.ownerID }])
                             .onConflictDoUpdate({
                               target: EventSequenceTable.aggregate_id,
-                              set: {
-                                seq,
-                                ...(input?.ownerID && row?.ownerID == null ? { owner_id: input.ownerID } : {}),
-                              },
+                              set: sequence,
                             })
                             .run()
                             .pipe(Effect.orDie)
@@ -424,17 +423,29 @@ export const layerWith = (options?: LayerOptions) =>
             (serviceLocation
               ? { directory: serviceLocation.directory, workspaceID: serviceLocation.workspaceID }
               : undefined)
-          return yield* publishEvent(
-            definition,
-            {
-              id: options?.id ?? ID.create(),
-              ...(options?.metadata ? { metadata: options.metadata } : {}),
-              type: definition.type,
-              ...(location ? { location } : {}),
-              data,
-            } as Payload<D>,
-            options?.commit,
-          )
+          const payload = {
+            id: options?.id ?? ID.create(),
+            type: definition.type,
+            data,
+          }
+          if (options?.metadata && location) {
+            return yield* publishEvent(
+              definition,
+              { ...payload, metadata: options.metadata, location } as Payload<D>,
+              options?.commit,
+            )
+          }
+          if (options?.metadata) {
+            return yield* publishEvent(
+              definition,
+              { ...payload, metadata: options.metadata } as Payload<D>,
+              options?.commit,
+            )
+          }
+          if (location) {
+            return yield* publishEvent(definition, { ...payload, location } as Payload<D>, options?.commit)
+          }
+          return yield* publishEvent(definition, payload as Payload<D>, options?.commit)
         })
       }
 

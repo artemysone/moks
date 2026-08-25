@@ -65,9 +65,9 @@ const layer = Layer.effect(
                 new Info({
                   name,
                   path: source.path,
-                  ...(source.description === undefined ? {} : { description: source.description }),
-                  ...(source.hidden === undefined ? {} : { hidden: source.hidden }),
                   source,
+                  ...(source.description === undefined ? undefined : { description: source.description }),
+                  ...(source.hidden === undefined ? undefined : { hidden: source.hidden }),
                 }),
               )
               continue
@@ -86,9 +86,9 @@ const layer = Layer.effect(
               new Info({
                 name,
                 path: AbsolutePath.make(Repository.cachePath(global.repos, repository, source.branch)),
-                ...(source.description === undefined ? {} : { description: source.description }),
-                ...(source.hidden === undefined ? {} : { hidden: source.hidden }),
                 source,
+                ...(source.description === undefined ? undefined : { description: source.description }),
+                ...(source.hidden === undefined ? undefined : { hidden: source.hidden }),
               }),
             )
             yield* cache.ensure({ reference: repository, branch: source.branch, refresh: true }).pipe(

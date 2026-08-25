@@ -1,3 +1,4 @@
+import type { Json, JsonObject } from "../json.ts";
 import type { McpErrorCode } from "./errors.ts";
 
 /**
@@ -24,15 +25,36 @@ export type McpToolInfo = {
   description?: string;
 };
 
+export type AtsApplyArgs = {
+  entityType: string;
+  entityRef: string;
+  mutation: string;
+  precondition: Json;
+  payload: Json;
+  idempotencyKey?: string;
+};
+
+export type SourceSearchArgs = {
+  role: string;
+  limit?: number;
+};
+
+export type DebugSleepArgs = {
+  ms: number;
+};
+
+export type McpCallArgs = AtsApplyArgs | SourceSearchArgs | DebugSleepArgs | JsonObject;
+
 /** Bridge protocol between the sync client and its worker thread. */
 export type BridgeRequest = {
   op: "listTools" | "callTool" | "close";
   name?: string;
-  args?: Record<string, unknown>;
+  args?: McpCallArgs;
   /** Int32 flag the worker stores/notifies when the response message is queued. */
   signal: SharedArrayBuffer;
 };
 
-export type BridgeResponse =
-  | { ok: true; value: unknown }
-  | { ok: false; error: { code: McpErrorCode; detail: string } };
+export type BridgeValue = Json;
+export type BridgeSuccess = { ok: true; value: BridgeValue };
+export type BridgeFailure = { ok: false; error: { code: McpErrorCode; detail: string } };
+export type BridgeResponse = BridgeSuccess | BridgeFailure;

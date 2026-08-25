@@ -18,11 +18,13 @@ export type Info = {
   metadata?: Record<string, unknown>
 }
 
+interface JobToken {}
+
 type Active = {
   info: Info
   done: Deferred.Deferred<Info>
   scope: Scope.Closeable
-  token: object
+  token: JobToken
   pending: number
   next: number
   output?: { sequence: number; text: string }
@@ -48,7 +50,7 @@ type PromoteResult = {
   onPromote?: Effect.Effect<void>
 }
 
-type StartResult = { info: Info } | { info: Info; scope: Scope.Closeable; token: object }
+type StartResult = { info: Info } | { info: Info; scope: Scope.Closeable; token: JobToken }
 
 type ExtendResult =
   | { extended: false }
@@ -57,7 +59,7 @@ type ExtendResult =
       previous: Deferred.Deferred<void>
       scope: Scope.Closeable
       tail: Deferred.Deferred<void>
-      token: object
+      token: JobToken
       sequence: number
     }
 
@@ -99,10 +101,9 @@ export interface Interface {
 export class Service extends Context.Service<Service, Interface>()("@moks/BackgroundJob") {}
 
 function snapshot(job: Active): Info {
-  return {
-    ...job.info,
-    ...(job.info.metadata ? { metadata: { ...job.info.metadata } } : {}),
-  }
+  const info = { ...job.info }
+  if (job.info.metadata) info.metadata = { ...job.info.metadata }
+  return info
 }
 
 function errorText(error: unknown) {
@@ -125,7 +126,7 @@ export const make = Effect.gen(function* () {
 
   const settle = Effect.fn("BackgroundJob.settle")(function* (
     id: string,
-    token: object,
+    token: JobToken,
     sequence: number,
     exit: Exit.Exit<string, unknown>,
   ) {
@@ -148,18 +149,19 @@ export const make = Effect.gen(function* () {
         : Cause.hasInterruptsOnly(exit.cause)
           ? "cancelled"
           : "error"
+      const info = {
+        ...job.info,
+        status,
+        completed_at,
+      }
+      if (output) info.output = output.text
+      if (Exit.isFailure(exit)) info.error = errorText(Cause.squash(exit.cause))
       const next = {
         ...job,
         onPromote: undefined,
         pending: 0,
         output,
-        info: {
-          ...job.info,
-          status,
-          completed_at,
-          ...(output ? { output: output.text } : {}),
-          ...(Exit.isFailure(exit) ? { error: errorText(Cause.squash(exit.cause)) } : {}),
-        },
+        info,
       }
       return [{ info: snapshot(next), done: job.done, scope: job.scope }, new Map(jobs).set(id, next)]
     })
@@ -173,7 +175,7 @@ export const make = Effect.gen(function* () {
   const fork = Effect.fn("BackgroundJob.fork")(function* (
     scope: Scope.Scope,
     id: string,
-    token: object,
+    token: JobToken,
     sequence: number,
     run: Effect.Effect<string, unknown>,
   ) {

@@ -10,6 +10,7 @@ import {
   nextStageOnPath,
   requiredEffectClass,
   isStage,
+  type ApplicationStage,
 } from "./domain.ts";
 import { assertMutationLegal } from "./ledger.ts";
 
@@ -107,7 +108,7 @@ describe("HIRING path with Phone/Onsite", () => {
 
 describe("assertMutationLegal HIRING hops", () => {
   const hiring = ["Sourced", "Screen", "Phone", "Onsite", "Offer", "Hired"] as const;
-  const app = (stage: string) => ({
+  const app = (stage: ApplicationStage) => ({
     id: "app_1",
     remoteId: "r1",
     jobId: "job_1",

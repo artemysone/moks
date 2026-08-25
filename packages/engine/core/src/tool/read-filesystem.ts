@@ -315,7 +315,7 @@ export const read = Effect.fn("ReadTool.read")(function* (
         mime: FSUtil.mimeType(real),
         offset,
         truncated: next !== undefined,
-        ...(next === undefined ? {} : { next }),
+        ...(next === undefined ? undefined : { next }),
       })
     }),
   )
@@ -348,7 +348,11 @@ export const list = Effect.fn("ReadTool.list")(function* (fs: FSUtil.Interface, 
     .sort((a, b) => (a.type === b.type ? a.path.localeCompare(b.path) : a.type === "directory" ? -1 : 1))
   const selected = visible.slice(offset - 1, offset - 1 + limit)
   const truncated = offset - 1 + selected.length < visible.length
-  return new ListPage({ entries: selected, truncated, ...(truncated ? { next: offset + selected.length } : {}) })
+  return new ListPage({
+    entries: selected,
+    truncated,
+    ...(truncated ? { next: offset + selected.length } : undefined),
+  })
 })
 
 const layer = Layer.effect(

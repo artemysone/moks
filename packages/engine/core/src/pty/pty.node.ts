@@ -4,10 +4,9 @@ import type { Opts, Proc } from "./pty"
 export type { Disp, Exit, Opts, Proc } from "./pty"
 
 export function spawn(file: string, args: string[], opts: Opts): Proc {
-  const proc = pty.spawn(file, args, {
-    ...opts,
-    ...(process.platform === "win32" ? { useConptyDll: true } : {}),
-  })
+  const spawnOpts: Opts & { useConptyDll?: boolean } = { ...opts }
+  if (process.platform === "win32") spawnOpts.useConptyDll = true
+  const proc = pty.spawn(file, args, spawnOpts)
   return {
     pid: proc.pid,
     onData(listener) {

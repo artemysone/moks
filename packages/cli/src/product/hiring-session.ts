@@ -229,11 +229,9 @@ async function leftoverOnPacket(packet: string): Promise<LeftoverKind | null> {
   return null
 }
 
-function stagedReqSlug(meta: unknown) {
-  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return
-  const req = (meta as { req?: unknown }).req
-  if (typeof req !== "string") return
-  const slug = path.basename(req.trim())
+function stagedReqSlug(meta: { req?: string } | null | undefined) {
+  if (!meta?.req) return
+  const slug = path.basename(meta.req.trim())
   if (!slug || slug === "." || slug === "..") return
   return slug
 }

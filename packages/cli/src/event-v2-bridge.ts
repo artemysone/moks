@@ -24,11 +24,18 @@ const layer = Layer.effect(
         const workspaceID = yield* WorkspaceRef
         return yield* events.publish(definition, data, {
           ...options,
-          location: new Location.Info({
-            directory: AbsolutePath.make(ctx.directory),
-            ...(workspaceID ? { workspaceID } : {}),
-            project: { id: Project.ID.make(ctx.project.id), directory: AbsolutePath.make(ctx.worktree) },
-          }),
+          location: new Location.Info(
+            workspaceID
+              ? {
+                  directory: AbsolutePath.make(ctx.directory),
+                  workspaceID,
+                  project: { id: Project.ID.make(ctx.project.id), directory: AbsolutePath.make(ctx.worktree) },
+                }
+              : {
+                  directory: AbsolutePath.make(ctx.directory),
+                  project: { id: Project.ID.make(ctx.project.id), directory: AbsolutePath.make(ctx.worktree) },
+                },
+          ),
         })
       })
 

@@ -1,17 +1,18 @@
 import { createHash } from "node:crypto";
 import type { ApplyChange, AtsAdapter } from "./adapters/types.ts";
-import type { SqliteDb } from "./db.ts";
-import type { AtsSnapshot, EntityType, Mutation } from "./domain.ts";
+import type { SqlBindings, SqliteDb } from "./db.ts";
+import {
+  isStage,
+  parseCasField,
+  parseMutationPayload,
+  type ApplicationStage,
+  type AtsSnapshot,
+  type RemoteResult,
+} from "./domain.ts";
 import { LedgerError, VaultError } from "./errors.ts";
 import { canonicalJson } from "./hash.ts";
-import {
-  listChangesets,
-  loadChangeRows,
-  loadChangesetRow,
-  markChangesetApplied,
-  markChangesetStatus,
-  setChangeRemoteResult,
-} from "./ledger.ts";
+import { parseJsonText } from "./json.ts";
+import { loadChangeRows, loadChangesetRow, markChangesetApplied, markChangesetStatus, setChangeRemoteResult } from "./ledger.ts";
 import { markConflictingChangesets } from "./plan.ts";
 import type { Vault } from "./vault.ts";
 
@@ -32,7 +33,7 @@ export type StatusReport = {
   jobs: number;
   candidates: number;
   applications: number;
-  pipeline: Record<string, number>;
+  pipeline: Partial<Record<ApplicationStage, number>>;
   changesets: {
     staged: number;
     approved: number;
@@ -90,11 +91,10 @@ export function pullMirror(workspace: SqliteDb, adapter: AtsAdapter): PullResult
       );
     }
 
-    const keep: Array<[string, string]> = [
-      ...snapshot.jobs.map((job) => ["job", job.id] as [string, string]),
-      ...snapshot.candidates.map((candidate) => ["candidate", candidate.id] as [string, string]),
-      ...snapshot.applications.map((application) => ["application", application.id] as [string, string]),
-    ];
+    const keep: Array<[string, string]> = [];
+    for (const job of snapshot.jobs) keep.push(["job", job.id]);
+    for (const candidate of snapshot.candidates) keep.push(["candidate", candidate.id]);
+    for (const application of snapshot.applications) keep.push(["application", application.id]);
     if (keep.length === 0) {
       workspace.prepare("DELETE FROM remote_mirror WHERE ats = ?").run(snapshot.ats);
     } else {
@@ -121,10 +121,14 @@ export function pullMirror(workspace: SqliteDb, adapter: AtsAdapter): PullResult
   };
 }
 
+type EntityCountRow = { entity_type: string; n: number };
+type StageCountRow = { stage: string; n: number };
+type MirrorMetaRow = { ats: StatusReport["ats"]; synced_at: number | null };
+
 export function readStatus(workspace: SqliteDb): StatusReport {
   const counts = workspace
-    .prepare("SELECT entity_type, COUNT(*) AS n FROM remote_mirror GROUP BY entity_type")
-    .all() as Array<{ entity_type: string; n: number }>;
+    .prepare<EntityCountRow, SqlBindings>("SELECT entity_type, COUNT(*) AS n FROM remote_mirror GROUP BY entity_type")
+    .all();
   let jobs = 0;
   let candidates = 0;
   let applications = 0;
@@ -134,20 +138,17 @@ export function readStatus(workspace: SqliteDb): StatusReport {
     if (row.entity_type === "application") applications = row.n;
   }
 
-  const pipeline: Record<string, number> = {};
+  const pipeline: Partial<Record<ApplicationStage, number>> = {};
   const stages = workspace
-    .prepare(
+    .prepare<StageCountRow, SqlBindings>(
       "SELECT json_extract(state, '$.stage') AS stage, COUNT(*) AS n FROM remote_mirror WHERE entity_type = 'application' AND json_extract(state, '$.stage') IS NOT NULL GROUP BY stage",
     )
-    .all() as Array<{ stage: string; n: number }>;
+    .all();
   for (const row of stages) {
-    pipeline[row.stage] = row.n;
+    if (isStage(row.stage)) pipeline[row.stage] = row.n;
   }
 
-  const meta = workspace.prepare("SELECT ats, MAX(synced_at) AS synced_at FROM remote_mirror").get() as
-    | { ats: StatusReport["ats"]; synced_at: number | null }
-    | undefined
-    | null;
+  const meta = workspace.prepare<MirrorMetaRow, SqlBindings>("SELECT ats, MAX(synced_at) AS synced_at FROM remote_mirror").get();
   const syncedAt = meta?.synced_at ?? null;
   const ats = syncedAt === null ? null : (meta?.ats ?? null);
 
@@ -162,11 +163,10 @@ export function readStatus(workspace: SqliteDb): StatusReport {
   };
 }
 
+type StatusCountRow = { status: string; n: number };
+
 function changesetCounts(workspace: SqliteDb): StatusReport["changesets"] {
-  const rows = workspace.prepare("SELECT status, COUNT(*) AS n FROM changesets GROUP BY status").all() as Array<{
-    status: string;
-    n: number;
-  }>;
+  const rows = workspace.prepare<StatusCountRow, SqlBindings>("SELECT status, COUNT(*) AS n FROM changesets GROUP BY status").all();
   const counts: StatusReport["changesets"] = { staged: 0, approved: 0, stale: 0, applied: 0, rejected: 0 };
   for (const row of rows) {
     if (row.status === "staged") counts.staged = row.n;
@@ -179,22 +179,20 @@ function changesetCounts(workspace: SqliteDb): StatusReport["changesets"] {
 }
 
 function applyOne(vault: Vault, change: ReturnType<typeof loadChangeRows>[number]): ApplyChange {
-  let payload: unknown;
   try {
-    payload = vault.get(change.payload_ref);
-  } catch (error) {
-    if (error instanceof VaultError) {
+    return {
+      entityType: change.entity_type,
+      entityRef: change.entity_ref,
+      mutation: change.mutation,
+      precondition: parseCasField(parseJsonText(change.precondition)),
+      payload: parseMutationPayload(change.mutation, vault.get(change.payload_ref)),
+    };
+  } catch (cause) {
+    if (cause instanceof VaultError) {
       throw new LedgerError("payload_unavailable");
     }
-    throw error;
+    throw cause;
   }
-  return {
-    entityType: change.entity_type as EntityType,
-    entityRef: change.entity_ref,
-    mutation: change.mutation as Mutation,
-    precondition: JSON.parse(change.precondition) as unknown,
-    payload,
-  };
 }
 
 const REBASED_FROM = /Rebased from ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):/;
@@ -229,12 +227,16 @@ function prepareChanges(workspace: SqliteDb, vault: Vault, id: string, rationale
     const apply = applyOne(vault, change);
     // The precondition is deliberately excluded: a rebase re-captures it from
     // the refreshed mirror, and the replayed apply must still hit the same key.
-    const content = canonicalJson({
-      entityType: apply.entityType,
-      entityRef: apply.entityRef,
-      mutation: apply.mutation,
-      payload: apply.payload,
-    });
+    const content = canonicalJson(
+      parseJsonText(
+        JSON.stringify({
+          entityType: apply.entityType,
+          entityRef: apply.entityRef,
+          mutation: apply.mutation,
+          payload: apply.payload,
+        }),
+      ),
+    );
     const occurrence = occurrences.get(content) ?? 0;
     occurrences.set(content, occurrence + 1);
     const idempotencyKey = createHash("sha256").update(`${root}\n${occurrence}\n${content}`).digest("hex");
@@ -272,10 +274,10 @@ function pushChangeset(
     constructor(readonly reason: string) {}
   }
 
-  let results: unknown[];
+  let results: Array<RemoteResult | undefined>;
   try {
     results = adapter.transaction(() => {
-      const applied: unknown[] = [];
+      const applied: Array<RemoteResult | undefined> = [];
       for (const item of prepared) {
         const result = adapter.apply(item.apply);
         if (!result.ok) {
@@ -285,12 +287,12 @@ function pushChangeset(
       }
       return applied;
     });
-  } catch (error) {
-    if (error instanceof ApplyFailed) {
+  } catch (cause) {
+    if (cause instanceof ApplyFailed) {
       markChangesetStatus(workspace, id, "stale");
-      return { item: { id, status: "stale", reason: error.reason }, partialApply: false };
+      return { item: { id, status: "stale", reason: cause.reason }, partialApply: false };
     }
-    throw error;
+    throw cause;
   }
 
   const persist = workspace.transaction(() => {
@@ -340,11 +342,10 @@ export function pushApproved(
   // Push in insertion (hash-chain) order; created_at has ms resolution and can tie.
   const ids = id
     ? [id]
-    : (
-        workspace
-          .prepare("SELECT id FROM changesets WHERE status = 'approved' ORDER BY rowid ASC")
-          .all() as Array<{ id: string }>
-      ).map((row) => row.id);
+    : workspace
+        .prepare<{ id: string }, SqlBindings>("SELECT id FROM changesets WHERE status = 'approved' ORDER BY rowid ASC")
+        .all()
+        .map((row) => row.id);
   if (id) {
     loadChangesetRow(workspace, id);
   }

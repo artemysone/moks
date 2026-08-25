@@ -344,16 +344,17 @@ const layer = Layer.effect(
       const [cmd, ...args] = mcp.command
       const baseDir = yield* InstanceState.directory
       const cwd = mcp.cwd ? path.resolve(baseDir, mcp.cwd) : baseDir
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
+      )
+      if (cmd === "opencode" || cmd === "moks") env.BUN_BE_BUN = "1"
+      Object.assign(env, mcp.environment)
       const transport = new StdioClientTransport({
         stderr: "pipe",
         command: cmd,
         args,
         cwd,
-        env: {
-          ...process.env,
-          ...(cmd === "opencode" || cmd === "moks" ? { BUN_BE_BUN: "1" } : {}),
-          ...mcp.environment,
-        },
+        env,
       })
 
       const connectTimeout = mcp.timeout ?? DEFAULT_TIMEOUT

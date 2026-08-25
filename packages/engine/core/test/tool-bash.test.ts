@@ -61,17 +61,14 @@ const permission = Layer.succeed(
     list: () => Effect.die("unused"),
   }),
 )
-const appProcess = Layer.succeed(
-  AppProcess.Service,
-  AppProcess.Service.of({
-    run: (command: ChildProcess.Command, options?: AppProcess.RunOptions) =>
-      Effect.suspend(() => {
-        if (command._tag !== "StandardCommand") throw new Error("expected standard command")
-        runs.push({ command: command.command, cwd: command.options.cwd, shell: command.options.shell, options })
-        return runFailure ? Effect.fail(runFailure) : Effect.succeed(result)
-      }),
-  } as unknown as AppProcess.Interface),
-)
+const appProcess = Layer.mock(AppProcess.Service, {
+  run: (command: ChildProcess.Command, options?: AppProcess.RunOptions) =>
+    Effect.suspend(() => {
+      if (command._tag !== "StandardCommand") throw new Error("expected standard command")
+      runs.push({ command: command.command, cwd: command.options.cwd, shell: command.options.shell, options })
+      return runFailure ? Effect.fail(runFailure) : Effect.succeed(result)
+    }),
+})
 const config = Layer.succeed(
   Config.Service,
   Config.Service.of({

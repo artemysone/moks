@@ -1523,7 +1523,7 @@ test("mode options and cost are derived from the base model", () => {
         },
       },
     },
-  } as unknown as ModelsDev.Provider
+  } satisfies ModelsDev.Provider
 
   const model = Provider.fromModelsDevProvider(provider).models["gpt-5.6-sol-fast"]
   expect(model.cost.input).toEqual(5)
@@ -1542,6 +1542,7 @@ test("mode options and cost are derived from the base model", () => {
 })
 
 test("models.dev normalization fills required response fields", () => {
+  // SAFETY: fromModelsDevProvider fills missing model fields; this fixture is intentionally incomplete.
   const provider = {
     id: "gateway",
     name: "Gateway",
@@ -1556,7 +1557,7 @@ test("models.dev normalization fills required response fields", () => {
         limit: { context: 1_050_000, input: 922_000, output: 128_000 },
       },
     },
-  } as unknown as ModelsDev.Provider
+  } as ModelsDev.Provider
 
   const model = Provider.fromModelsDevProvider(provider).models["gpt-5.4"]
   expect(model.api.url).toBe("")
@@ -1569,6 +1570,7 @@ test("models.dev normalization fills required response fields", () => {
 })
 
 test("models.dev reasoning options replace generated variants and unsupported toggles fall back", () => {
+  // SAFETY: fromModelsDevProvider fills missing model fields; this fixture is intentionally incomplete.
   const provider = {
     id: "reasoning",
     name: "Reasoning",
@@ -1614,7 +1616,7 @@ test("models.dev reasoning options replace generated variants and unsupported to
         limit: { context: 1_048_576, output: 131_072 },
       },
     },
-  } as unknown as ModelsDev.Provider
+  } as ModelsDev.Provider
 
   const models = Provider.fromModelsDevProvider(provider).models
   expect(models.explicit.variants).toEqual({
@@ -1634,6 +1636,7 @@ test("models.dev reasoning options replace generated variants and unsupported to
 })
 
 test("public provider info omits invalid models", () => {
+  // SAFETY: fromModelsDevProvider fills missing model fields; this fixture is intentionally incomplete.
   const provider = Provider.fromModelsDevProvider({
     id: "test",
     name: "Test",
@@ -1646,7 +1649,7 @@ test("public provider info omits invalid models", () => {
         limit: { context: 128_000, output: 16_000 },
       },
     },
-  } as unknown as ModelsDev.Provider)
+  } as ModelsDev.Provider)
   provider.models.invalid = {
     ...provider.models.valid,
     id: ModelV2.ID.make("invalid"),

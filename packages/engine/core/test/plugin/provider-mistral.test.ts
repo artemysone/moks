@@ -109,7 +109,8 @@ describe("MistralPlugin", () => {
       const sdk = {
         languageModel: (id: string) => {
           calls.push(`languageModel:${id}`)
-          return { modelId: id, provider: "languageModel", specificationVersion: "v3" } as unknown as LanguageModelV3
+          // SAFETY: selector stubs only expose modelId, provider, and specificationVersion.
+          return { modelId: id, provider: "languageModel", specificationVersion: "v3" } as LanguageModelV3
         },
       }
       yield* addPlugin()

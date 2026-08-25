@@ -91,11 +91,11 @@ function toAuthProbeRequest(scenario: ActiveScenario, credentials: "missing" | "
     path: authProbePath(scenario.path),
     body: scenario.method === "GET" ? undefined : {},
   }
-  const headers = {
-    ...(spec.body === undefined ? {} : { "content-type": "application/json" }),
-    ...spec.headers,
-    ...(credentials === "valid" ? { authorization: basic("opencode", "secret") } : {}),
+  const headers = { ...spec.headers }
+  if (spec.body !== undefined) {
+    Object.assign(headers, { "content-type": "application/json" }, spec.headers)
   }
+  if (credentials === "valid") headers.authorization = basic("opencode", "secret")
   return new Request(new URL(spec.path, "http://localhost"), {
     method: scenario.method,
     headers,

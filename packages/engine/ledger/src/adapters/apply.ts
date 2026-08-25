@@ -1,6 +1,15 @@
 import type { Application, ApplicationStage, Candidate, Job } from "../domain.ts";
-import type { SqliteDb } from "../db.ts";
-import { canExitToTerminal, isLegalAdvanceOnPath, isStage } from "../domain.ts";
+import type { SqlBindings, SqliteDb } from "../db.ts";
+import {
+  canExitToTerminal,
+  isAdvanceStagePayload,
+  isAddNotePayload,
+  isAddTagPayload,
+  isApplication,
+  isExtendOfferPayload,
+  isLegalAdvanceOnPath,
+  isSendOutreachPayload,
+} from "../domain.ts";
 import { casProjection, isEmptyPrecondition, matchesPrecondition } from "../precondition.ts";
 import type { ApplyChange, ApplyResult } from "./types.ts";
 
@@ -39,93 +48,85 @@ export function createChangeApplier(
       return { ok: false, reason: "precondition_failed" };
     }
 
-    const payload = payloadRecord(change.payload);
-
     switch (change.mutation) {
       case "AdvanceStage": {
-        if (change.entityType !== "application") {
+        if (change.entityType !== "application" || !isApplication(current) || !isAdvanceStagePayload(change.payload)) {
           return { ok: false, reason: "unsupported" };
         }
-        const application = current as Application;
-        if (typeof payload.to !== "string" || !isStage(payload.to)) {
-          return { ok: false, reason: "unsupported" };
-        }
-        if (!isLegalAdvanceOnPath(application.stage, payload.to, options.stages)) {
+        if (!isLegalAdvanceOnPath(current.stage, change.payload.to, options.stages)) {
           return { ok: false, reason: "illegal_transition" };
         }
-        const written = casUpdateStage(db, tables.applications, change.entityRef, application.stage, payload.to);
+        const written = casUpdateStage(db, tables.applications, change.entityRef, current.stage, change.payload.to);
         if (!written.ok) {
           return written;
         }
-        return { ok: true, remoteResult: { ...application, stage: payload.to } };
+        return { ok: true, remoteResult: { ...current, stage: change.payload.to } };
       }
       case "Reject": {
-        if (change.entityType !== "application") {
+        if (change.entityType !== "application" || !isApplication(current)) {
           return { ok: false, reason: "unsupported" };
         }
-        const application = current as Application;
-        if (!canExitToTerminal(application.stage)) {
+        if (!canExitToTerminal(current.stage)) {
           return { ok: false, reason: "illegal_transition" };
         }
-        const written = casUpdateStage(db, tables.applications, change.entityRef, application.stage, "Rejected");
+        const written = casUpdateStage(db, tables.applications, change.entityRef, current.stage, "Rejected");
         if (!written.ok) {
           return written;
         }
-        return { ok: true, remoteResult: { ...application, stage: "Rejected" } };
+        return { ok: true, remoteResult: { ...current, stage: "Rejected" } };
       }
       case "Withdraw": {
-        if (change.entityType !== "application") {
+        if (change.entityType !== "application" || !isApplication(current)) {
           return { ok: false, reason: "unsupported" };
         }
-        const application = current as Application;
-        if (!canExitToTerminal(application.stage)) {
+        if (!canExitToTerminal(current.stage)) {
           return { ok: false, reason: "illegal_transition" };
         }
-        const written = casUpdateStage(db, tables.applications, change.entityRef, application.stage, "Withdrawn");
+        const written = casUpdateStage(db, tables.applications, change.entityRef, current.stage, "Withdrawn");
         if (!written.ok) {
           return written;
         }
-        return { ok: true, remoteResult: { ...application, stage: "Withdrawn" } };
+        return { ok: true, remoteResult: { ...current, stage: "Withdrawn" } };
       }
       case "AddNote": {
-        if (typeof payload.body !== "string") {
+        if (!isAddNotePayload(change.payload)) {
           return { ok: false, reason: "unsupported" };
         }
         const id = crypto.randomUUID();
         db.prepare(
           `INSERT INTO ${tables.notes} (id, entity_type, entity_ref, body, created_at) VALUES (?, ?, ?, ?, ?)`,
-        ).run(id, change.entityType, change.entityRef, payload.body, Date.now());
+        ).run(id, change.entityType, change.entityRef, change.payload.body, Date.now());
         return { ok: true, remoteResult: { noteId: id } };
       }
       case "AddTag": {
-        if (typeof payload.tag !== "string") {
+        if (!isAddTagPayload(change.payload)) {
           return { ok: false, reason: "unsupported" };
         }
         db.prepare(
           `INSERT OR IGNORE INTO ${tables.tags} (entity_type, entity_ref, tag, created_at) VALUES (?, ?, ?, ?)`,
-        ).run(change.entityType, change.entityRef, payload.tag, Date.now());
-        return { ok: true, remoteResult: { tag: payload.tag } };
+        ).run(change.entityType, change.entityRef, change.payload.tag, Date.now());
+        return { ok: true, remoteResult: { tag: change.payload.tag } };
       }
       case "SendOutreach": {
-        if (typeof payload.body !== "string") {
+        if (!isSendOutreachPayload(change.payload)) {
           return { ok: false, reason: "unsupported" };
         }
         const id = crypto.randomUUID();
-        const channel = typeof payload.channel === "string" && payload.channel.length > 0 ? payload.channel : "email";
+        const channel = change.payload.channel !== undefined && change.payload.channel.length > 0 ? change.payload.channel : "email";
         db.prepare(
           `INSERT INTO ${tables.outreach} (id, entity_type, entity_ref, channel, body, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-        ).run(id, change.entityType, change.entityRef, channel, payload.body, Date.now());
+        ).run(id, change.entityType, change.entityRef, channel, change.payload.body, Date.now());
         return { ok: true, remoteResult: { outreachId: id, channel } };
       }
       case "ExtendOffer": {
-        if (change.entityType !== "application" || typeof payload.terms !== "string") {
+        if (change.entityType !== "application" || !isExtendOfferPayload(change.payload)) {
           return { ok: false, reason: "unsupported" };
         }
         const id = crypto.randomUUID();
         db.prepare(`INSERT INTO ${tables.offers} (id, entity_ref, terms, created_at) VALUES (?, ?, ?, ?)`).run(
           id,
           change.entityRef,
-          payload.terms,
+          change.payload.terms,
           Date.now(),
         );
         return { ok: true, remoteResult: { offerId: id } };
@@ -137,30 +138,29 @@ export function createChangeApplier(
 }
 
 function readApplication(db: SqliteDb, table: string, id: string): Application | undefined {
-  return db
-    .prepare(
-      `SELECT id, remote_id AS remoteId, job_id AS jobId, candidate_id AS candidateId, stage FROM ${table} WHERE id = ?`,
-    )
-    .get(id) as Application | undefined;
+  return (
+    db
+      .prepare<Application, SqlBindings>(
+        `SELECT id, remote_id AS remoteId, job_id AS jobId, candidate_id AS candidateId, stage FROM ${table} WHERE id = ?`,
+      )
+      .get(id) ?? undefined
+  );
 }
 
 function readCandidate(db: SqliteDb, table: string, id: string): Candidate | undefined {
-  return db
-    .prepare(`SELECT id, remote_id AS remoteId, name, email, headline FROM ${table} WHERE id = ?`)
-    .get(id) as Candidate | undefined;
+  return (
+    db
+      .prepare<Candidate, SqlBindings>(`SELECT id, remote_id AS remoteId, name, email, headline FROM ${table} WHERE id = ?`)
+      .get(id) ?? undefined
+  );
 }
 
 function readJob(db: SqliteDb, table: string, id: string): Job | undefined {
-  return db
-    .prepare(`SELECT id, remote_id AS remoteId, title, team, location, status FROM ${table} WHERE id = ?`)
-    .get(id) as Job | undefined;
-}
-
-function payloadRecord(payload: unknown): Record<string, unknown> {
-  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
-    return payload as Record<string, unknown>;
-  }
-  return {};
+  return (
+    db
+      .prepare<Job, SqlBindings>(`SELECT id, remote_id AS remoteId, title, team, location, status FROM ${table} WHERE id = ?`)
+      .get(id) ?? undefined
+  );
 }
 
 function casUpdateStage(

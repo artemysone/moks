@@ -1,5 +1,5 @@
 import type { SqliteDb } from "./db.ts";
-import { nextEntityState, requiredEffectClass } from "./domain.ts";
+import { nextEntityState, requiredEffectClass, type EntityState } from "./domain.ts";
 import { LedgerError } from "./errors.ts";
 import {
   assertMutationLegal,
@@ -9,6 +9,7 @@ import {
   type ChangeRecord,
   type ChangesetDetail,
   type CommitChangeInput,
+  type CommitInput,
   type CommitPolicyOptions,
 } from "./ledger.ts";
 import { readMirrorEntity } from "./mirror.ts";
@@ -37,21 +38,21 @@ export function rebaseChangeset(
       throw new LedgerError("rebase_not_stale");
     }
     original = getChangeset(db, vault, id);
-  } catch (error) {
-    if (error instanceof LedgerError && error.message === "changeset_not_found") {
+  } catch (cause) {
+    if (cause instanceof LedgerError && cause.message === "changeset_not_found") {
       throw new LedgerError("rebase_not_found");
     }
-    throw error;
+    throw cause;
   }
 
-  const working = new Map<string, unknown>();
+  const working = new Map<string, EntityState>();
   const kept: CommitChangeInput[] = [];
   const skipped: RebaseSkip[] = [];
   const driftLines: string[] = [];
 
   for (const change of original.changes) {
     const key = `${change.entity_type}:${change.entity_ref}`;
-    let state: unknown;
+    let state: EntityState | undefined;
     if (working.has(key)) {
       state = working.get(key);
     } else {
@@ -70,6 +71,10 @@ export function rebaseChangeset(
       skipped.push({ change_id: change.id, reason });
       continue;
     }
+    if (state === undefined) {
+      skipped.push({ change_id: change.id, reason: `unknown_entity: ${change.entity_type}:${change.entity_ref}` });
+      continue;
+    }
 
     kept.push({
       entity_type: change.entity_type,
@@ -85,25 +90,20 @@ export function rebaseChangeset(
     throw new LedgerError("rebase_empty");
   }
 
-  const explanation =
-    driftLines.filter((line) => line.length > 0).join("; ") ||
-    `mirror drifted under ${original.id}`;
+  const explanation = driftLines.filter((line) => line.length > 0).join("; ") || `mirror drifted under ${original.id}`;
   const rationale = `${original.rationale}\n\nRebased from ${original.id}: ${explanation}`;
 
-  const changeset = commitChangeset(
-    db,
-    vault,
-    {
-      rationale,
-      author_id: original.author_id,
-      author_kind: original.author_kind,
-      ...(original.agent_meta !== null && original.agent_meta !== undefined
-        ? { agent_meta: original.agent_meta }
-        : {}),
-      changes: kept,
-    },
-    options,
-  );
+  const input: CommitInput = {
+    rationale,
+    author_id: original.author_id,
+    author_kind: original.author_kind,
+    changes: kept,
+  };
+  if (original.agent_meta !== null) {
+    input.agent_meta = original.agent_meta;
+  }
+
+  const changeset = commitChangeset(db, vault, input, options);
 
   return {
     original_id: original.id,
@@ -113,7 +113,7 @@ export function rebaseChangeset(
   };
 }
 
-function replaySkipReason(change: ChangeRecord, state: unknown): string | null {
+function replaySkipReason(change: ChangeRecord, state: EntityState | undefined): string | null {
   if (change.effect_class !== requiredEffectClass(change.mutation)) {
     return `effect_class_mismatch: ${change.mutation} requires ${requiredEffectClass(change.mutation)}`;
   }
@@ -125,17 +125,17 @@ function replaySkipReason(change: ChangeRecord, state: unknown): string | null {
     return `unknown_entity: ${change.entity_type}:${change.entity_ref} state is invalid`;
   }
   try {
-    assertMutationLegal(change.mutation, change.entity_type, state, change.payload);
-  } catch (error) {
-    if (error instanceof LedgerError) {
-      return error.message;
+    assertMutationLegal(change.mutation, change.entity_type, state, change.payload ?? {});
+  } catch (cause) {
+    if (cause instanceof LedgerError) {
+      return cause.message;
     }
-    throw error;
+    throw cause;
   }
   return null;
 }
 
-function describeDrift(change: ChangeRecord, currentState: unknown): string {
+function describeDrift(change: ChangeRecord, currentState: EntityState | undefined): string {
   const ref = `${change.entity_type}:${change.entity_ref}`;
   const expected = formatProjection(change.precondition);
   if (currentState === undefined) {
@@ -145,21 +145,12 @@ function describeDrift(change: ChangeRecord, currentState: unknown): string {
   return `${ref} expected ${expected}, current ${current}`;
 }
 
-function formatProjection(value: unknown): string {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return String(value);
-  }
-  const record = value as Record<string, unknown>;
+function formatProjection(value: ChangeRecord["precondition"] | ReturnType<typeof casProjection>): string {
+  if (value === undefined) return "undefined";
   const parts: string[] = [];
-  if (typeof record.stage === "string") {
-    parts.push(`stage ${record.stage}`);
-  }
-  if (typeof record.status === "string") {
-    parts.push(`status ${record.status}`);
-  }
-  if (typeof record.remoteId === "string") {
-    parts.push(`remoteId ${record.remoteId}`);
-  }
+  if ("stage" in value && value.stage !== undefined) parts.push(`stage ${value.stage}`);
+  if ("status" in value && value.status !== undefined) parts.push(`status ${value.status}`);
+  if (value.remoteId !== undefined) parts.push(`remoteId ${value.remoteId}`);
   if (parts.length === 0) {
     return JSON.stringify(value);
   }

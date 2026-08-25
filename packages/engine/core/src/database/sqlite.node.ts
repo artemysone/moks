@@ -75,7 +75,8 @@ const make = (options: Config) =>
         statement.setReturnArrays(true)
         try {
           return Effect.succeed(
-            statement.all(...(params as SQLInputValue[])) as unknown as ReadonlyArray<ReadonlyArray<unknown>>,
+            // SAFETY: setReturnArrays(true) makes statement.all return row tuples, not objects.
+            statement.all(...(params as SQLInputValue[])) as ReadonlyArray<ReadonlyArray<unknown>>,
           )
         } catch (cause) {
           return Effect.fail(
@@ -166,7 +167,8 @@ const sqliteLayer = (config: Config) => Layer.effect(Client.SqlClient, make(conf
 const drizzleLayer = Layer.effect(
   Sqlite.Drizzle,
   Effect.gen(function* () {
-    return drizzle({ client: (yield* Sqlite.Native) as DatabaseSync }) as unknown as Sqlite.DrizzleClient
+    // SAFETY: node:sqlite DatabaseSync is the drizzle client; Sqlite.Native is that same handle.
+    return drizzle({ client: (yield* Sqlite.Native) as DatabaseSync }) as Sqlite.DrizzleClient
   }),
 )
 

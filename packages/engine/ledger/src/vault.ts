@@ -1,18 +1,24 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import type { SqliteDb } from "./db.ts";
+import type { SqlBindings, SqliteDb } from "./db.ts";
 import { VaultError } from "./errors.ts";
+import { parseJsonText, type Json } from "./json.ts";
 
 const KEY_BYTES = 32;
 const IV_BYTES = 12;
 const TAG_BYTES = 16;
 
 export type Vault = {
-  put(candidateRef: string, payload: unknown): string;
-  get(ref: string): unknown;
+  put(candidateRef: string, payload: Json): string;
+  get(ref: string): Json;
   shred(candidateRef: string): void;
 };
+
+type VaultDataKey = { keyId: string; dataKey: Buffer };
+type KeyMaterialRow = { key_id: string; key_material: Uint8Array };
+type KeyLookupRow = { key_material: Uint8Array };
+type CipherRow = { enc_payload: Uint8Array; key_id: string };
 
 function loadOrCreateMasterKey(path: string): Buffer {
   if (existsSync(path)) {
@@ -53,27 +59,24 @@ function decrypt(key: Buffer, packed: Buffer): Buffer {
   }
 }
 
-function asBlob(value: unknown): Buffer {
+function asBlob(value: Uint8Array): Buffer {
   if (Buffer.isBuffer(value)) {
     return value;
   }
-  if (value instanceof Uint8Array) {
-    return Buffer.from(value);
-  }
-  throw new VaultError("invalid_ciphertext");
+  return Buffer.from(value);
 }
 
 export function openVault(db: SqliteDb, masterKeyPath: string): Vault {
   const masterKey = loadOrCreateMasterKey(masterKeyPath);
 
-  function unwrapDataKey(keyMaterial: unknown): Buffer {
+  function unwrapDataKey(keyMaterial: Uint8Array): Buffer {
     return decrypt(masterKey, asBlob(keyMaterial));
   }
 
-  function getOrCreateDataKey(candidateRef: string): { keyId: string; dataKey: Buffer } {
+  function getOrCreateDataKey(candidateRef: string): VaultDataKey {
     const existing = db
-      .prepare("SELECT key_id, key_material FROM vault_keys WHERE candidate_ref = ?")
-      .get(candidateRef) as { key_id: string; key_material: unknown } | undefined;
+      .prepare<KeyMaterialRow, SqlBindings>("SELECT key_id, key_material FROM vault_keys WHERE candidate_ref = ?")
+      .get(candidateRef);
     if (existing) {
       return { keyId: existing.key_id, dataKey: unwrapDataKey(existing.key_material) };
     }
@@ -97,20 +100,16 @@ export function openVault(db: SqliteDb, masterKeyPath: string): Vault {
       return ref;
     },
     get(ref) {
-      const row = db.prepare("SELECT enc_payload, key_id FROM pii_vault WHERE ref = ?").get(ref) as
-        | { enc_payload: unknown; key_id: string }
-        | undefined;
+      const row = db.prepare<CipherRow, SqlBindings>("SELECT enc_payload, key_id FROM pii_vault WHERE ref = ?").get(ref);
       if (!row) {
         throw new VaultError("vault_ref_not_found");
       }
-      const keyRow = db.prepare("SELECT key_material FROM vault_keys WHERE key_id = ?").get(row.key_id) as
-        | { key_material: unknown }
-        | undefined;
+      const keyRow = db.prepare<KeyLookupRow, SqlBindings>("SELECT key_material FROM vault_keys WHERE key_id = ?").get(row.key_id);
       if (!keyRow) {
         throw new VaultError("decrypt_failed");
       }
       const plaintext = decrypt(unwrapDataKey(keyRow.key_material), asBlob(row.enc_payload));
-      return JSON.parse(plaintext.toString("utf8")) as unknown;
+      return parseJsonText(plaintext.toString("utf8"));
     },
     shred(candidateRef) {
       db.prepare("DELETE FROM vault_keys WHERE candidate_ref = ?").run(candidateRef);

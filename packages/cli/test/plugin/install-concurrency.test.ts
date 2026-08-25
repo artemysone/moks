@@ -31,19 +31,13 @@ async function plugin(dir: string, kinds: Array<"server" | "tui">) {
   if (server) exports["./server"] = "./server.js"
   if (tui) exports["./tui"] = "./tui.js"
   await fs.mkdir(p, { recursive: true })
-  await Bun.write(
-    path.join(p, "package.json"),
-    JSON.stringify(
-      {
-        name: "acme",
-        version: "1.0.0",
-        ...(server ? { main: "./server.js" } : {}),
-        ...(Object.keys(exports).length ? { exports } : {}),
-      },
-      null,
-      2,
-    ),
-  )
+  const manifest: { name: string; version: string; main?: string; exports?: Record<string, string> } = {
+    name: "acme",
+    version: "1.0.0",
+  }
+  if (server) manifest.main = "./server.js"
+  if (Object.keys(exports).length) manifest.exports = exports
+  await Bun.write(path.join(p, "package.json"), JSON.stringify(manifest, null, 2))
   return p
 }
 

@@ -16,6 +16,8 @@ import { AppNodeBuilder } from "@moks/core/effect/app-node-builder"
 import { LayerNode } from "@moks/core/effect/layer-node"
 import { InstanceStore } from "@/project/instance-store"
 import { InstanceBootstrap } from "@/project/bootstrap"
+import { ProviderV2 } from "@moks/core/provider"
+import { ModelV2 } from "@moks/core/model"
 
 const it = testEffect(
   AppNodeBuilder.build(
@@ -148,10 +150,8 @@ describe("step-finish token propagation via event", () => {
           role: "user",
           time: { created: Date.now() },
           agent: "user",
-          model: { providerID: "test", modelID: "test" },
-          tools: {},
-          mode: "",
-        } as unknown as SessionV1.Info)
+          model: { providerID: ProviderV2.ID.make("test"), modelID: ModelV2.ID.make("test") },
+        })
 
         // Event subscribers receive readonly Schema.Type payloads; `SessionV1.Part`
         // is the mutable domain type. Cast bridges the two — safe because the

@@ -44,7 +44,8 @@ function withEnv<A, E, R>(vars: Record<string, string | undefined>, effect: () =
 function selector(calls: string[]) {
   return (id: string) => {
     calls.push(`languageModel:${id}`)
-    return { modelId: id, provider: "languageModel", specificationVersion: "v3" } as unknown as LanguageModelV3
+    // SAFETY: selector stubs only expose modelId, provider, and specificationVersion.
+    return { modelId: id, provider: "languageModel", specificationVersion: "v3" } as LanguageModelV3
   }
 }
 
@@ -217,7 +218,8 @@ describe("GoogleVertexAnthropicPlugin", () => {
         sdk: sdkResult.sdk,
         options: {},
       })
-      const language = languageResult.language as unknown as { config: { baseURL: string }; modelId: string }
+      // SAFETY: this language model stub exposes config.baseURL and modelId for the URL assertion.
+      const language = languageResult.language as { config: { baseURL: string }; modelId: string }
       expect(language.config.baseURL).toBe(
         "https://aiplatform.us.rep.googleapis.com/v1/projects/project/locations/us/publishers/anthropic/models",
       )

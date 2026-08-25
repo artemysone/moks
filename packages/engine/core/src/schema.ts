@@ -64,13 +64,15 @@ export function Newtype<Self>() {
       declare readonly _newtype: Tag
 
       static make(value: Schema.Schema.Type<S>): Self {
-        return value as unknown as Self
+        // SAFETY: Newtype is a compile-time brand; the runtime value is the decoded schema type.
+        return value as Self
       }
     }
 
     Object.setPrototypeOf(Base, schema)
 
-    return Base as unknown as (abstract new (_: never) => { readonly _newtype: Tag }) & {
+    // SAFETY: Object.setPrototypeOf attaches the schema statics onto this brand constructor.
+    return Base as (abstract new (_: never) => { readonly _newtype: Tag }) & {
       readonly make: (value: Schema.Schema.Type<S>) => Self
     } & Omit<Schema.Opaque<Self, S, {}>, "make" | "~type.make"> & {
         readonly "~type.make": Self

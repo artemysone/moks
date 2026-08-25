@@ -202,9 +202,10 @@ export function route(template: string, params: Record<string, string>) {
 }
 
 export function controlledPtyInput(title: string | undefined) {
-  return {
+  const input = {
     command: "/bin/sh",
     args: ["-c", "sleep 30"],
-    ...(title ? { title } : {}),
   }
+  if (title) return { ...input, title }
+  return input
 }

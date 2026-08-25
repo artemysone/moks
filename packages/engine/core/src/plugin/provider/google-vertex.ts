@@ -149,18 +149,21 @@ export const GoogleVertexAnthropicPlugin = define({
           typeof evt.options.location === "string"
             ? evt.options.location
             : (process.env.GOOGLE_CLOUD_LOCATION ?? process.env.VERTEX_LOCATION ?? "global")
-        evt.sdk = mod.createVertexAnthropic({
+        const options = {
           ...evt.options,
           project,
           location,
-          // Continental multi-regions (eu, us) require Regional Endpoint Platform
-          // domains; the default {region}-aiplatform.googleapis.com does not resolve.
-          ...((location === "eu" || location === "us") && project && !evt.options.baseURL
-            ? {
-                baseURL: `https://aiplatform.${location}.rep.googleapis.com/v1/projects/${project}/locations/${location}/publishers/anthropic/models`,
-              }
-            : {}),
-        })
+        }
+        // Continental multi-regions (eu, us) require Regional Endpoint Platform
+        // domains; the default {region}-aiplatform.googleapis.com does not resolve.
+        if ((location === "eu" || location === "us") && project && !evt.options.baseURL) {
+          evt.sdk = mod.createVertexAnthropic({
+            ...options,
+            baseURL: `https://aiplatform.${location}.rep.googleapis.com/v1/projects/${project}/locations/${location}/publishers/anthropic/models`,
+          })
+        } else {
+          evt.sdk = mod.createVertexAnthropic(options)
+        }
       }),
     )
     yield* ctx.aisdk.language(

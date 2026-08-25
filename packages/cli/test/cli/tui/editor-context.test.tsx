@@ -56,6 +56,7 @@ const editorService: EditorIntegration = {
 function createWebSocketImpl(...sockets: FakeWebSocket[]) {
   let index = 0
 
+  // SAFETY: test constructor returns the matching FakeWebSocket for the requested URL.
   return class {
     constructor(url: string, options?: { headers?: Record<string, string> }) {
       const socket = sockets[index]
@@ -63,9 +64,9 @@ function createWebSocketImpl(...sockets: FakeWebSocket[]) {
       expect(socket).toBeDefined()
       expect(url).toBe(socket!.url)
       expect(options).toEqual(socket!.options)
-      return socket as unknown as object
+      return socket
     }
-  } as unknown as typeof WebSocket
+  } as typeof WebSocket
 }
 
 function sendSelection(socket: FakeWebSocket, filePath: string, text = "foo") {

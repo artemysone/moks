@@ -18,16 +18,18 @@ export { Admitted, Delivery }
 const decodePrompt = Schema.decodeUnknownSync(Prompt)
 const encodePrompt = Schema.encodeSync(Prompt)
 
-const fromRow = (row: typeof SessionInputTable.$inferSelect): Admitted =>
-  Admitted.make({
+const fromRow = (row: typeof SessionInputTable.$inferSelect): Admitted => {
+  const admitted = {
     admittedSeq: row.admitted_seq,
     id: SessionMessage.ID.make(row.id),
     sessionID: SessionSchema.ID.make(row.session_id),
     prompt: decodePrompt(row.prompt),
     delivery: row.delivery,
     timeCreated: DateTime.makeUnsafe(row.time_created),
-    ...(row.promoted_seq === null ? {} : { promotedSeq: row.promoted_seq }),
-  })
+  }
+  if (row.promoted_seq === null) return Admitted.make(admitted)
+  return Admitted.make({ ...admitted, promotedSeq: row.promoted_seq })
+}
 
 export const find = Effect.fn("SessionInput.find")(function* (db: DatabaseService, id: SessionMessage.ID) {
   const row = yield* db.select().from(SessionInputTable).where(eq(SessionInputTable.id, id)).get().pipe(Effect.orDie)

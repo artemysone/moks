@@ -154,6 +154,7 @@ export function createTuiPluginApi(opts: Opts = {}): HostPluginApi {
       return this
     },
   }
+  // SAFETY: fixture keymap implements the methods tests register and dispose.
   const keymap =
     opts.keymap ??
     ({
@@ -173,7 +174,7 @@ export function createTuiPluginApi(opts: Opts = {}): HostPluginApi {
       runCommand() {
         return { ok: true } as const
       },
-    } as unknown as HostPluginApi["keymap"])
+    } as HostPluginApi["keymap"])
 
   function kvGet(name: string): unknown
   function kvGet<Value>(name: string, fallback: Value): Value

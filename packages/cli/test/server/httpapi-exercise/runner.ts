@@ -125,10 +125,10 @@ function withContext<A, E>(
         }
         const base: ScenarioContext = {
           directory: context.dir?.path,
-          headers: (extra) => ({
-            ...(context.dir?.path ? { "x-moks-directory": context.dir.path } : {}),
-            ...extra,
-          }),
+          headers: (extra) => {
+            if (context.dir?.path) return { "x-moks-directory": context.dir.path, ...extra }
+            return { ...extra }
+          },
           file: (name, content) =>
             Effect.promise(() => {
               return Bun.write(`${directory()}/${name}`, content)

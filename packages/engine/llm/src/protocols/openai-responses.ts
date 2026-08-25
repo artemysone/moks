@@ -464,15 +464,24 @@ const lowerOptions = Effect.fn("OpenAIResponses.lowerOptions")(function* (reques
   const verbosity = OpenAIOptions.textVerbosity(request)
   const instructions = OpenAIOptions.instructions(request)
   const serviceTier = OpenAIOptions.serviceTier(request)
-  return {
-    ...(instructions ? { instructions } : {}),
-    ...(store !== undefined ? { store } : {}),
-    ...(promptCacheKey ? { prompt_cache_key: promptCacheKey } : {}),
-    ...(include ? { include } : {}),
-    ...(effort || summary ? { reasoning: { effort, summary } } : {}),
-    ...(verbosity ? { text: { verbosity } } : {}),
-    ...(serviceTier ? { service_tier: serviceTier } : {}),
+  type Options = {
+    instructions?: typeof instructions
+    store?: typeof store
+    prompt_cache_key?: typeof promptCacheKey
+    include?: typeof include
+    reasoning?: { effort: typeof effort; summary: typeof summary }
+    text?: { verbosity: typeof verbosity }
+    service_tier?: typeof serviceTier
   }
+  const options: Options = {}
+  if (instructions) options.instructions = instructions
+  if (store !== undefined) options.store = store
+  if (promptCacheKey) options.prompt_cache_key = promptCacheKey
+  if (include) options.include = include
+  if (effort || summary) options.reasoning = { effort, summary }
+  if (verbosity) options.text = { verbosity }
+  if (serviceTier) options.service_tier = serviceTier
+  return options
 })
 
 const fromRequest = Effect.fn("OpenAIResponses.fromRequest")(function* (request: LLMRequest) {

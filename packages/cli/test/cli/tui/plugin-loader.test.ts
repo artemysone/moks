@@ -1000,7 +1000,8 @@ test("plugin keymap proxy preserves real keymap receiver", async () => {
   try {
     await TuiPluginRuntime.init({
       api: createTuiPluginApi({
-        keymap: harness.keymap as unknown as NonNullable<Parameters<typeof createTuiPluginApi>[0]>["keymap"],
+        // SAFETY: test keymap implements the HostPluginApi.keymap methods the loader registers.
+        keymap: harness.keymap as NonNullable<Parameters<typeof createTuiPluginApi>[0]>["keymap"],
       }),
       config: createTuiResolvedConfig({
         plugin: [tmp.extra.spec],
@@ -1129,13 +1130,14 @@ test("auto-disposes plugin keymap transformers", async () => {
       drop += 1
     }
   }
+  // SAFETY: test keymap implements the HostPluginApi.keymap methods the loader registers.
   const keymap = {
     registerLayer: () => () => {},
     prependLayerBindingsTransformer: track,
     appendLayerBindingsTransformer: track,
     prependCommandTransformer: track,
     appendCommandTransformer: track,
-  } as unknown as NonNullable<Parameters<typeof createTuiPluginApi>[0]>["keymap"]
+  } as NonNullable<Parameters<typeof createTuiPluginApi>[0]>["keymap"]
   const wait = spyOn(TuiConfig, "waitForDependencies").mockResolvedValue()
   const cwd = spyOn(process, "cwd").mockImplementation(() => tmp.path)
 

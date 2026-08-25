@@ -52,9 +52,10 @@ describe("plugin.openai.ws", () => {
   })
 
   test("enforces websocket send idle timeout", async () => {
+    // SAFETY: streamResponsesWebSocket only calls send and event methods on this idle-timeout stub.
     const socket = new (class extends EventEmitter {
       send(_data: string, _callback: (error?: Error) => void) {}
-    })() as unknown as WebSocket
+    })() as WebSocket
     const invalid: string[] = []
     const response = OpenAIWebSocket.streamResponsesWebSocket({
       socket,

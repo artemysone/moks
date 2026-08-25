@@ -44,10 +44,11 @@ const registryLayer = Layer.effect(
   Effect.gen(function* () {
     const applications = yield* ApplicationTools.Service
     const resources = yield* ToolOutputStore.Service
-    type Registration = { readonly identity: object; readonly tool: AnyTool }
-    const local = new Map<string, Array<{ readonly token: object; readonly registration: Registration }>>()
+    interface ToolIdentity {}
+    type Registration = { readonly identity: ToolIdentity; readonly tool: AnyTool }
+    const local = new Map<string, Array<{ readonly token: ToolIdentity; readonly registration: Registration }>>()
 
-    const settleWith = Effect.fn("ToolRegistry.settle")(function* (input: ExecuteInput, advertised?: object) {
+    const settleWith = Effect.fn("ToolRegistry.settle")(function* (input: ExecuteInput, advertised?: ToolIdentity) {
       const registration =
         local.get(input.call.name)?.at(-1)?.registration ?? applications.entries().get(input.call.name)
       if (!registration)

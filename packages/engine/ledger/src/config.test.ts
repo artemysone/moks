@@ -60,14 +60,15 @@ describe("readMcpConfig", () => {
 
   test("a config file that exists but is not valid JSON fails loudly with a pointer to the file", () => {
     const cwd = cwdWithConfig('{ "mcp": { "ats": ');
-    let thrown: unknown;
+    let thrown: Error | undefined;
     try {
       readMcpConfig(cwd);
-    } catch (error) {
-      thrown = error;
+    } catch (cause) {
+      if (cause instanceof Error) thrown = cause;
+      else throw cause;
     }
     expect(thrown).toBeInstanceOf(Error);
-    const message = (thrown as Error).message;
+    const message = thrown!.message;
     expect(message).toStartWith("mcp_config_invalid: ");
     expect(message).toContain(join(cwd, ".moks", "config.json"));
     expect(message).toContain("not valid JSON");

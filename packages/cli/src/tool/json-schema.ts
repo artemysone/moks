@@ -10,11 +10,13 @@ export function fromSchema(schema: Schema.Top): JSONSchema7 {
   if (cached) return cached
 
   const document = Schema.toJsonSchemaDocument(schema, { additionalProperties: true })
-  const result = normalize({
+  const json = {
     $schema: JsonSchema.META_SCHEMA_URI_DRAFT_2020_12,
     ...document.schema,
-    ...(Object.keys(document.definitions).length > 0 ? { $defs: document.definitions } : {}),
-  })
+  }
+  const result = normalize(
+    Object.keys(document.definitions).length > 0 ? { ...json, $defs: document.definitions } : json,
+  )
   const inlined = dropDefinitionsIfResolved(inlineLocalReferences(result))
   if (!isJsonSchema(inlined)) throw new Error("tool JSON Schema helper produced a non-schema value")
   cache.set(schema, inlined)
@@ -129,8 +131,10 @@ function inlineLocalReferences(value: unknown, definitions?: JsonObject, seen = 
       const target = localDefinitions[name]
       if (target) {
         const { $ref: _, ...rest } = value
+        const merged = { ...rest }
+        if (isRecord(target)) Object.assign(merged, target, rest)
         return inlineLocalReferences(
-          { ...(isRecord(target) ? target : {}), ...rest },
+          merged,
           localDefinitions,
           new Set(seen).add(name),
         )

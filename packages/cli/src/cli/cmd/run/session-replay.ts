@@ -360,15 +360,14 @@ export function replayActiveText(data: SessionData, current: SessionData): Strea
       return []
     }
 
-    return [
-      {
-        kind,
-        text: chunk,
-        phase: "progress",
-        source: kind,
-        ...(messageID ? { messageID } : {}),
-        partID,
-      },
-    ] satisfies StreamCommit[]
+    const commit: StreamCommit = {
+      kind,
+      text: chunk,
+      phase: "progress",
+      source: kind,
+      partID,
+    }
+    if (messageID) commit.messageID = messageID
+    return [commit]
   })
 }

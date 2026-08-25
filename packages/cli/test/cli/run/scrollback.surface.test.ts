@@ -24,9 +24,14 @@ afterEach(() => {
   }
 })
 
+interface RendererQueue {
+  readonly externalOutputQueue?: { readonly claim?: () => unknown }
+}
+
 function claim(renderer: TestRenderer): ClaimedCommit[] {
-  const queue = Reflect.get(renderer, "externalOutputQueue")
-  if (!queue || typeof queue !== "object" || !("claim" in queue) || typeof queue.claim !== "function") {
+  // SAFETY: TestRenderer keeps externalOutputQueue as an untyped host field used only by this fixture.
+  const queue = (renderer as RendererQueue).externalOutputQueue
+  if (!queue || typeof queue !== "object" || typeof queue.claim !== "function") {
     throw new Error("renderer missing external output queue")
   }
 
@@ -167,9 +172,13 @@ test("theme swaps restyle active reasoning without resetting the stream", async 
   }
 })
 
+interface ScrollbackActive {
+  readonly active?: { readonly renderable?: { readonly syntaxStyle?: SyntaxStyle } }
+}
+
 function activeSyntax(scrollback: RunScrollbackStream) {
-  const entry = Reflect.get(scrollback, "active") as { renderable?: { syntaxStyle?: SyntaxStyle } } | undefined
-  return entry?.renderable?.syntaxStyle
+  // SAFETY: RunScrollbackStream keeps the active markdown entry as a private field read by this test.
+  return (scrollback as ScrollbackActive).active?.renderable?.syntaxStyle
 }
 
 test("theme swaps preserve streamed markdown parser state", async () => {
@@ -243,7 +252,7 @@ function toolCommit(input: {
   const id = input.id ?? `${input.tool}-1`
   const messageID = input.messageID ?? `msg-${input.tool}`
 
-  return {
+  const commit: StreamCommit = {
     kind: "tool",
     text: input.text ?? "",
     phase: input.phase,
@@ -251,9 +260,10 @@ function toolCommit(input: {
     partID: id,
     messageID,
     tool: input.tool,
-    ...(input.toolState ? { toolState: input.toolState } : {}),
-    ...(input.state ? { part: toolPart(input.tool, input.state, id, messageID) } : {}),
   }
+  if (input.toolState) commit.toolState = input.toolState
+  if (input.state) commit.part = toolPart(input.tool, input.state, id, messageID)
+  return commit
 }
 
 test("finalizes markdown tables for streamed and coalesced input", async () => {

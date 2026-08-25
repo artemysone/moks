@@ -505,23 +505,71 @@ const reduceToolInputEnd = (state: ResponseState, event: ToolInputEnd): Response
   }
 }
 
-const toolCallContent = (event: ToolCall): ContentPart =>
-  ToolCallPart.make({
+const toolCallContent = (event: ToolCall): ContentPart => {
+  if (event.providerExecuted !== undefined && event.providerMetadata !== undefined) {
+    return ToolCallPart.make({
+      id: event.id,
+      name: event.name,
+      input: event.input,
+      providerExecuted: event.providerExecuted,
+      providerMetadata: event.providerMetadata,
+    })
+  }
+  if (event.providerExecuted !== undefined) {
+    return ToolCallPart.make({
+      id: event.id,
+      name: event.name,
+      input: event.input,
+      providerExecuted: event.providerExecuted,
+    })
+  }
+  if (event.providerMetadata !== undefined) {
+    return ToolCallPart.make({
+      id: event.id,
+      name: event.name,
+      input: event.input,
+      providerMetadata: event.providerMetadata,
+    })
+  }
+  return ToolCallPart.make({
     id: event.id,
     name: event.name,
     input: event.input,
-    ...(event.providerExecuted === undefined ? {} : { providerExecuted: event.providerExecuted }),
-    ...(event.providerMetadata === undefined ? {} : { providerMetadata: event.providerMetadata }),
   })
+}
 
-const toolResultContent = (event: ToolResult): ContentPart =>
-  ToolResultPart.make({
+const toolResultContent = (event: ToolResult): ContentPart => {
+  if (event.providerExecuted !== undefined && event.providerMetadata !== undefined) {
+    return ToolResultPart.make({
+      id: event.id,
+      name: event.name,
+      result: event.result,
+      providerExecuted: event.providerExecuted,
+      providerMetadata: event.providerMetadata,
+    })
+  }
+  if (event.providerExecuted !== undefined) {
+    return ToolResultPart.make({
+      id: event.id,
+      name: event.name,
+      result: event.result,
+      providerExecuted: event.providerExecuted,
+    })
+  }
+  if (event.providerMetadata !== undefined) {
+    return ToolResultPart.make({
+      id: event.id,
+      name: event.name,
+      result: event.result,
+      providerMetadata: event.providerMetadata,
+    })
+  }
+  return ToolResultPart.make({
     id: event.id,
     name: event.name,
     result: event.result,
-    ...(event.providerExecuted === undefined ? {} : { providerExecuted: event.providerExecuted }),
-    ...(event.providerMetadata === undefined ? {} : { providerMetadata: event.providerMetadata }),
   })
+}
 
 const reduceToolCall = (state: ResponseState, event: ToolCall): ResponseState => {
   const { [event.id]: _finished, ...toolInputs } = state.toolInputs

@@ -101,7 +101,7 @@ function findTone(sections: Map<string, string>): string {
   return "";
 }
 
-const STAGE_ALIAS: Record<string, ApplicationStage> = {
+const STAGE_ALIAS = {
   sourced: "Sourced",
   contacted: "Contacted",
   replied: "Replied",
@@ -113,7 +113,15 @@ const STAGE_ALIAS: Record<string, ApplicationStage> = {
   offer: "Offer",
   hire: "Hired",
   hired: "Hired",
-};
+} as const satisfies { [alias: string]: ApplicationStage };
+
+function mappedStage(token: string): ApplicationStage | undefined {
+  for (const [alias, stage] of Object.entries(STAGE_ALIAS)) {
+    if (alias === token) return stage;
+  }
+  if (isStage(token)) return token;
+  return undefined;
+}
 
 /** Stages named by the req. HIRING hops (phone, onsite, on-site) map to Phone/Onsite; other unknown tokens are dropped. */
 export function parseProcessStages(body: string): ApplicationStage[] {
@@ -125,7 +133,7 @@ export function parseProcessStages(body: string): ApplicationStage[] {
     for (const token of match[1]!.split(/\s*(?:\u2192|->|\|)\s*/)) {
       const key = token.trim().toLowerCase();
       if (!key) continue;
-      const mapped = STAGE_ALIAS[key] ?? (isStage(token.trim()) ? token.trim() : undefined);
+      const mapped = mappedStage(key) ?? mappedStage(token.trim());
       if (mapped && !stages.includes(mapped)) stages.push(mapped);
     }
   }

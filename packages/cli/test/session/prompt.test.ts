@@ -388,8 +388,8 @@ const seed = Effect.fn("test.seed")(function* (sessionID: SessionID, opts?: { fi
     modelID: ref.modelID,
     providerID: ref.providerID,
     time: { created: Date.now() },
-    ...(opts?.finish ? { finish: opts.finish } : {}),
   }
+  if (opts?.finish) assistant.finish = opts.finish
   yield* session.updateMessage(assistant)
   yield* session.updatePart({
     id: PartID.ascending(),

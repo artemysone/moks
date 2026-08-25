@@ -12,7 +12,12 @@ const Json = Schema.fromJsonString(Schema.Unknown)
 const decodeJson = Schema.decodeUnknownSync(Json)
 const withEnv = (env: Record<string, string>) => Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env })))
 
-const deltaChunk = (delta: object, finishReason: string | null = null) => ({
+interface ChatDelta {
+  readonly role?: string
+  readonly content?: string | number
+}
+
+const deltaChunk = (delta: ChatDelta, finishReason: string | null = null) => ({
   id: "chatcmpl_fixture",
   choices: [{ delta, finish_reason: finishReason }],
   usage: null,

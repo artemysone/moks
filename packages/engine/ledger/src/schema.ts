@@ -1,4 +1,4 @@
-import type { SqliteDb } from "./db.ts";
+import type { SqlBindings, SqliteDb } from "./db.ts";
 
 type Migration = {
   version: number;
@@ -75,7 +75,7 @@ const WORKSPACE_MIGRATIONS: Migration[] = [
   {
     version: 3,
     apply(db) {
-      const cols = db.prepare("PRAGMA table_info(changes)").all() as Array<{ name: string }>;
+      const cols = db.prepare<SqliteColumnInfo, SqlBindings>("PRAGMA table_info(changes)").all();
       if (!cols.some((col) => col.name === "seq")) {
         db.exec("ALTER TABLE changes ADD COLUMN seq INTEGER");
       }
@@ -128,7 +128,7 @@ const WORKSPACE_MIGRATIONS: Migration[] = [
   {
     version: 6,
     apply(db) {
-      const cols = db.prepare("PRAGMA table_info(changesets)").all() as Array<{ name: string }>;
+      const cols = db.prepare<SqliteColumnInfo, SqlBindings>("PRAGMA table_info(changesets)").all();
       if (!cols.some((col) => col.name === "audit")) {
         db.exec("ALTER TABLE changesets ADD COLUMN audit INTEGER NOT NULL DEFAULT 0");
       }
@@ -140,7 +140,7 @@ const WORKSPACE_MIGRATIONS: Migration[] = [
     // they summarize point at them via compacted_by (append-only: nothing is deleted).
     version: 7,
     apply(db) {
-      const cols = db.prepare("PRAGMA table_info(session_messages)").all() as Array<{ name: string }>;
+      const cols = db.prepare<SqliteColumnInfo, SqlBindings>("PRAGMA table_info(session_messages)").all();
       const names = new Set(cols.map((col) => col.name));
       const add = (column: string, type: string) => {
         if (!names.has(column)) {
@@ -159,7 +159,7 @@ const WORKSPACE_MIGRATIONS: Migration[] = [
     // the spawning session; agent records the agent-definition name the child ran as.
     version: 8,
     apply(db) {
-      const cols = db.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
+      const cols = db.prepare<SqliteColumnInfo, SqlBindings>("PRAGMA table_info(sessions)").all();
       const names = new Set(cols.map((col) => col.name));
       if (!names.has("parent_id")) {
         db.exec("ALTER TABLE sessions ADD COLUMN parent_id TEXT REFERENCES sessions(id)");
@@ -172,12 +172,15 @@ const WORKSPACE_MIGRATIONS: Migration[] = [
   },
 ];
 
+type SqliteColumnInfo = { name: string };
+type SchemaVersionRow = { version: number };
+type TableExistsRow = { ok: number };
+
 function tableExists(db: SqliteDb, name: string): boolean {
   // bun:sqlite .get() returns null (not undefined) when there is no row.
-  const row = db.prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = ?").get(name) as
-    | { ok: number }
-    | null
-    | undefined;
+  const row = db
+    .prepare<TableExistsRow, SqlBindings>("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = ?")
+    .get(name);
   return row != null;
 }
 
@@ -189,11 +192,7 @@ export function migrateWorkspace(db: SqliteDb): void {
     );
   `);
 
-  const applied = new Set(
-    (db.prepare("SELECT version FROM schema_migrations").all() as Array<{ version: number }>).map(
-      (row) => row.version,
-    ),
-  );
+  const applied = new Set(db.prepare<SchemaVersionRow, SqlBindings>("SELECT version FROM schema_migrations").all().map((row) => row.version));
 
   // M0 databases created remote_mirror without schema_migrations.
   if (tableExists(db, "remote_mirror") && !applied.has(1)) {

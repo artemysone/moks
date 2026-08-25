@@ -1,7 +1,9 @@
-import type { SqliteDb } from "./db.ts";
+import type { SqlBindings, SqliteDb } from "./db.ts";
 import {
   canExitToTerminal,
   canExtendOffer,
+  isAdvanceStagePayload,
+  isApplication,
   isAuthorKind,
   isEffectClass,
   isEntityType,
@@ -9,13 +11,22 @@ import {
   isMutation,
   isStage,
   nextEntityState,
+  parseAgentMeta,
+  parseCasField,
+  parseMutationPayload,
+  parseRemoteResult,
   requiredEffectClass,
+  type AgentMeta,
   type ApplicationStage,
   type AuthorKind,
+  type CasField,
   type ChangesetStatus,
   type EffectClass,
+  type EntityState,
   type EntityType,
   type Mutation,
+  type MutationPayload,
+  type RemoteResult,
 } from "./domain.ts";
 import { LedgerError } from "./errors.ts";
 import {
@@ -25,6 +36,7 @@ import {
   type CanonicalBody,
   type CanonicalChange,
 } from "./hash.ts";
+import { parseJsonText, parseJsonTextOrNull } from "./json.ts";
 import { asApplication, candidateRefFor, readMirrorEntity } from "./mirror.ts";
 import { casProjection, isEmptyPrecondition, matchesPrecondition } from "./precondition.ts";
 import { failClosedPolicy, gateFor, sampleReject, type Policy } from "./policy.ts";
@@ -45,15 +57,15 @@ export type CommitChangeInput = {
   entity_ref: string;
   mutation: string;
   effect_class: string;
-  precondition?: unknown;
-  payload: unknown;
+  precondition?: CasField;
+  payload: MutationPayload;
 };
 
 export type CommitInput = {
   rationale: string;
   author_id: string;
   author_kind?: string;
-  agent_meta?: unknown;
+  agent_meta?: AgentMeta;
   changes: CommitChangeInput[];
 };
 
@@ -63,11 +75,11 @@ export type ChangeRecord = {
   entity_ref: string;
   mutation: Mutation;
   effect_class: EffectClass;
-  precondition: unknown;
+  precondition: CasField;
   payload_ref: string;
-  payload: unknown;
+  payload: MutationPayload | null;
   payload_redacted: boolean;
-  remote_result: unknown;
+  remote_result: RemoteResult | null;
 };
 
 export type ChangesetDetail = {
@@ -76,7 +88,7 @@ export type ChangesetDetail = {
   hash: string;
   author_kind: AuthorKind;
   author_id: string;
-  agent_meta: unknown;
+  agent_meta: AgentMeta | null;
   rationale: string;
   status: ChangesetStatus;
   created_at: number;
@@ -99,6 +111,12 @@ export type AuditEntry = {
   rationale: string;
   created_at: number;
   applied_at: number | null;
+  audit: boolean;
+};
+
+export type CommitDecision = {
+  status: ChangesetStatus;
+  reviewed_by: string | null;
   audit: boolean;
 };
 
@@ -129,59 +147,27 @@ type ChangeRow = {
   remote_result: string | null;
 };
 
-function parseJson(value: string | null): unknown {
-  if (value === null) {
-    return null;
-  }
-  return JSON.parse(value) as unknown;
-}
+type ChangesetTip = { id: string; hash: string };
+type ChangesetIdRow = { id: string };
+type AuditRow = {
+  id: string;
+  parent_id: string | null;
+  hash: string;
+  status: ChangesetStatus;
+  author_kind: AuthorKind;
+  author_id: string;
+  reviewed_by: string | null;
+  rationale: string;
+  created_at: number;
+  applied_at: number | null;
+  audit: number;
+};
 
-function requireString(value: unknown, message: string): string {
-  if (typeof value !== "string" || value.trim().length === 0) {
+function requireString(value: string, message: string): string {
+  if (value.trim().length === 0) {
     throw new LedgerError(message);
   }
   return value;
-}
-
-function payloadRecord(payload: unknown): Record<string, unknown> {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    throw new LedgerError("invalid_payload");
-  }
-  return payload as Record<string, unknown>;
-}
-
-function validatePayload(mutation: Mutation, payload: unknown): void {
-  const record = payloadRecord(payload);
-  switch (mutation) {
-    case "AdvanceStage":
-      if (typeof record.to !== "string" || !isStage(record.to)) {
-        throw new LedgerError("invalid_payload: AdvanceStage requires to");
-      }
-      return;
-    case "AddNote":
-      if (typeof record.body !== "string" || record.body.length === 0) {
-        throw new LedgerError("invalid_payload: AddNote requires body");
-      }
-      return;
-    case "AddTag":
-      if (typeof record.tag !== "string" || record.tag.length === 0) {
-        throw new LedgerError("invalid_payload: AddTag requires tag");
-      }
-      return;
-    case "SendOutreach":
-      if (typeof record.body !== "string" || record.body.length === 0) {
-        throw new LedgerError("invalid_payload: SendOutreach requires body");
-      }
-      return;
-    case "ExtendOffer":
-      if (typeof record.terms !== "string" || record.terms.length === 0) {
-        throw new LedgerError("invalid_payload: ExtendOffer requires terms");
-      }
-      return;
-    case "Reject":
-    case "Withdraw":
-      return;
-  }
 }
 
 /** Applied stage plus last staged/approved AdvanceStage.to for this entity (changeset order). */
@@ -193,15 +179,13 @@ export function pendingAdvanceStage(
 ): ApplicationStage | undefined {
   let stage = isStage(applied) ? applied : undefined;
   const pending = db
-    .prepare("SELECT id FROM changesets WHERE status IN ('staged', 'approved') ORDER BY rowid ASC")
-    .all() as Array<{ id: string }>;
-  for (const { id } of pending) {
-    for (const row of loadChangeRows(db, id)) {
-      if (row.mutation !== "AdvanceStage" || row.entity_ref !== entityRef) continue;
-      const payload = toChangeRecord(row, vault).payload;
-      if (!payload || typeof payload !== "object" || Array.isArray(payload)) continue;
-      const to = (payload as { to?: unknown }).to;
-      if (typeof to === "string" && isStage(to)) stage = to;
+    .prepare<ChangesetIdRow, SqlBindings>("SELECT id FROM changesets WHERE status IN ('staged', 'approved') ORDER BY rowid ASC")
+    .all();
+  for (const row of pending) {
+    for (const change of loadChangeRows(db, row.id)) {
+      if (change.mutation !== "AdvanceStage" || change.entity_ref !== entityRef) continue;
+      const payload = toChangeRecord(change, vault).payload;
+      if (payload && isAdvanceStagePayload(payload)) stage = payload.to;
     }
   }
   return stage;
@@ -211,19 +195,19 @@ export function pendingAdvanceStage(
 export function assertMutationLegal(
   mutation: Mutation,
   entityType: EntityType,
-  state: unknown,
-  payload: unknown,
+  state: EntityState,
+  payload: MutationPayload,
   stages?: ApplicationStage[],
 ): void {
-  validatePayload(mutation, payload);
+  parseMutationPayload(mutation, payload);
   validateTransition(mutation, entityType, state, payload, stages);
 }
 
 function validateTransition(
   mutation: Mutation,
   entityType: EntityType,
-  state: unknown,
-  payload: unknown,
+  state: EntityState,
+  payload: MutationPayload,
   stages?: ApplicationStage[],
 ): void {
   if (mutation === "AddNote" || mutation === "AddTag" || mutation === "SendOutreach") {
@@ -250,8 +234,8 @@ function validateTransition(
     throw new LedgerError("unknown_entity: application state is invalid");
   }
   if (mutation === "AdvanceStage") {
-    const to = (payloadRecord(payload).to as string) ?? "";
-    if (!isLegalAdvanceOnPath(application.stage, isStage(to) ? to : application.stage, stages) || !isStage(to)) {
+    if (!isAdvanceStagePayload(payload) || !isLegalAdvanceOnPath(application.stage, payload.to, stages)) {
+      const to = isAdvanceStagePayload(payload) ? payload.to : "";
       throw new LedgerError(`illegal_transition: ${application.stage} → ${to}`);
     }
     return;
@@ -269,43 +253,42 @@ function validateTransition(
   }
 }
 
-function tip(db: SqliteDb): { id: string; hash: string } | undefined {
-  return db.prepare("SELECT id, hash FROM changesets ORDER BY rowid DESC LIMIT 1").get() as
-    | { id: string; hash: string }
-    | undefined;
+function tip(db: SqliteDb): ChangesetTip | undefined {
+  return db.prepare<ChangesetTip, SqlBindings>("SELECT id, hash FROM changesets ORDER BY rowid DESC LIMIT 1").get() ?? undefined;
 }
 
 function loadChangeRows(db: SqliteDb, changesetId: string): ChangeRow[] {
   return db
-    .prepare(
+    .prepare<ChangeRow, SqlBindings>(
       "SELECT id, changeset_id, entity_type, entity_ref, mutation, effect_class, precondition, payload_ref, remote_result FROM changes WHERE changeset_id = ? ORDER BY seq ASC, id ASC",
     )
-    .all(changesetId) as ChangeRow[];
+    .all(changesetId);
 }
 
 function toChangeRecord(row: ChangeRow, vault: Vault): ChangeRecord {
-  let payload: unknown = null;
+  let payload: MutationPayload | null = null;
   let payload_redacted = false;
   try {
-    payload = vault.get(row.payload_ref);
-  } catch (error) {
-    if (error instanceof VaultError) {
+    payload = parseMutationPayload(row.mutation, vault.get(row.payload_ref));
+  } catch (cause) {
+    if (cause instanceof VaultError) {
       payload_redacted = true;
     } else {
-      throw error;
+      throw cause;
     }
   }
+  const remote = parseJsonTextOrNull(row.remote_result);
   return {
     id: row.id,
     entity_type: row.entity_type,
     entity_ref: row.entity_ref,
     mutation: row.mutation,
     effect_class: row.effect_class,
-    precondition: parseJson(row.precondition),
+    precondition: parseCasField(parseJsonText(row.precondition)),
     payload_ref: row.payload_ref,
     payload,
     payload_redacted,
-    remote_result: parseJson(row.remote_result),
+    remote_result: remote === null ? null : (parseRemoteResult(remote) ?? null),
   };
 }
 
@@ -316,7 +299,7 @@ function toSummary(row: ChangesetRow): ChangesetSummary {
     hash: row.hash,
     author_kind: row.author_kind,
     author_id: row.author_id,
-    agent_meta: parseJson(row.agent_meta),
+    agent_meta: row.agent_meta === null ? null : parseAgentMeta(parseJsonText(row.agent_meta)),
     rationale: row.rationale,
     status: row.status,
     created_at: row.created_at,
@@ -327,11 +310,7 @@ function toSummary(row: ChangesetRow): ChangesetSummary {
 }
 
 function loadChangesetRow(db: SqliteDb, id: string): ChangesetRow {
-  const row = db
-    .prepare(
-      `SELECT ${CHANGESET_COLS} FROM changesets WHERE id = ?`,
-    )
-    .get(id) as ChangesetRow | undefined;
+  const row = db.prepare<ChangesetRow, SqlBindings>(`SELECT ${CHANGESET_COLS} FROM changesets WHERE id = ?`).get(id);
   if (!row) {
     throw new LedgerError("changeset_not_found");
   }
@@ -343,14 +322,13 @@ export function decideCommitPolicy(
   authorKind: AuthorKind,
   policy: Policy,
   rng: () => number = Math.random,
-): { status: ChangesetStatus; reviewed_by: string | null; audit: boolean } {
+): CommitDecision {
   const allAuto =
     mutations.length > 0 &&
     mutations.every(
       (mutation) => gateFor(mutation, policy) === "auto" && requiredEffectClass(mutation) === "reversible",
     );
-  const sampleRejects =
-    authorKind === "agent" && mutations.includes("Reject") && sampleReject(policy, rng);
+  const sampleRejects = authorKind === "agent" && mutations.includes("Reject") && sampleReject(policy, rng);
   return {
     status: allAuto ? "approved" : "staged",
     reviewed_by: allAuto ? "policy" : null,
@@ -380,14 +358,14 @@ export function commitChangeset(
     const parent = tip(db);
     const id = crypto.randomUUID();
     const createdAt = Date.now();
-    const working = new Map<string, { state: unknown; candidateRef: string }>();
+    const working = new Map<string, { state: EntityState; candidateRef: string }>();
     const prepared: Array<{
       entity_type: EntityType;
       entity_ref: string;
       mutation: Mutation;
       effect_class: EffectClass;
-      precondition: unknown;
-      payload: unknown;
+      precondition: CasField;
+      payload: MutationPayload;
       candidate_ref: string;
     }> = [];
 
@@ -406,10 +384,10 @@ export function commitChangeset(
       if (change.effect_class !== expectedClass) {
         throw new LedgerError(`effect_class_mismatch: ${change.mutation} requires ${expectedClass}`);
       }
-      validatePayload(change.mutation, change.payload);
+      const payload = parseMutationPayload(change.mutation, change.payload);
 
       const key = `${change.entity_type}:${entityRef}`;
-      let state: unknown;
+      let state: EntityState;
       let candidateRef: string;
       const prior = working.get(key);
       if (prior) {
@@ -437,14 +415,11 @@ export function commitChangeset(
         }
       }
       let transitionState = state;
-      if (change.mutation === "AdvanceStage" && !prior) {
-        const application = asApplication(state);
-        if (application) {
-          const from = pendingAdvanceStage(db, vault, entityRef, application.stage);
-          if (from) transitionState = { ...application, stage: from };
-        }
+      if (change.mutation === "AdvanceStage" && !prior && isApplication(state)) {
+        const from = pendingAdvanceStage(db, vault, entityRef, state.stage);
+        if (from) transitionState = { ...state, stage: from };
       }
-      validateTransition(change.mutation, change.entity_type, transitionState, change.payload, options?.stages);
+      validateTransition(change.mutation, change.entity_type, transitionState, payload, options?.stages);
 
       prepared.push({
         entity_type: change.entity_type,
@@ -452,11 +427,11 @@ export function commitChangeset(
         mutation: change.mutation,
         effect_class: change.effect_class,
         precondition: projection,
-        payload: change.payload,
+        payload,
         candidate_ref: candidateRef,
       });
       working.set(key, {
-        state: nextEntityState(state, change.mutation, change.payload),
+        state: nextEntityState(state, change.mutation, payload),
         candidateRef,
       });
     }
@@ -507,12 +482,12 @@ export function commitChangeset(
         decision.reviewed_by,
         decision.audit ? 1 : 0,
       );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "";
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "";
       if (message.includes("UNIQUE constraint failed")) {
         throw new LedgerError("concurrent_commit");
       }
-      throw error;
+      throw cause;
     }
 
     const inserted: ChangeRow[] = [];
@@ -565,19 +540,15 @@ export function commitChangeset(
 }
 
 export function listChangesets(db: SqliteDb, status?: ChangesetStatus): ChangesetSummary[] {
-  const rows = (
-    status
-      ? db
-          .prepare(
-            `SELECT ${CHANGESET_COLS} FROM changesets WHERE status = ? ORDER BY created_at DESC, id DESC`,
-          )
-          .all(status)
-      : db
-          .prepare(
-            `SELECT ${CHANGESET_COLS} FROM changesets ORDER BY created_at DESC, id DESC`,
-          )
-          .all()
-  ) as ChangesetRow[];
+  const rows = status
+    ? db
+        .prepare<ChangesetRow, SqlBindings>(
+          `SELECT ${CHANGESET_COLS} FROM changesets WHERE status = ? ORDER BY created_at DESC, id DESC`,
+        )
+        .all(status)
+    : db
+        .prepare<ChangesetRow, SqlBindings>(`SELECT ${CHANGESET_COLS} FROM changesets ORDER BY created_at DESC, id DESC`)
+        .all();
   return rows.map(toSummary);
 }
 
@@ -594,7 +565,7 @@ function amendExcerpt(db: SqliteDb, vault: Vault, id: string, excerpt: string) {
   if (!body) {
     throw new LedgerError("empty_excerpt");
   }
-  const children = db.prepare("SELECT id FROM changesets WHERE parent_id = ?").all(id) as Array<{ id: string }>;
+  const children = db.prepare<ChangesetIdRow, SqlBindings>("SELECT id FROM changesets WHERE parent_id = ?").all(id);
   if (children.length > 0) {
     throw new LedgerError("cannot_amend: later changesets already parent this one");
   }
@@ -604,17 +575,10 @@ function amendExcerpt(db: SqliteDb, vault: Vault, id: string, excerpt: string) {
     throw new LedgerError("cannot_amend: changeset has no note or outreach");
   }
   for (const change of editable) {
-    const current = vault.get(change.payload_ref);
-    const next =
-      current && typeof current === "object" && !Array.isArray(current)
-        ? { ...(current as Record<string, unknown>), body }
-        : { body };
-    const entityType = isEntityType(change.entity_type) ? change.entity_type : undefined;
-    if (!entityType) {
-      throw new LedgerError(`unknown_entity_type: ${change.entity_type}`);
-    }
-    const state = readMirrorEntity(db, entityType, change.entity_ref)?.state;
-    const payloadRef = vault.put(candidateRefFor(entityType, change.entity_ref, state), next);
+    const current = parseMutationPayload(change.mutation, vault.get(change.payload_ref));
+    const next = { ...current, body };
+    const state = readMirrorEntity(db, change.entity_type, change.entity_ref)?.state;
+    const payloadRef = vault.put(candidateRefFor(change.entity_type, change.entity_ref, state), next);
     db.prepare("UPDATE changes SET payload_ref = ? WHERE id = ?").run(payloadRef, change.id);
   }
   const row = loadChangesetRow(db, id);
@@ -623,14 +587,14 @@ function amendExcerpt(db: SqliteDb, vault: Vault, id: string, excerpt: string) {
   const hash = hashChangeset(parentHash, {
     author_kind: row.author_kind,
     author_id: row.author_id,
-    agent_meta: row.agent_meta === null ? null : (JSON.parse(row.agent_meta) as unknown),
+    agent_meta: row.agent_meta === null ? null : parseAgentMeta(parseJsonText(row.agent_meta)),
     rationale: row.rationale,
     changes: updated.map((change) => ({
       entity_type: change.entity_type,
       entity_ref: change.entity_ref,
       mutation: change.mutation,
       effect_class: change.effect_class,
-      precondition: JSON.parse(change.precondition) as unknown,
+      precondition: parseCasField(parseJsonText(change.precondition)),
       payload_ref: change.payload_ref,
       payload_hash: payloadCipherHash(db, change.payload_ref),
     })),
@@ -652,18 +616,17 @@ export function reviewChangeset(
   if (row.status !== "staged") {
     throw new LedgerError("not_staged");
   }
-  if (typeof input.excerpt === "string") {
+  if (input.excerpt !== undefined) {
     if (input.action !== "approve") {
       throw new LedgerError("cannot_amend: excerpt is only for approve");
     }
     amendExcerpt(db, vault, id, input.excerpt);
   }
   const status: ChangesetStatus = input.action === "approve" ? "approved" : "rejected";
-  const reason = typeof input.reason === "string" ? input.reason.trim() : "";
+  const reason = input.reason === undefined ? "" : input.reason.trim();
   if (input.action === "reject" && reason) {
-    const meta = parseJson(row.agent_meta);
-    const base = meta && typeof meta === "object" && !Array.isArray(meta) ? (meta as Record<string, unknown>) : {};
-    const nextMeta = { ...base, review_reason: reason };
+    const meta = row.agent_meta === null ? {} : (parseAgentMeta(parseJsonText(row.agent_meta)) ?? {});
+    const nextMeta: AgentMeta = { ...meta, review_reason: reason };
     const rationale = row.rationale.includes(reason) ? row.rationale : `${row.rationale}\n\nRejected: ${reason}`;
     db.prepare("UPDATE changesets SET status = ?, reviewed_by = ?, rationale = ?, agent_meta = ? WHERE id = ?").run(
       status,
@@ -680,22 +643,10 @@ export function reviewChangeset(
 
 export function readLog(db: SqliteDb): AuditEntry[] {
   const rows = db
-    .prepare(
+    .prepare<AuditRow, SqlBindings>(
       "SELECT id, parent_id, hash, status, author_kind, author_id, reviewed_by, rationale, created_at, applied_at, audit FROM changesets ORDER BY created_at ASC, id ASC",
     )
-    .all() as Array<{
-    id: string;
-    parent_id: string | null;
-    hash: string;
-    status: ChangesetStatus;
-    author_kind: AuthorKind;
-    author_id: string;
-    reviewed_by: string | null;
-    rationale: string;
-    created_at: number;
-    applied_at: number | null;
-    audit: number;
-  }>;
+    .all();
   return rows.map((row) => ({
     id: row.id,
     parent_id: row.parent_id,
@@ -711,18 +662,24 @@ export function readLog(db: SqliteDb): AuditEntry[] {
   }));
 }
 
-const CHANGES_LIFECYCLE: Record<ChangesetStatus, ChangesetStatus[]> = {
-  staged: ["approved", "rejected", "stale"],
-  approved: ["applied", "stale"],
-  applied: [],
-  rejected: [],
-  stale: [],
-};
+function allowedStatuses(status: ChangesetStatus): readonly ChangesetStatus[] {
+  switch (status) {
+    case "staged":
+      return ["approved", "rejected", "stale"];
+    case "approved":
+      return ["applied", "stale"];
+    case "applied":
+    case "rejected":
+    case "stale":
+      return [];
+  }
+  return [];
+}
 
 export function markChangesetStatus(db: SqliteDb, id: string, status: ChangesetStatus, appliedAt?: number): void {
   const row = loadChangesetRow(db, id);
-  const allowed = CHANGES_LIFECYCLE[row.status];
-  if (!allowed?.includes(status)) {
+  const allowed = allowedStatuses(row.status);
+  if (!allowed.includes(status)) {
     throw new LedgerError(`illegal_lifecycle: ${row.status} → ${status}`);
   }
   if (appliedAt !== undefined) {
@@ -741,8 +698,11 @@ export function markChangesetApplied(db: SqliteDb, id: string, appliedAt: number
   }
 }
 
-export function setChangeRemoteResult(db: SqliteDb, changeId: string, remoteResult: unknown): void {
-  db.prepare("UPDATE changes SET remote_result = ? WHERE id = ?").run(JSON.stringify(remoteResult), changeId);
+export function setChangeRemoteResult(db: SqliteDb, changeId: string, remoteResult: RemoteResult | undefined): void {
+  db.prepare("UPDATE changes SET remote_result = ? WHERE id = ?").run(
+    remoteResult === undefined ? null : JSON.stringify(remoteResult),
+    changeId,
+  );
 }
 
 export { loadChangeRows, loadChangesetRow };

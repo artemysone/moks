@@ -74,8 +74,8 @@ export const effectCmd = <Args, A>(opts: EffectCmdOpts<Args, A>) =>
     builder: opts.builder as never,
     async handler(rawArgs) {
       const { AppRuntime } = await import("@/effect/app-runtime")
-      // yargs typing wraps Args in ArgumentsCamelCase<WithDoubleDash<...>>; cast at the boundary.
-      const args = rawArgs as unknown as WithDoubleDash<Args>
+      // SAFETY: yargs wraps Args in ArgumentsCamelCase<WithDoubleDash<...>>; this is the CLI handler boundary.
+      const args = rawArgs as WithDoubleDash<Args>
       const useInstance = typeof opts.instance === "function" ? opts.instance(args) : opts.instance !== false
       if (!useInstance) {
         await AppRuntime.runPromise(opts.handler(args))

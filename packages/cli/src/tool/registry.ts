@@ -136,8 +136,14 @@ const layer = Layer.effect(
             parameters,
             jsonSchema,
             description: def.description,
-            execute: (args, toolCtx) =>
-              Effect.gen(function* () {
+            execute: (args, toolCtx) => {
+              const attributes: Record<string, string> = {
+                "tool.name": id,
+                "session.id": toolCtx.sessionID,
+                "message.id": toolCtx.messageID,
+              }
+              if (toolCtx.callID) attributes["tool.call_id"] = toolCtx.callID
+              return Effect.gen(function* () {
                 // Bridge the host's Effect-based `ask` into a Promise-returning
                 // function for the plugin to make sure context persists
                 const bridge = yield* EffectBridge.make()
@@ -165,14 +171,10 @@ const layer = Layer.effect(
                 }
               }).pipe(
                 Effect.withSpan("Tool.execute", {
-                  attributes: {
-                    "tool.name": id,
-                    "session.id": toolCtx.sessionID,
-                    "message.id": toolCtx.messageID,
-                    ...(toolCtx.callID ? { "tool.call_id": toolCtx.callID } : {}),
-                  },
+                  attributes,
                 }),
-              ),
+              )
+            },
           }
         }
 
@@ -221,7 +223,7 @@ const layer = Layer.effect(
           commit: Tool.init(committool),
           status: Tool.init(statustool),
           diff: Tool.init(difftool),
-          ...(codeModeTool ? { execute: Tool.init(codeModeTool) } : {}),
+          execute: codeModeTool ? Tool.init(codeModeTool) : Effect.succeed(undefined),
         })
 
         return {
@@ -396,10 +398,9 @@ function zodMetadataRegistry(schema: z.ZodType) {
     if (isZodType(value)) {
       const metadata = typeof value.meta === "function" ? value.meta() : undefined
       const description = typeof value.description === "string" ? value.description : undefined
-      const merged = {
-        ...(metadata && typeof metadata === "object" ? metadata : {}),
-        ...(description ? { description } : {}),
-      }
+      const merged =
+        metadata && typeof metadata === "object" ? { ...metadata } : {}
+      if (description) Object.assign(merged, { description })
       if (Object.keys(merged).length) registry.add(value, merged)
       collect(value._zod.def)
       return

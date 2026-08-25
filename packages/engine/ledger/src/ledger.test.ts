@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openSqlite } from "./db.ts";
+import { openSqlite, type SqlBindings } from "./db.ts";
 import { openWorkspace, type Workspace } from "./temp-ledger.ts";
-import { markChangesetStatus } from "./ledger.ts";
+import { markChangesetStatus, type CommitChangeInput } from "./ledger.ts";
 
 function tempCwd(): string {
   return mkdtempSync(join(tmpdir(), "moks-ledger-"));
@@ -14,7 +14,7 @@ function openTemp(): Workspace {
   return openWorkspace(tempCwd());
 }
 
-function advancePriya(ws: Workspace, extras: Record<string, unknown> = {}) {
+function advancePriya(ws: Workspace, extras: Partial<CommitChangeInput> = {}) {
   return ws.commit({
     rationale: "Reached out to Priya",
     author_id: "recruiter",
@@ -156,7 +156,8 @@ describe("ledger", () => {
     expect(ws.getChangeset(staged.id).status).toBe("stale");
 
     const still = openSqlite(ws.paths.mockAtsDb);
-    const app = still.prepare("SELECT stage FROM applications WHERE id = 'app_priya_142'").get() as { stage: string };
+    const app = still.prepare<{ stage: string }, SqlBindings>("SELECT stage FROM applications WHERE id = 'app_priya_142'").get();
+    if (!app) throw new Error("expected application");
     expect(app.stage).toBe("Replied");
     still.close();
     ws.close();
@@ -180,7 +181,8 @@ describe("ledger", () => {
     expect(pushed.pushed).toEqual([{ id: staged.id, status: "applied" }]);
 
     const mock = openSqlite(ws.paths.mockAtsDb);
-    const app = mock.prepare("SELECT stage FROM applications WHERE id = 'app_priya_142'").get() as { stage: string };
+    const app = mock.prepare<{ stage: string }, SqlBindings>("SELECT stage FROM applications WHERE id = 'app_priya_142'").get();
+    if (!app) throw new Error("expected application");
     expect(app.stage).toBe("Contacted");
     mock.close();
 
@@ -322,8 +324,9 @@ describe("ledger", () => {
     expect(ws.push(staged.id).pushed).toEqual([{ id: staged.id, status: "applied" }]);
 
     const mock = openSqlite(ws.paths.mockAtsDb);
-    const app = mock.prepare("SELECT stage FROM applications WHERE id = 'app_priya_142'").get() as { stage: string };
-    const notes = mock.prepare("SELECT body FROM notes").all() as Array<{ body: string }>;
+    const app = mock.prepare<{ stage: string }, SqlBindings>("SELECT stage FROM applications WHERE id = 'app_priya_142'").get();
+    const notes = mock.prepare<{ body: string }, SqlBindings>("SELECT body FROM notes").all();
+    if (!app) throw new Error("expected application");
     expect(app.stage).toBe("Contacted");
     expect(notes).toEqual([{ body: "Intro sent" }]);
     mock.close();

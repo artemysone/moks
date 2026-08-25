@@ -78,11 +78,11 @@ export const SnowflakeCortexPlugin = define({
         const upstream = typeof evt.options.fetch === "function" ? (evt.options.fetch as FetchLike) : undefined
         if (evt.options.includeUsage !== false) evt.options.includeUsage = true
         const mod = yield* Effect.promise(() => import("@ai-sdk/openai-compatible"))
-        evt.sdk = mod.createOpenAICompatible({
+        const options = {
           ...evt.options,
-          ...(token ? { apiKey: token } : {}),
           fetch: cortexFetch(upstream) as typeof fetch,
-        } as any)
+        }
+        evt.sdk = mod.createOpenAICompatible((token ? { ...options, apiKey: token } : options) as any)
       }),
     )
   }),

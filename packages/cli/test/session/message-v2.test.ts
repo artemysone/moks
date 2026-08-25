@@ -62,16 +62,15 @@ const model: Provider.Model = {
 }
 
 function userInfo(id: string): SessionV1.User {
+  // SAFETY: fixtures use non-canonical ids; toModelMessage only compares them.
   return {
-    id,
+    id: id as SessionV1.User["id"],
     sessionID,
     role: "user",
     time: { created: 0 },
     agent: "user",
     model: { providerID, modelID: ModelV2.ID.make("test") },
-    tools: {},
-    mode: "",
-  } as unknown as SessionV1.User
+  }
 }
 
 function assistantInfo(
@@ -81,15 +80,16 @@ function assistantInfo(
   meta?: { providerID: string; modelID: string },
 ): SessionV1.Assistant {
   const infoModel = meta ?? { providerID: model.providerID, modelID: model.api.id }
+  // SAFETY: fixtures use non-canonical ids; toModelMessage only compares them.
   return {
-    id,
+    id: id as SessionV1.Assistant["id"],
     sessionID,
     role: "assistant",
     time: { created: 0 },
     error,
-    parentID,
-    modelID: infoModel.modelID,
-    providerID: infoModel.providerID,
+    parentID: parentID as SessionV1.Assistant["parentID"],
+    modelID: ModelV2.ID.make(infoModel.modelID),
+    providerID: ProviderV2.ID.make(infoModel.providerID),
     mode: "",
     agent: "agent",
     path: { cwd: "/", root: "/" },
@@ -100,7 +100,7 @@ function assistantInfo(
       reasoning: 0,
       cache: { read: 0, write: 0 },
     },
-  } as unknown as SessionV1.Assistant
+  }
 }
 
 function basePart(messageID: string, id: string) {

@@ -359,14 +359,17 @@ function ApiMethod(props: ApiMethodProps) {
       placeholder="API key"
       onConfirm={async (value) => {
         if (!value) return
-        await sdk.client.auth.set({
-          providerID: props.providerID,
-          auth: {
-            type: "api",
-            key: value,
-            ...(props.metadata ? { metadata: props.metadata } : {}),
-          },
-        })
+        if (props.metadata) {
+          await sdk.client.auth.set({
+            providerID: props.providerID,
+            auth: { type: "api", key: value, metadata: props.metadata },
+          })
+        } else {
+          await sdk.client.auth.set({
+            providerID: props.providerID,
+            auth: { type: "api", key: value },
+          })
+        }
         await sdk.client.instance.dispose()
         await sync.bootstrap()
         if (props.custom && !sync.data.provider_next.all.some((provider) => provider.id === props.providerID)) {

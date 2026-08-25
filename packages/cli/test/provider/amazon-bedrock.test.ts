@@ -118,7 +118,8 @@ it.instance(
       expect((language as { provider: string }).provider).toBe("bedrock-mantle.responses")
       expect((language as { modelId: string }).modelId).toBe("openai.gpt-5.5")
       expect(
-        (language as unknown as { config: { url: (input: { path: string; modelId: string }) => string } }).config.url({
+        // SAFETY: mantle language models expose config.url used to build the OpenAI-compatible path.
+        (language as { config: { url: (input: { path: string; modelId: string }) => string } }).config.url({
           path: "/responses",
           modelId: "openai.gpt-5.5",
         }),
@@ -157,7 +158,8 @@ it.instance(
       expect((language as { provider: string }).provider).toBe("bedrock-mantle.chat")
       expect((language as { modelId: string }).modelId).toBe("openai.gpt-oss-safeguard-120b")
       expect(
-        (language as unknown as { config: { url: (input: { path: string; modelId: string }) => string } }).config.url({
+        // SAFETY: mantle language models expose config.url used to build the OpenAI-compatible path.
+        (language as { config: { url: (input: { path: string; modelId: string }) => string } }).config.url({
           path: "/chat/completions",
           modelId: "openai.gpt-oss-safeguard-120b",
         }),

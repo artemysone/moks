@@ -173,9 +173,9 @@ function commitNotePlusAdvance(harness: PushHarness): string {
 }
 
 function keyOf(change: ApplyChange): string {
-  const { idempotencyKey } = change as ApplyChange & { idempotencyKey?: string };
-  expect(idempotencyKey).toMatch(/^[0-9a-f]{64}$/);
-  return idempotencyKey as string;
+  expect(change.idempotencyKey).toMatch(/^[0-9a-f]{64}$/);
+  if (change.idempotencyKey === undefined) throw new Error("expected idempotencyKey");
+  return change.idempotencyKey;
 }
 
 describe("pushApproved without adapter.transaction (MCP-style fallback)", () => {
@@ -202,7 +202,7 @@ describe("pushApproved without adapter.transaction (MCP-style fallback)", () => 
     // The wire item carries no extra fields; partial state lives in the ledger.
     expect(result.pushed).toEqual([{ id, status: "stale", reason: "precondition_failed" }]);
     const rows = loadChangeRows(harness.db, id);
-    expect(JSON.parse(rows[0]!.remote_result as string)).toEqual({ noteId: "note_1" });
+    expect(JSON.parse(rows[0]!.remote_result ?? "null")).toEqual({ noteId: "note_1" });
     expect(rows[1]!.remote_result).toBeNull();
     // The partial apply triggered a mirror re-pull reflecting the remote drift.
     expect(harness.pulls.count).toBe(1);

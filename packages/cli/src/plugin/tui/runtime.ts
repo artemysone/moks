@@ -144,7 +144,8 @@ function createScopedKeymap(keymap: TuiPluginApi["keymap"], scope: PluginScope):
   const cache = new Map<PropertyKey, unknown>()
   return new Proxy(keymap, {
     get(target, prop) {
-      const value = Reflect.get(target, prop, target)
+      // SAFETY: Proxy get keys are keymap members; unknown keys read as undefined.
+      const value = target[prop as keyof typeof target]
       if (typeof value !== "function") return value
       if (cache.has(prop)) return cache.get(prop)
       const fn = ScopedKeymapMethods.has(prop)

@@ -648,10 +648,10 @@ function claimShell(data: SessionData, callID: string, source: ShellCall["source
     return current
   }
 
-  const next = {
+  const next: ShellCall = {
     source,
-    ...(command ? { command } : {}),
-  } satisfies ShellCall
+  }
+  if (command) next.command = command
   data.shell.set(callID, next)
   return next
 }
@@ -666,7 +666,8 @@ function bashCommand(part: ToolPart): string | undefined {
     return undefined
   }
 
-  const command = Reflect.get(input, "command")
+  if (!("command" in input)) return undefined
+  const command = input.command
   return typeof command === "string" ? command : undefined
 }
 

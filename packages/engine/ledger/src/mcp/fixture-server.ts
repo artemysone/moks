@@ -6,17 +6,30 @@ import type { ApplyResult } from "../adapters/types.ts";
 import type { SourcedCandidate } from "../adapters/sourcing.ts";
 import {
   canExitToTerminal,
+  isAdvanceStagePayload,
+  isAddNotePayload,
+  isAddTagPayload,
+  isApplication,
   isEntityType,
+  isExtendOfferPayload,
   isLegalAdvanceOnPath,
   isMutation,
-  isStage,
+  isSendOutreachPayload,
+  parseAtsFixture,
+  parseCasField,
+  parseMutationPayload,
   type Application,
   type ApplicationStage,
   type AtsId,
   type AtsSnapshot,
   type Candidate,
+  type CasField,
+  type EntityType,
   type Job,
+  type Mutation,
+  type MutationPayload,
 } from "../domain.ts";
+import { isJsonObject, jsonNumber, jsonString, parseJsonText, type Json, type JsonObject } from "../json.ts";
 import { casProjection, isEmptyPrecondition, matchesPrecondition } from "../precondition.ts";
 import { MCP_TOOL_ATS_APPLY, MCP_TOOL_ATS_SNAPSHOT, MCP_TOOL_SOURCE_SEARCH } from "./types.ts";
 
@@ -36,6 +49,17 @@ type FixtureDataset = {
   applications: Application[];
   sourcing?: FixtureSourcedCandidate[];
 };
+
+type ParsedApply = {
+  entityType: EntityType;
+  entityRef: string;
+  mutation: Mutation;
+  precondition: CasField;
+  payload: MutationPayload;
+  idempotencyKey: string | null;
+};
+
+type SourcedSearch = { candidates: SourcedCandidate[] };
 
 const TOOLS = [
   {
@@ -78,11 +102,62 @@ const TOOLS = [
   },
 ];
 
-function payloadRecord(payload: unknown): Record<string, unknown> {
-  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
-    return payload as Record<string, unknown>;
+function parseFixtureDataset(input: Json): FixtureDataset {
+  const fixture = parseAtsFixture(input);
+  if (!isJsonObject(input)) {
+    return fixture;
   }
-  return {};
+  const atsRaw = jsonString(input.ats);
+  const ats: AtsId | undefined = atsRaw === "mock" || atsRaw === "ashby" || atsRaw === "greenhouse" ? atsRaw : undefined;
+  const sourcing: FixtureSourcedCandidate[] = [];
+  if (Array.isArray(input.sourcing)) {
+    for (const item of input.sourcing) {
+      if (!isJsonObject(item)) continue;
+      const id = jsonString(item.id);
+      const name = jsonString(item.name);
+      const headline = jsonString(item.headline);
+      if (!id || !name || !headline) continue;
+      const candidate: FixtureSourcedCandidate = { id, name, headline };
+      const title = jsonString(item.title);
+      if (title !== undefined) candidate.title = title;
+      const source = jsonString(item.source);
+      if (source !== undefined) candidate.source = source;
+      const score = jsonNumber(item.score);
+      if (score !== undefined) candidate.score = score;
+      sourcing.push(candidate);
+    }
+  }
+  return ats === undefined && sourcing.length === 0 ? fixture : { ...fixture, ats, sourcing };
+}
+
+function parseApplyArgs(args: JsonObject): ParsedApply | { error: ApplyResult } {
+  const entityTypeRaw = jsonString(args.entityType) ?? "";
+  const entityRef = jsonString(args.entityRef) ?? "";
+  const mutationRaw = jsonString(args.mutation) ?? "";
+  if (!isEntityType(entityTypeRaw) || !isMutation(mutationRaw)) {
+    return { error: { ok: false, reason: "unsupported" } };
+  }
+  let payload: MutationPayload;
+  try {
+    payload = parseMutationPayload(mutationRaw, args.payload ?? {});
+  } catch {
+    return { error: { ok: false, reason: "unsupported" } };
+  }
+  let precondition: CasField;
+  try {
+    precondition = parseCasField(args.precondition ?? {});
+  } catch {
+    return { error: { ok: false, reason: "unsupported" } };
+  }
+  const key = jsonString(args.idempotencyKey);
+  return {
+    entityType: entityTypeRaw,
+    entityRef,
+    mutation: mutationRaw,
+    precondition,
+    payload,
+    idempotencyKey: key !== undefined && key.length > 0 ? key : null,
+  };
 }
 
 /** In-memory ATS with the same apply semantics as the mock/greenhouse adapters. */
@@ -101,101 +176,89 @@ export function createFixtureState(dataset: FixtureDataset, options?: { stages?:
   }
 
   /** Idempotency: a replayed key whose apply succeeded returns the recorded result, never re-executes. */
-  function apply(args: Record<string, unknown>): ApplyResult {
-    const idempotencyKey =
-      typeof args.idempotencyKey === "string" && args.idempotencyKey.length > 0 ? args.idempotencyKey : null;
-    if (idempotencyKey) {
-      const recorded = appliedByKey.get(idempotencyKey);
+  function apply(args: JsonObject): ApplyResult {
+    const parsed = parseApplyArgs(args);
+    if ("error" in parsed) {
+      return parsed.error;
+    }
+    if (parsed.idempotencyKey) {
+      const recorded = appliedByKey.get(parsed.idempotencyKey);
       if (recorded) {
         return recorded;
       }
     }
-    const result = applyOnce(args);
-    // Failures are not recorded: a replayed key re-evaluates against current state.
-    if (idempotencyKey && result.ok) {
-      appliedByKey.set(idempotencyKey, result);
+    const result = applyOnce(parsed);
+    if (parsed.idempotencyKey && result.ok) {
+      appliedByKey.set(parsed.idempotencyKey, result);
     }
     return result;
   }
 
-  function applyOnce(args: Record<string, unknown>): ApplyResult {
-    const entityType = typeof args.entityType === "string" ? args.entityType : "";
-    const entityRef = typeof args.entityRef === "string" ? args.entityRef : "";
-    const mutation = typeof args.mutation === "string" ? args.mutation : "";
-    if (!isEntityType(entityType) || !isMutation(mutation)) {
-      return { ok: false, reason: "unsupported" };
-    }
-
+  function applyOnce(parsed: ParsedApply): ApplyResult {
     const current =
-      entityType === "application"
-        ? applications.find((application) => application.id === entityRef)
-        : entityType === "candidate"
-          ? candidates.find((candidate) => candidate.id === entityRef)
-          : jobs.find((job) => job.id === entityRef);
+      parsed.entityType === "application"
+        ? applications.find((application) => application.id === parsed.entityRef)
+        : parsed.entityType === "candidate"
+          ? candidates.find((candidate) => candidate.id === parsed.entityRef)
+          : jobs.find((job) => job.id === parsed.entityRef);
     if (!current) {
       return { ok: false, reason: "unknown_entity" };
     }
-    if (isEmptyPrecondition(args.precondition)) {
+    if (isEmptyPrecondition(parsed.precondition)) {
       return { ok: false, reason: "empty_precondition" };
     }
-    const projection = casProjection(entityType, current);
-    if (!projection || !matchesPrecondition(projection, args.precondition)) {
+    const projection = casProjection(parsed.entityType, current);
+    if (!projection || !matchesPrecondition(projection, parsed.precondition)) {
       return { ok: false, reason: "precondition_failed" };
     }
 
-    const payload = payloadRecord(args.payload);
-
-    switch (mutation) {
+    switch (parsed.mutation) {
       case "AdvanceStage": {
-        if (entityType !== "application") {
+        if (parsed.entityType !== "application" || !isApplication(current) || !isAdvanceStagePayload(parsed.payload)) {
           return { ok: false, reason: "unsupported" };
         }
-        const application = current as Application;
-        if (typeof payload.to !== "string" || !isStage(payload.to)) {
-          return { ok: false, reason: "unsupported" };
-        }
-        if (!isLegalAdvanceOnPath(application.stage, payload.to, options?.stages)) {
+        if (!isLegalAdvanceOnPath(current.stage, parsed.payload.to, options?.stages)) {
           return { ok: false, reason: "illegal_transition" };
         }
-        application.stage = payload.to;
-        return { ok: true, remoteResult: { ...application } };
+        current.stage = parsed.payload.to;
+        return { ok: true, remoteResult: { ...current } };
       }
       case "Reject":
       case "Withdraw": {
-        if (entityType !== "application") {
+        if (parsed.entityType !== "application" || !isApplication(current)) {
           return { ok: false, reason: "unsupported" };
         }
-        const application = current as Application;
-        if (!canExitToTerminal(application.stage)) {
+        if (!canExitToTerminal(current.stage)) {
           return { ok: false, reason: "illegal_transition" };
         }
-        application.stage = mutation === "Reject" ? "Rejected" : "Withdrawn";
-        return { ok: true, remoteResult: { ...application } };
+        current.stage = parsed.mutation === "Reject" ? "Rejected" : "Withdrawn";
+        return { ok: true, remoteResult: { ...current } };
       }
       case "AddNote": {
-        if (typeof payload.body !== "string") {
+        if (!isAddNotePayload(parsed.payload)) {
           return { ok: false, reason: "unsupported" };
         }
         const id = crypto.randomUUID();
-        notes.push({ id, body: payload.body });
+        notes.push({ id, body: parsed.payload.body });
         return { ok: true, remoteResult: { noteId: id } };
       }
       case "AddTag": {
-        if (typeof payload.tag !== "string") {
+        if (!isAddTagPayload(parsed.payload)) {
           return { ok: false, reason: "unsupported" };
         }
-        tags.add(`${entityType}:${entityRef}:${payload.tag}`);
-        return { ok: true, remoteResult: { tag: payload.tag } };
+        tags.add(`${parsed.entityType}:${parsed.entityRef}:${parsed.payload.tag}`);
+        return { ok: true, remoteResult: { tag: parsed.payload.tag } };
       }
       case "SendOutreach": {
-        if (typeof payload.body !== "string") {
+        if (!isSendOutreachPayload(parsed.payload)) {
           return { ok: false, reason: "unsupported" };
         }
-        const channel = typeof payload.channel === "string" && payload.channel.length > 0 ? payload.channel : "email";
+        const channel =
+          parsed.payload.channel !== undefined && parsed.payload.channel.length > 0 ? parsed.payload.channel : "email";
         return { ok: true, remoteResult: { outreachId: crypto.randomUUID(), channel } };
       }
       case "ExtendOffer": {
-        if (entityType !== "application" || typeof payload.terms !== "string") {
+        if (parsed.entityType !== "application" || !isExtendOfferPayload(parsed.payload)) {
           return { ok: false, reason: "unsupported" };
         }
         return { ok: true, remoteResult: { offerId: crypto.randomUUID() } };
@@ -205,8 +268,8 @@ export function createFixtureState(dataset: FixtureDataset, options?: { stages?:
     }
   }
 
-  function search(args: Record<string, unknown>): { candidates: SourcedCandidate[] } {
-    const role = typeof args.role === "string" ? args.role : "";
+  function search(args: JsonObject): SourcedSearch {
+    const role = jsonString(args.role) ?? "";
     const keywords = role
       .toLowerCase()
       .split(/[^a-z0-9]+/)
@@ -217,30 +280,39 @@ export function createFixtureState(dataset: FixtureDataset, options?: { stages?:
         )
       : [];
     matched.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-    const limit = typeof args.limit === "number" && Number.isFinite(args.limit) ? args.limit : matched.length;
+    const limitRaw = jsonNumber(args.limit);
+    const limit = limitRaw !== undefined ? limitRaw : matched.length;
     return {
-      candidates: matched.slice(0, Math.max(0, limit)).map((candidate) => ({
-        id: candidate.id,
-        name: candidate.name,
-        headline: candidate.headline,
-        source: candidate.source ?? "juicebox",
-        ...(candidate.score !== undefined ? { score: candidate.score } : {}),
-      })),
+      candidates: matched.slice(0, Math.max(0, limit)).map((candidate) => {
+        const sourced: SourcedCandidate = {
+          id: candidate.id,
+          name: candidate.name,
+          headline: candidate.headline,
+          source: candidate.source ?? "juicebox",
+        };
+        if (candidate.score !== undefined) sourced.score = candidate.score;
+        return sourced;
+      }),
     };
   }
 
   return { snapshot, apply, search };
 }
 
+function requestArgs(value: Json | undefined): JsonObject {
+  if (value !== undefined && isJsonObject(value)) return value;
+  return {};
+}
+
 /** Stdio MCP server for tests: `ats_snapshot` / `ats_apply` / `source_search` over a fixture dataset. */
 export async function runMockMcpAtsServer(options: { datasetPath: string }): Promise<void> {
-  const dataset = JSON.parse(readFileSync(options.datasetPath, "utf8")) as FixtureDataset;
+  const dataset = parseFixtureDataset(parseJsonText(readFileSync(options.datasetPath, "utf8")));
   const state = createFixtureState(dataset);
 
   const server = new Server({ name: "moks-mock-mcp-ats", version: "0.0.1" }, { capabilities: { tools: {} } });
   server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: TOOLS }));
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const args = (request.params.arguments ?? {}) as Record<string, unknown>;
+    const args = requestArgs(parseJsonText(JSON.stringify(request.params.arguments ?? {})));
     switch (request.params.name) {
       case MCP_TOOL_ATS_SNAPSHOT:
         return { content: [{ type: "text", text: JSON.stringify(state.snapshot()) }] };
@@ -249,7 +321,7 @@ export async function runMockMcpAtsServer(options: { datasetPath: string }): Pro
       case MCP_TOOL_SOURCE_SEARCH:
         return { content: [{ type: "text", text: JSON.stringify(state.search(args)) }] };
       case "debug_sleep": {
-        const ms = typeof args.ms === "number" ? args.ms : 0;
+        const ms = jsonNumber(args.ms) ?? 0;
         await new Promise((resolve) => setTimeout(resolve, ms));
         return { content: [{ type: "text", text: JSON.stringify({ slept: ms }) }] };
       }

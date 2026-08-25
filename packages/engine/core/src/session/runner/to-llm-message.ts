@@ -117,18 +117,18 @@ function toLLMMessage(message: SessionMessage.Message, model: Model): Message[] 
     case "agent-switched":
     case "model-switched":
       return []
-    case "user":
+    case "user": {
+      const metadata = { ...message.metadata }
+      if (message.agents?.length) metadata.agents = message.agents
       return [
         Message.make({
           id: message.id,
           role: "user",
           content: [{ type: "text", text: message.text }, ...(message.files ?? []).map(media)],
-          metadata: {
-            ...message.metadata,
-            ...(message.agents?.length ? { agents: message.agents } : {}),
-          },
+          metadata,
         }),
       ]
+    }
     case "synthetic":
       return [Message.make({ id: message.id, role: "user", content: message.text, metadata: message.metadata })]
     case "system":

@@ -46,20 +46,17 @@ const gatewayModelCalls: unknown[] = []
 function captureAiGatewayOptions(options: Record<string, unknown>) {
   const nested =
     options.options && typeof options.options === "object" ? (options.options as Record<string, unknown>) : undefined
-  return {
-    ...options,
-    ...(nested
-      ? {
-          options: {
-            ...nested,
-            headers:
-              nested.headers && typeof nested.headers === "object"
-                ? { ...(nested.headers as Record<string, unknown>) }
-                : nested.headers,
-          },
-        }
-      : {}),
+  const captured = { ...options }
+  if (nested) {
+    captured.options = {
+      ...nested,
+      headers:
+        nested.headers && typeof nested.headers === "object"
+          ? { ...(nested.headers as Record<string, unknown>) }
+          : nested.headers,
+    }
   }
+  return captured
 }
 
 function resetCalls() {

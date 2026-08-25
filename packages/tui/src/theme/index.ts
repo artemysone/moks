@@ -193,7 +193,8 @@ export function allThemes() {
 
 export function isTheme(theme: unknown): theme is ThemeJson {
   if (typeof theme !== "object" || theme === null || Array.isArray(theme)) return false
-  const value = Reflect.get(theme, "theme")
+  if (!("theme" in theme)) return false
+  const value = theme.theme
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 

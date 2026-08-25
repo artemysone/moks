@@ -91,8 +91,8 @@ function text(value: unknown) {
   return trimmed || undefined
 }
 
-function ink(api: TuiPluginApi, name: string, fallback: string): Color {
-  const value = Reflect.get(api.theme.current, name)
+function ink(api: TuiPluginApi, name: keyof TuiPluginApi["theme"]["current"], fallback: string): Color {
+  const value = api.theme.current[name]
   if (typeof value === "string") return value
   if (value instanceof RGBA) return value
   return fallback

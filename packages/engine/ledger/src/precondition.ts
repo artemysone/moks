@@ -1,62 +1,53 @@
-import { JOB_STATUSES, isStage, type EntityType } from "./domain.ts";
+import {
+  isApplication,
+  isCandidate,
+  isJob,
+  type CasField,
+  type CasProjection,
+  type EntityState,
+  type EntityType,
+} from "./domain.ts";
 
-/** True when every field in `expected` is deeply equal to the same field on `actual`. Extra actual fields are ignored. */
-export function matchesPrecondition(actual: unknown, expected: unknown): boolean {
-  if (expected === null || typeof expected !== "object") {
-    return Object.is(actual, expected) || actual === expected;
+/** True when every set field in `expected` matches the same field on `actual`. Extra actual fields are ignored. */
+export function matchesPrecondition(actual: CasProjection, expected: CasField): boolean {
+  if (expected.id !== undefined && actual.id !== expected.id) return false;
+  if (expected.remoteId !== undefined && actual.remoteId !== expected.remoteId) return false;
+  if (expected.stage !== undefined) {
+    return "stage" in actual && actual.stage === expected.stage;
   }
-  if (actual === null || typeof actual !== "object") {
-    return false;
-  }
-  if (Array.isArray(expected)) {
-    if (!Array.isArray(actual) || actual.length !== expected.length) {
-      return false;
-    }
-    return expected.every((item, index) => matchesPrecondition(actual[index], item));
-  }
-  const expectedRecord = expected as Record<string, unknown>;
-  const actualRecord = actual as Record<string, unknown>;
-  for (const [key, value] of Object.entries(expectedRecord)) {
-    if (!matchesPrecondition(actualRecord[key], value)) {
-      return false;
-    }
+  if (expected.status !== undefined) {
+    return "status" in actual && actual.status === expected.status;
   }
   return true;
 }
 
-export function isEmptyPrecondition(value: unknown): boolean {
-  return typeof value === "object" && value !== null && !Array.isArray(value) && Object.keys(value).length === 0;
+export function isEmptyPrecondition(value: CasField): boolean {
+  return (
+    value.id === undefined &&
+    value.remoteId === undefined &&
+    value.stage === undefined &&
+    value.status === undefined
+  );
 }
 
 /**
  * Non-PII CAS snapshot: ids, stage, job status, remoteId.
  * Never name, email, headline, note body, title, or other descriptive fields.
  */
-export function casProjection(entityType: EntityType, state: unknown): Record<string, unknown> | undefined {
-  if (!state || typeof state !== "object" || Array.isArray(state)) {
-    return undefined;
-  }
-  const row = state as Record<string, unknown>;
-  if (typeof row.id !== "string" || typeof row.remoteId !== "string") {
-    return undefined;
-  }
+export function casProjection(entityType: EntityType, state: EntityState): CasProjection | undefined {
   switch (entityType) {
-    case "application":
-      if (
-        typeof row.jobId !== "string" ||
-        typeof row.candidateId !== "string" ||
-        typeof row.stage !== "string" ||
-        !isStage(row.stage)
-      ) {
-        return undefined;
-      }
-      return { id: row.id, remoteId: row.remoteId, stage: row.stage };
-    case "job":
-      if (typeof row.status !== "string" || !(JOB_STATUSES as readonly string[]).includes(row.status)) {
-        return undefined;
-      }
-      return { id: row.id, remoteId: row.remoteId, status: row.status };
-    case "candidate":
-      return { id: row.id, remoteId: row.remoteId };
+    case "application": {
+      if (!isApplication(state)) return undefined;
+      return { id: state.id, remoteId: state.remoteId, stage: state.stage };
+    }
+    case "job": {
+      if (!isJob(state)) return undefined;
+      return { id: state.id, remoteId: state.remoteId, status: state.status };
+    }
+    case "candidate": {
+      if (!isCandidate(state)) return undefined;
+      return { id: state.id, remoteId: state.remoteId };
+    }
   }
+  return undefined;
 }

@@ -234,12 +234,13 @@ const layer = Layer.effectDiscard(
                         objective: input.query,
                         search_queries: [input.query],
                         session_id: context.sessionID,
-                        // V2 invocation context does not safely expose the model yet.
                       },
-                      {
-                        "User-Agent": `moks/${InstallationVersion}`,
-                        ...(config.parallelApiKey ? { Authorization: `Bearer ${config.parallelApiKey}` } : {}),
-                      },
+                      config.parallelApiKey
+                        ? {
+                            "User-Agent": `moks/${InstallationVersion}`,
+                            Authorization: `Bearer ${config.parallelApiKey}`,
+                          }
+                        : { "User-Agent": `moks/${InstallationVersion}` },
                     )
               return {
                 provider,

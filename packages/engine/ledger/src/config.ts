@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import type { AtsId } from "./domain.ts";
 import { LedgerError } from "./errors.ts";
+import { isJsonObject, isJsonString, jsonNumber, jsonString, parseJsonText, type Json } from "./json.ts";
 import { workspacePaths } from "./paths.ts";
 
 export type SourcingId = "juicebox" | "mcp";
@@ -57,37 +58,41 @@ export type McpConfig = {
   sourcing?: McpServerConfig;
 };
 
-function parseMcpServer(role: string, value: unknown, cwd: string): McpServerConfig {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+function parseMcpServer(role: string, value: Json, cwd: string): McpServerConfig {
+  if (!isJsonObject(value)) {
     throw new LedgerError(`mcp_config_invalid: mcp.${role} must be an object`);
   }
-  const record = value as Record<string, unknown>;
   const server: McpServerConfig = { cwd };
 
-  if (record.command !== undefined) {
-    if (
-      !Array.isArray(record.command) ||
-      record.command.length === 0 ||
-      !record.command.every((item) => typeof item === "string" && item.length > 0)
-    ) {
+  if (value.command !== undefined) {
+    if (!Array.isArray(value.command) || value.command.length === 0) {
       throw new LedgerError(`mcp_config_invalid: mcp.${role}.command must be a non-empty string array`);
     }
-    server.command = record.command as string[];
+    const command: string[] = [];
+    for (const item of value.command) {
+      if (!isJsonString(item) || item.length === 0) {
+        throw new LedgerError(`mcp_config_invalid: mcp.${role}.command must be a non-empty string array`);
+      }
+      command.push(item);
+    }
+    server.command = command;
   }
-  if (record.url !== undefined) {
-    if (typeof record.url !== "string" || record.url.length === 0) {
+  if (value.url !== undefined) {
+    const url = jsonString(value.url);
+    if (url === undefined || url.length === 0) {
       throw new LedgerError(`mcp_config_invalid: mcp.${role}.url must be a non-empty string`);
     }
-    server.url = record.url;
+    server.url = url;
   }
   if ((server.command === undefined) === (server.url === undefined)) {
     throw new LedgerError(`mcp_config_invalid: mcp.${role} needs exactly one of command or url`);
   }
-  if (record.timeoutMs !== undefined) {
-    if (typeof record.timeoutMs !== "number" || !Number.isFinite(record.timeoutMs) || record.timeoutMs <= 0) {
+  if (value.timeoutMs !== undefined) {
+    const timeoutMs = jsonNumber(value.timeoutMs);
+    if (timeoutMs === undefined || timeoutMs <= 0) {
       throw new LedgerError(`mcp_config_invalid: mcp.${role}.timeoutMs must be a positive number`);
     }
-    server.timeoutMs = record.timeoutMs;
+    server.timeoutMs = timeoutMs;
   }
   return server;
 }
@@ -103,31 +108,29 @@ export function readMcpConfig(cwd: string): McpConfig {
   if (!existsSync(path)) {
     return {};
   }
-  let parsed: unknown;
+  let parsed: Json;
   try {
-    parsed = JSON.parse(readFileSync(path, "utf8"));
-  } catch (error) {
+    parsed = parseJsonText(readFileSync(path, "utf8"));
+  } catch (cause) {
     throw new LedgerError(
-      `mcp_config_invalid: ${path} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+      `mcp_config_invalid: ${path} is not valid JSON: ${cause instanceof Error ? cause.message : String(cause)}`,
     );
   }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+  if (!isJsonObject(parsed)) {
     return {};
   }
-  const mcp = (parsed as Record<string, unknown>).mcp;
-  if (mcp === undefined) {
+  if (parsed.mcp === undefined) {
     return {};
   }
-  if (!mcp || typeof mcp !== "object" || Array.isArray(mcp)) {
+  if (!isJsonObject(parsed.mcp)) {
     throw new LedgerError("mcp_config_invalid: mcp must be an object");
   }
-  const record = mcp as Record<string, unknown>;
   const config: McpConfig = {};
-  if (record.ats !== undefined) {
-    config.ats = parseMcpServer("ats", record.ats, cwd);
+  if (parsed.mcp.ats !== undefined) {
+    config.ats = parseMcpServer("ats", parsed.mcp.ats, cwd);
   }
-  if (record.sourcing !== undefined) {
-    config.sourcing = parseMcpServer("sourcing", record.sourcing, cwd);
+  if (parsed.mcp.sourcing !== undefined) {
+    config.sourcing = parseMcpServer("sourcing", parsed.mcp.sourcing, cwd);
   }
   return config;
 }

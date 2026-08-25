@@ -618,11 +618,14 @@ const layer = Layer.effect(
         .get()
         .pipe(Effect.orDie)
       if (current?.model) {
-        return {
+        const model = {
           providerID: ProviderV2.ID.make(current.model.providerID),
           modelID: ModelV2.ID.make(current.model.id),
-          ...(current.model.variant && current.model.variant !== "default" ? { variant: current.model.variant } : {}),
         }
+        if (current.model.variant && current.model.variant !== "default") {
+          return { ...model, variant: current.model.variant }
+        }
+        return model
       }
       const match = yield* sessions
         .findMessage(sessionID, (m) => m.info.role === "user" && !!m.info.model)

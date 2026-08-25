@@ -61,7 +61,8 @@ describe("node build", () => {
             ),
           { idleTimeToLive: "1 minute" },
         )
-      }) as unknown as Effect.Effect<LayerMap.LayerMap<Location.Ref, LocationServices, LocationError>, never, CycleB>,
+      // SAFETY: LayerMap.make is assigned to LocationServiceMap; CycleB is the only remaining requirement.
+      }) as Effect.Effect<LayerMap.LayerMap<Location.Ref, LocationServices, LocationError>, never, CycleB>,
     )
     const map = Node.makeGlobalNode({ service: LocationServiceMap.Service, layer: mapLayer, deps: [b] })
     expect(() => AppNodeBuilder.build(LayerNode.group([a]), [[LocationServiceMap.node, map]])).toThrow(

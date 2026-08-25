@@ -205,13 +205,14 @@ function compactToolState(part: ToolPart): ToolPart["state"] {
   }
 
   if (part.state.status === "running") {
-    return {
+    const state: Extract<ToolPart["state"], { status: "running" }> = {
       status: "running",
       input: part.state.input,
       time: part.state.time,
-      ...(part.state.metadata ? { metadata: part.state.metadata } : {}),
-      ...(part.state.title ? { title: part.state.title } : {}),
     }
+    if (part.state.metadata) state.metadata = part.state.metadata
+    if (part.state.title) state.title = part.state.title
+    return state
   }
 
   if (part.state.status === "completed") {
@@ -225,13 +226,14 @@ function compactToolState(part: ToolPart): ToolPart["state"] {
     }
   }
 
-  return {
+  const state: Extract<ToolPart["state"], { status: "error" }> = {
     status: "error",
     input: part.state.input,
     error: part.state.error,
     time: part.state.time,
-    ...(part.state.metadata ? { metadata: part.state.metadata } : {}),
   }
+  if (part.state.metadata) state.metadata = part.state.metadata
+  return state
 }
 
 function recent<T>(input: Iterable<T>, limit: number) {
@@ -252,7 +254,7 @@ function copyMap<K, V>(source: Map<K, V>, keep: Set<K>) {
 }
 
 function compactToolPart(part: ToolPart): ToolPart {
-  return {
+  const next: ToolPart = {
     id: part.id,
     type: "tool",
     sessionID: part.sessionID,
@@ -260,8 +262,9 @@ function compactToolPart(part: ToolPart): ToolPart {
     callID: part.callID,
     tool: part.tool,
     state: compactToolState(part),
-    ...(part.metadata ? { metadata: part.metadata } : {}),
   }
+  if (part.metadata) next.metadata = part.metadata
+  return next
 }
 
 function compactCommit(commit: StreamCommit): StreamCommit {

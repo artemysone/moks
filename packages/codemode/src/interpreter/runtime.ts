@@ -11,6 +11,7 @@ import {
   type HostTools,
   type SafeObject,
   type Services,
+  type ToolCallHooks,
 } from "../tool-runtime.js"
 import { ToolError } from "../tool-error.js"
 import type {
@@ -151,21 +152,103 @@ const parseProgram = (code: string): ProgramNode => {
 const publicErrorMessage = (message: string): string =>
   message.replace(/\/(?:Users|home|private|tmp|var\/folders)\/[^\s"'`]+/g, "<redacted-path>")
 
+const mathConstantValues = {
+  PI: Math.PI,
+  E: Math.E,
+  LN2: Math.LN2,
+  LN10: Math.LN10,
+  LOG2E: Math.LOG2E,
+  LOG10E: Math.LOG10E,
+  SQRT2: Math.SQRT2,
+  SQRT1_2: Math.SQRT1_2,
+} as const
+
+const numberConstantValues = {
+  MAX_SAFE_INTEGER: Number.MAX_SAFE_INTEGER,
+  MIN_SAFE_INTEGER: Number.MIN_SAFE_INTEGER,
+  MAX_VALUE: Number.MAX_VALUE,
+  MIN_VALUE: Number.MIN_VALUE,
+  EPSILON: Number.EPSILON,
+} as const
+
+function isMathConstant(key: string): key is keyof typeof mathConstantValues {
+  return mathConstants.has(key)
+}
+
+function isNumberConstant(key: string): key is keyof typeof numberConstantValues {
+  return numberConstants.has(key)
+}
+
+function isRegexpProperty(
+  key: string,
+): key is "source" | "flags" | "lastIndex" | "global" | "ignoreCase" | "multiline" | "sticky" | "unicode" | "dotAll" {
+  return regexpProperties.has(key)
+}
+
+function isUrlProperty(
+  key: string,
+): key is
+  | "href"
+  | "origin"
+  | "protocol"
+  | "username"
+  | "password"
+  | "host"
+  | "hostname"
+  | "port"
+  | "pathname"
+  | "search"
+  | "hash" {
+  return urlProperties.has(key)
+}
+
+function isUrlWritable(
+  key: string,
+): key is "href" | "protocol" | "username" | "password" | "host" | "hostname" | "port" | "pathname" | "search" | "hash" {
+  return urlWritableProperties.has(key)
+}
+
 const normalizeError = (error: unknown): Diagnostic => {
   if (error instanceof InterpreterRuntimeError) {
+    if (error.node?.loc && error.suggestions) {
+      return {
+        kind: error.kind,
+        message: `${error.message}${formatLocation(error.node)}`,
+        location: sourceLocation(error.node),
+        suggestions: error.suggestions,
+      }
+    }
+    if (error.node?.loc) {
+      return {
+        kind: error.kind,
+        message: `${error.message}${formatLocation(error.node)}`,
+        location: sourceLocation(error.node),
+      }
+    }
+    if (error.suggestions) {
+      return {
+        kind: error.kind,
+        message: `${error.message}${formatLocation(error.node)}`,
+        suggestions: error.suggestions,
+      }
+    }
     return {
       kind: error.kind,
       message: `${error.message}${formatLocation(error.node)}`,
-      ...(error.node?.loc ? { location: sourceLocation(error.node) } : {}),
-      ...(error.suggestions ? { suggestions: error.suggestions } : {}),
     }
   }
 
   if (error instanceof ToolRuntimeError) {
+    if (error.suggestions.length > 0) {
+      return {
+        kind: error.kind,
+        message: error.message,
+        suggestions: error.suggestions,
+      }
+    }
     return {
       kind: error.kind,
       message: error.message,
-      ...(error.suggestions.length > 0 ? { suggestions: error.suggestions } : {}),
     }
   }
 
@@ -2992,8 +3075,8 @@ class Interpreter<R> {
             propertyNode,
           )
         }
-        if (objectValue.name === "Math" && mathConstants.has(key)) {
-          return new ComputedValue((Math as unknown as Record<string, number>)[key])
+        if (objectValue.name === "Math" && isMathConstant(key)) {
+          return new ComputedValue(mathConstantValues[key])
         }
         return new GlobalMethodReference(objectValue.name, key)
       }
@@ -3018,8 +3101,8 @@ class Interpreter<R> {
 
       // Number / String expose a small allowlist of statics; everything else stays opaque.
       if (objectValue instanceof CoercionFunction && typeof key === "string" && !isBlockedMember(key)) {
-        if (objectValue.name === "Number" && numberConstants.has(key)) {
-          return new ComputedValue((Number as unknown as Record<string, number>)[key])
+        if (objectValue.name === "Number" && isNumberConstant(key)) {
+          return new ComputedValue(numberConstantValues[key])
         }
         if (objectValue.name === "Number" && numberStatics.has(key)) return new GlobalMethodReference("Number", key)
         if (objectValue.name === "String" && stringStatics.has(key)) return new GlobalMethodReference("String", key)
@@ -3032,8 +3115,8 @@ class Interpreter<R> {
         return new ComputedValue(undefined)
       }
       if (objectValue instanceof SandboxRegExp) {
-        if (typeof key === "string" && regexpProperties.has(key)) {
-          return new ComputedValue((objectValue.regex as unknown as Record<string, unknown>)[key])
+        if (typeof key === "string" && isRegexpProperty(key)) {
+          return new ComputedValue(objectValue.regex[key])
         }
         if (typeof key === "string" && regexpMethods.has(key)) return new IntrinsicReference(objectValue, key)
         return new ComputedValue(undefined)
@@ -3141,7 +3224,8 @@ class Interpreter<R> {
         return reference.key === "length" ? reference.target.length : reference.target[Number(reference.key)]
       }
       if (reference.target instanceof SandboxURL) {
-        return (reference.target.url as unknown as Record<string, unknown>)[String(reference.key)]
+        const property = String(reference.key)
+        return isUrlProperty(property) ? reference.target.url[property] : undefined
       }
       return reference.target[String(reference.key)]
     })
@@ -3182,8 +3266,10 @@ class Interpreter<R> {
       const key = Array.isArray(reference.target) ? Number(reference.key) : String(reference.key)
       const current =
         reference.target instanceof SandboxURL
-          ? (reference.target.url as unknown as Record<string, unknown>)[key]
-          : (reference.target as Record<PropertyKey, unknown>)[key]
+          ? typeof key === "string" && isUrlProperty(key)
+            ? reference.target.url[key]
+            : undefined
+          : (reference.target as SafeObject)[String(key)]
       const { write, next, result } = yield* compute(current)
       if (write) self.assignToReference(reference, key, next, node)
       return result
@@ -3193,7 +3279,7 @@ class Interpreter<R> {
   // Rejects inserting a value that (transitively) contains the container it is being inserted
   // into - the mutation that would create a circular structure no later walk could survive.
   private rejectCircularInsertion(
-    container: object,
+    container: SafeObject | unknown[],
     value: unknown,
     label: string,
     node: AstNode,
@@ -3224,13 +3310,12 @@ class Interpreter<R> {
       return
     }
     if (reference.target instanceof SandboxURL) {
-      const property = key as string
-      if (!urlWritableProperties.has(property)) {
+      const property = String(key)
+      if (!isUrlWritable(property)) {
         throw new InterpreterRuntimeError(`URL.${property} is read-only.`, node).as("TypeError")
       }
       try {
-        const url = reference.target.url as unknown as Record<string, string>
-        url[property] = uriArgument(next, `URL.${property} value`)
+        reference.target.url[property] = uriArgument(next, `URL.${property} value`)
         return
       } catch (error) {
         if (error instanceof InterpreterRuntimeError || error instanceof ToolRuntimeError) throw error
@@ -3342,10 +3427,14 @@ export const executeWithLimits = <const Tools extends Record<string, unknown>>(
   limits: ResolvedExecutionLimits,
   searchIndex: ToolRuntime.DiscoveryPlan["searchIndex"],
 ): Effect.Effect<Result, never, Services<Tools>> => {
-  const hooks = {
-    ...(options.onToolCallStart === undefined ? {} : { onToolCallStart: options.onToolCallStart }),
-    ...(options.onToolCallEnd === undefined ? {} : { onToolCallEnd: options.onToolCallEnd }),
-  }
+  const hooks: ToolCallHooks<Services<Tools>> =
+    options.onToolCallStart !== undefined && options.onToolCallEnd !== undefined
+      ? { onToolCallStart: options.onToolCallStart, onToolCallEnd: options.onToolCallEnd }
+      : options.onToolCallStart !== undefined
+        ? { onToolCallStart: options.onToolCallStart }
+        : options.onToolCallEnd !== undefined
+          ? { onToolCallEnd: options.onToolCallEnd }
+          : {}
   const tools = ToolRuntime.make(
     (options.tools ?? {}) as HostTools<Services<Tools>>,
     limits.maxToolCalls,

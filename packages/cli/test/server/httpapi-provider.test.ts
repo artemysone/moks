@@ -80,7 +80,7 @@ function requestAuthorize(input: {
     const response = yield* request(`/provider/${input.providerID}/oauth/authorize`, {
       method: "POST",
       headers: input.headers,
-      body: JSON.stringify({ method: input.method, ...(input.inputs ? { inputs: input.inputs } : {}) }),
+      body: JSON.stringify(input.inputs ? { method: input.method, inputs: input.inputs } : { method: input.method }),
     })
     return {
       status: response.status,
@@ -94,7 +94,7 @@ function requestCallback(input: { providerID: string; method: number; headers: H
     const response = yield* request(`/provider/${input.providerID}/oauth/callback`, {
       method: "POST",
       headers: input.headers,
-      body: JSON.stringify({ method: input.method, ...(input.code ? { code: input.code } : {}) }),
+      body: JSON.stringify(input.code ? { method: input.method, code: input.code } : { method: input.method }),
     })
     return {
       status: response.status,

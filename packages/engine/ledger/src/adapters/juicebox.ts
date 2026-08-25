@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
-import type { SqliteDb } from "../db.ts";
+import type { SqlBindings, SqliteDb } from "../db.ts";
+import { isJsonObject, jsonNumber, jsonString, parseJsonText } from "../json.ts";
 import type { SourcedCandidate, SourcingAdapter, SourcingQuery } from "./sourcing.ts";
 
 type FixtureCandidate = {
@@ -38,13 +39,39 @@ export function migrateJuicebox(db: SqliteDb): void {
   `);
 }
 
+type CountRow = { n: number };
+
+function parseJuiceboxFixture(path: string): FixtureFile {
+  const json = parseJsonText(readFileSync(path, "utf8"));
+  if (!isJsonObject(json) || !Array.isArray(json.candidates)) {
+    throw new Error("Invalid juicebox fixture");
+  }
+  const candidates: FixtureCandidate[] = [];
+  for (const item of json.candidates) {
+    if (!isJsonObject(item)) throw new Error("Invalid juicebox fixture candidate");
+    const id = jsonString(item.id);
+    const name = jsonString(item.name);
+    const headline = jsonString(item.headline);
+    if (!id || !name || !headline) throw new Error("Invalid juicebox fixture candidate");
+    const candidate: FixtureCandidate = { id, name, headline };
+    const title = jsonString(item.title);
+    if (title !== undefined) candidate.title = title;
+    const source = jsonString(item.source);
+    if (source !== undefined) candidate.source = source;
+    const score = jsonNumber(item.score);
+    if (score !== undefined) candidate.score = score;
+    candidates.push(candidate);
+  }
+  return { candidates };
+}
+
 export function seedJuicebox(db: SqliteDb, fixturePath: string): boolean {
-  const count = db.prepare("SELECT COUNT(*) AS n FROM juicebox_candidates").get() as { n: number };
-  if (count.n > 0) {
+  const count = db.prepare<CountRow, SqlBindings>("SELECT COUNT(*) AS n FROM juicebox_candidates").get();
+  if (count && count.n > 0) {
     return false;
   }
 
-  const fixture = JSON.parse(readFileSync(fixturePath, "utf8")) as FixtureFile;
+  const fixture = parseJuiceboxFixture(fixturePath);
   const insert = db.prepare(
     "INSERT INTO juicebox_candidates (id, name, headline, title, source, score) VALUES (?, ?, ?, ?, ?, ?)",
   );
@@ -103,10 +130,8 @@ export function createJuiceboxAdapter(db: SqliteDb, options: { fixturePath: stri
     },
     search(query) {
       const rows = db
-        .prepare(
-          "SELECT id, name, headline, title, source, score FROM juicebox_candidates",
-        )
-        .all() as StoredCandidate[];
+        .prepare<StoredCandidate, SqlBindings>("SELECT id, name, headline, title, source, score FROM juicebox_candidates")
+        .all();
 
       const matched = rows.filter((row) => matchesRole(row, query));
       matched.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));

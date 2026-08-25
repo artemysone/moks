@@ -142,10 +142,10 @@ export function make<A>(source: Source<A>): SystemContext {
       load: source.load.pipe(
         Effect.map((value) => {
           if (isUnavailable(value)) return value
-          const snapshot = (): SourceSnapshot => ({
-            value: encode(value),
-            ...(source.removed ? { removed: requireText(source.key, "removal", source.removed(value)) } : {}),
-          })
+          const snapshot = (): SourceSnapshot => {
+            if (!source.removed) return { value: encode(value) }
+            return { value: encode(value), removed: requireText(source.key, "removal", source.removed(value)) }
+          }
           return {
             baseline: (): Rendered => ({
               text: requireText(source.key, "baseline", source.baseline(value)),

@@ -1,5 +1,6 @@
-import type { SqliteDb } from "./db.ts";
-import type { AuthorKind, ChangesetStatus, EffectClass, EntityType, Mutation } from "./domain.ts";
+import type { SqlBindings, SqliteDb } from "./db.ts";
+import { parseAgentMeta, type AgentMeta, type AuthorKind, type ChangesetStatus, type EffectClass, type EntityType, type Mutation } from "./domain.ts";
+import { parseJsonText } from "./json.ts";
 
 export const COMPLIANCE_SCHEMA = "mox.compliance.ll144.v1";
 
@@ -19,7 +20,7 @@ export type ComplianceChangeset = {
   hash: string;
   author_kind: AuthorKind;
   author_id: string;
-  agent_meta: unknown;
+  agent_meta: AgentMeta | null;
   reviewed_by: string | null;
   rationale: string;
   status: ChangesetStatus;
@@ -63,25 +64,18 @@ type ChangeRow = {
   payload_ref: string;
 };
 
-function parseJson(value: string | null): unknown {
-  if (value === null) {
-    return null;
-  }
-  return JSON.parse(value) as unknown;
-}
-
 /** LL144 / AI-Act-shaped export. Never decrypts the vault. */
 export function readComplianceLog(db: SqliteDb, policyHash: string | null): ComplianceExport {
   const changesets = db
-    .prepare(
+    .prepare<ChangesetRow, SqlBindings>(
       "SELECT id, parent_id, hash, author_kind, author_id, agent_meta, rationale, status, created_at, reviewed_by, applied_at, audit FROM changesets ORDER BY created_at ASC, id ASC",
     )
-    .all() as ChangesetRow[];
+    .all();
   const changeRows = db
-    .prepare(
+    .prepare<ChangeRow, SqlBindings>(
       "SELECT id, changeset_id, entity_type, entity_ref, mutation, effect_class, payload_ref FROM changes ORDER BY seq ASC, id ASC",
     )
-    .all() as ChangeRow[];
+    .all();
 
   const byCs = new Map<string, ChangeRow[]>();
   for (const row of changeRows) {
@@ -112,7 +106,7 @@ export function readComplianceLog(db: SqliteDb, policyHash: string | null): Comp
         hash: row.hash,
         author_kind: row.author_kind,
         author_id: row.author_id,
-        agent_meta: parseJson(row.agent_meta),
+        agent_meta: row.agent_meta === null ? null : parseAgentMeta(parseJsonText(row.agent_meta)),
         reviewed_by: row.reviewed_by,
         rationale: row.rationale,
         status: row.status,

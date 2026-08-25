@@ -1,21 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { openSqlite } from "./db.ts";
+import { openSqlite, type SqlBindings } from "./db.ts";
 import { migrateWorkspace } from "./schema.ts";
 
 const M1_TABLES = ["remote_mirror", "changesets", "changes", "pii_vault", "vault_keys"] as const;
 
+type NameRow = { name: string };
+type VersionRow = { version: number };
+
 function tableNames(db: ReturnType<typeof openSqlite>): string[] {
-  return (
-    db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all() as Array<{
-      name: string;
-    }>
-  ).map((row) => row.name);
+  return db.prepare<NameRow, SqlBindings>("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all().map((row) => row.name);
 }
 
 function migrationVersions(db: ReturnType<typeof openSqlite>): number[] {
-  return (db.prepare("SELECT version FROM schema_migrations ORDER BY version").all() as Array<{ version: number }>).map(
-    (row) => row.version,
-  );
+  return db.prepare<VersionRow, SqlBindings>("SELECT version FROM schema_migrations ORDER BY version").all().map((row) => row.version);
 }
 
 describe("migrateWorkspace", () => {
@@ -31,19 +28,15 @@ describe("migrateWorkspace", () => {
     for (const table of M1_TABLES) {
       expect(names).toContain(table);
     }
-    const cols = db.prepare("PRAGMA table_info(changes)").all() as Array<{ name: string }>;
+    const cols = db.prepare<NameRow, SqlBindings>("PRAGMA table_info(changes)").all();
     expect(cols.some((col) => col.name === "seq")).toBe(true);
-    const changesetCols = db.prepare("PRAGMA table_info(changesets)").all() as Array<{ name: string }>;
+    const changesetCols = db.prepare<NameRow, SqlBindings>("PRAGMA table_info(changesets)").all();
     expect(changesetCols.some((col) => col.name === "audit")).toBe(true);
-    const messageCols = (db.prepare("PRAGMA table_info(session_messages)").all() as Array<{ name: string }>).map(
-      (col) => col.name,
-    );
+    const messageCols = db.prepare<NameRow, SqlBindings>("PRAGMA table_info(session_messages)").all().map((col) => col.name);
     for (const column of ["input_tokens", "output_tokens", "usage_model", "kind", "compacted_by"]) {
       expect(messageCols).toContain(column);
     }
-    const sessionCols = (db.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>).map(
-      (col) => col.name,
-    );
+    const sessionCols = db.prepare<NameRow, SqlBindings>("PRAGMA table_info(sessions)").all().map((col) => col.name);
     for (const column of ["parent_id", "agent"]) {
       expect(sessionCols).toContain(column);
     }
@@ -58,11 +51,9 @@ describe("migrateWorkspace", () => {
     db.prepare(
       "INSERT INTO sessions (id, created_at, updated_at, job_ref, model, prompt_ref, parent_id, agent) VALUES ('child', 2, 2, NULL, 'mock', NULL, 'parent', 'sourcer')",
     ).run();
-    const rows = db.prepare("SELECT id, parent_id, agent FROM sessions ORDER BY id").all() as Array<{
-      id: string;
-      parent_id: string | null;
-      agent: string | null;
-    }>;
+    const rows = db.prepare<{ id: string; parent_id: string | null; agent: string | null }, SqlBindings>(
+      "SELECT id, parent_id, agent FROM sessions ORDER BY id",
+    ).all();
     expect(rows).toEqual([
       { id: "child", parent_id: "parent", agent: "sourcer" },
       { id: "parent", parent_id: null, agent: null },
@@ -126,8 +117,10 @@ describe("migrateWorkspace", () => {
     }
 
     const rows = db
-      .prepare("SELECT entity_type, entity_ref, ats, remote_id FROM remote_mirror")
-      .all() as Array<{ entity_type: string; entity_ref: string; ats: string; remote_id: string }>;
+      .prepare<{ entity_type: string; entity_ref: string; ats: string; remote_id: string }, SqlBindings>(
+        "SELECT entity_type, entity_ref, ats, remote_id FROM remote_mirror",
+      )
+      .all();
     expect(rows).toEqual([
       {
         entity_type: "candidate",
