@@ -18,8 +18,25 @@ export function isAshbyWriteTool(name: string) {
   return ASHBY_WRITE_TOOLS.some((tool) => ashbyToolPermissionKey(tool) === name)
 }
 
+const MCP_READ_PREFIXES = ["list_", "get_", "search_", "read_", "fetch_"] as const
+
+function mcpToolPart(name: string) {
+  const i = name.indexOf("_")
+  if (i === -1) return name
+  return name.slice(i + 1)
+}
+
+export function isMcpReadTool(name: string) {
+  const tool = mcpToolPart(name)
+  return MCP_READ_PREFIXES.some((prefix) => tool === prefix || tool.startsWith(prefix))
+}
+
+export function isMcpWriteTool(name: string) {
+  return !isMcpReadTool(name)
+}
+
 export function ashbyWriteDeniedMessage() {
-  return "Ashby writes go through `moks push`, not the agent."
+  return "Writes go through `moks push`, not the agent."
 }
 
 export function ashbyPermissionDefaults() {

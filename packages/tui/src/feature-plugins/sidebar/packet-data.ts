@@ -3,6 +3,7 @@ import path from "node:path"
 
 export type PacketCandidate = {
   id: string
+  name: string
   stage?: string
   score?: number
 }
@@ -24,14 +25,16 @@ export type PacketData = {
   }
 }
 
+export type PacketRow =
+  | { kind: "req"; slug: string; title: string; focused: boolean }
+  | { kind: "candidate"; id: string; name: string; stage?: string; score?: number }
+
 export async function loadPacket(dir: string) {
-  const start = await nearestHiring(dir)
+  const start = await nearestRoot(dir)
   if (!start) return
   if (await isPacket(start)) {
     const parent = path.dirname(start)
-    if (parent !== start && (await hasHiring(parent)) && !(await isDir(path.join(parent, "candidates")))) {
-      return packetOf(parent, start)
-    }
+    if (parent !== start && (await isCompanyOf(parent))) return packetOf(parent, start)
     return packetOf(start, start)
   }
   const slug = await readFocus(start)
@@ -39,11 +42,42 @@ export async function loadPacket(dir: string) {
   return packetOf(start)
 }
 
+export function titleFromSlug(slug: string) {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(" ")
+}
+
+export function candidateLabel(card: PacketCandidate) {
+  const parts = [card.name]
+  if (card.stage) parts.push(card.stage)
+  if (card.score !== undefined) parts.push(String(card.score))
+  return parts.join("  ")
+}
+
+export function packetRows(packet: PacketData): PacketRow[] {
+  return [
+    ...packet.reqs.map((req) => ({ kind: "req" as const, ...req })),
+    ...(packet.packet?.candidates.map((card) => ({ kind: "candidate" as const, ...card })) ?? []),
+  ]
+}
+
+export function movePacketIndex(index: number, delta: number, length: number) {
+  if (length <= 0) return 0
+  return Math.max(0, Math.min(length - 1, index + delta))
+}
+
+export function scorePrompt(id: string) {
+  return `Score ${id}`
+}
+
 async function packetOf(company: string, focused?: string) {
   const implicit = focused === company
   return {
     company,
-    companyTitle: await readTitle(company),
+    companyTitle: await readCompanyTitle(company),
     reqs: await Promise.all(
       (implicit ? [path.basename(company)] : await listReqSlugs(company)).map(async (slug) => ({
         slug,
@@ -111,7 +145,18 @@ function parseCard(text: string) {
     if (!Number.isNaN(n)) score = n
   }
   if (!id) return
-  return { id, stage, score }
+  const body = text.slice(match[0].length)
+  return { id, name: firstHeading(body) || titleFromSlug(id), stage, score }
+}
+
+async function readCompanyTitle(dir: string) {
+  if (await hasCompanyFile(dir)) {
+    const text = await Bun.file(path.join(dir, "COMPANY.md"))
+      .text()
+      .catch(() => "")
+    return firstHeading(text) || path.basename(dir)
+  }
+  return readTitle(dir)
 }
 
 async function readTitle(dir: string) {
@@ -123,12 +168,12 @@ async function readTitle(dir: string) {
   return path.basename(dir)
 }
 
-async function nearestHiring(dir: string, depth = 0) {
-  if (await hasHiring(dir)) return dir
+async function nearestRoot(dir: string, depth = 0) {
+  if ((await hasCompanyFile(dir)) || (await hasHiring(dir))) return dir
   if (depth >= 4) return
   const parent = path.dirname(dir)
   if (parent === dir) return
-  return nearestHiring(parent, depth + 1)
+  return nearestRoot(parent, depth + 1)
 }
 
 async function readFocus(company: string) {
@@ -140,8 +185,17 @@ async function readFocus(company: string) {
   return slug
 }
 
+async function isCompanyOf(dir: string) {
+  if (await hasCompanyFile(dir)) return true
+  return (await hasHiring(dir)) && !(await isDir(path.join(dir, "candidates")))
+}
+
 async function isPacket(dir: string) {
   return (await hasHiring(dir)) && (await isDir(path.join(dir, "candidates")))
+}
+
+async function hasCompanyFile(dir: string) {
+  return Bun.file(path.join(dir, "COMPANY.md")).exists()
 }
 
 async function hasHiring(dir: string) {

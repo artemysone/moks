@@ -28,7 +28,7 @@ type Toast = {
 }
 
 export async function runCommitFlow(input: { dialog: DialogContext; toast: Toast; cwd?: string }) {
-  const action = await DialogPrompt.show(input.dialog, "Commit decision", {
+  const action = await DialogPrompt.show(input.dialog, "Stage decision", {
     placeholder: "action (e.g. note, reject, offer, hire)",
   })
   if (action === null) return
@@ -54,7 +54,7 @@ export async function runCommitFlow(input: { dialog: DialogContext; toast: Toast
   const cards = packet?.packet?.candidates ?? []
   const resolved = await resolveCommitTarget(input.dialog, cards)
   if (!resolved) {
-    input.toast.show({ message: "Commit cancelled", variant: "info" })
+    input.toast.show({ message: "Stage cancelled", variant: "info" })
     input.dialog.clear()
     return
   }
@@ -72,27 +72,27 @@ export async function runCommitFlow(input: { dialog: DialogContext; toast: Toast
     message: commitToastMessage({ ok, id, target: inferred?.id }),
     variant: ok ? "success" : "error",
   })
-  await showResult(input.dialog, "Commit result", result)
+  await showResult(input.dialog, "Stage result", result)
 }
 
 export async function runPushFlow(input: { dialog: DialogContext; toast: Toast; cwd?: string }) {
   const listed = await call(["status", "--json"], input)
   if (listed.code !== 0) {
     input.toast.show({ message: "Failed to list open decisions", variant: "error" })
-    await showResult(input.dialog, "Push decision", listed)
+    await showResult(input.dialog, "Apply to ATS", listed)
     return
   }
 
   const approved = statusByStatus(listed.json, "approved")
-  const commitID = await pickChangeset(input.dialog, "Push changeset", approved)
+  const commitID = await pickChangeset(input.dialog, "Apply changeset", approved)
   if (commitID === null) return
   if (!commitID) {
-    input.toast.show({ message: "No approved changeset to push", variant: "info" })
+    input.toast.show({ message: "No approved changeset to apply", variant: "info" })
     input.dialog.clear()
     return
   }
 
-  const mode = await DialogSelect.show(input.dialog, "Push mode", [
+  const mode = await DialogSelect.show(input.dialog, "Apply mode", [
     {
       title: "Dry-run",
       value: "dry-run" as const,
@@ -109,9 +109,9 @@ export async function runPushFlow(input: { dialog: DialogContext; toast: Toast; 
 
   let result = await call(pushCommandArgs({ id: commitID, execute }), input)
   if (needsConfirm(result.json)) {
-    const ok = await DialogConfirm.show(input.dialog, "Confirm push", confirmMessage(result.json))
+    const ok = await DialogConfirm.show(input.dialog, "Confirm apply", confirmMessage(result.json))
     if (!ok) {
-      input.toast.show({ message: "Push cancelled", variant: "info" })
+      input.toast.show({ message: "Apply cancelled", variant: "info" })
       input.dialog.clear()
       return
     }
@@ -123,7 +123,7 @@ export async function runPushFlow(input: { dialog: DialogContext; toast: Toast; 
     message: pushToastMessage({ ok, dryRun: isDryRun(result.json) }),
     variant: ok ? "success" : "error",
   })
-  await showResult(input.dialog, "Push result", result)
+  await showResult(input.dialog, "Apply result", result)
 }
 
 export async function runReviewFlow(input: { dialog: DialogContext; toast: Toast; cwd?: string }) {
@@ -176,7 +176,7 @@ export async function runDecisionsFlow(input: { dialog: DialogContext; toast: To
   if (result.code !== 0) {
     input.toast.show({ message: "Failed to list decisions", variant: "error" })
   }
-  await showResult(input.dialog, "Decision commits", result)
+  await showResult(input.dialog, "Decisions", result)
 }
 
 async function call(args: string[], input: { toast: Toast; cwd?: string }) {

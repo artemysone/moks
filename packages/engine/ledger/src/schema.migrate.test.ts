@@ -16,15 +16,17 @@ function migrationVersions(db: ReturnType<typeof openSqlite>): number[] {
 }
 
 describe("migrateWorkspace", () => {
-  test("fresh database records versions 1-8 and creates all M1 tables", () => {
+  test("fresh database records versions 1-9 and creates all M1 tables", () => {
     const db = openSqlite(":memory:");
     migrateWorkspace(db);
 
-    expect(migrationVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(migrationVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
     expect(tableNames(db)).toContain("sessions");
     expect(tableNames(db)).toContain("session_messages");
     const names = tableNames(db);
     expect(names).toContain("schema_migrations");
+    expect(names).toContain("assessments");
+    expect(names).toContain("req_jobs");
     for (const table of M1_TABLES) {
       expect(names).toContain(table);
     }
@@ -39,6 +41,24 @@ describe("migrateWorkspace", () => {
     const sessionCols = db.prepare<NameRow, SqlBindings>("PRAGMA table_info(sessions)").all().map((col) => col.name);
     for (const column of ["parent_id", "agent"]) {
       expect(sessionCols).toContain(column);
+    }
+    const assessmentCols = db.prepare<NameRow, SqlBindings>("PRAGMA table_info(assessments)").all().map((col) => col.name);
+    for (const column of [
+      "id",
+      "req_ref",
+      "candidate_id",
+      "scorecard_hash",
+      "overall",
+      "recommendation",
+      "dimensions",
+      "created_at",
+      "changeset_id",
+    ]) {
+      expect(assessmentCols).toContain(column);
+    }
+    const reqJobCols = db.prepare<NameRow, SqlBindings>("PRAGMA table_info(req_jobs)").all().map((col) => col.name);
+    for (const column of ["req_slug", "job_id", "title", "created_at"]) {
+      expect(reqJobCols).toContain(column);
     }
   });
 
@@ -64,10 +84,10 @@ describe("migrateWorkspace", () => {
     const db = openSqlite(":memory:");
     migrateWorkspace(db);
     migrateWorkspace(db);
-    expect(migrationVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
-    db.prepare("DELETE FROM schema_migrations WHERE version IN (2, 3, 4, 5, 6, 7, 8)").run();
+    expect(migrationVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    db.prepare("DELETE FROM schema_migrations WHERE version IN (2, 3, 4, 5, 6, 7, 8, 9)").run();
     migrateWorkspace(db);
-    expect(migrationVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(migrationVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
   });
 
   test("rejects a second genesis changeset", () => {
@@ -109,7 +129,7 @@ describe("migrateWorkspace", () => {
 
     migrateWorkspace(db);
 
-    expect(migrationVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(migrationVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
     const names = tableNames(db);
     expect(names).toContain("remote_mirror");
     for (const table of M1_TABLES) {

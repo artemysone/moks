@@ -18,7 +18,7 @@ moks log
 moks log --compliance
 ```
 
-`moks commit` stages a changeset. It does not write the ATS. `moks review` is human-only. `moks push --execute` applies approved changesets through the ATS adapter (mock today). Live Ashby is P6 and on hold.
+`moks commit` stages a changeset. It does not write the ATS. `moks review` is human-only. `moks push --execute` applies approved changesets through the ATS adapter. Mock is the default. Live Ashby is the adapter path.
 
 ## Push (ATS write)
 

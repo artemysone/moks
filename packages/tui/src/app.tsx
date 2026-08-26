@@ -782,7 +782,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       },
       {
         name: "decision.commit",
-        title: "Commit decision",
+        title: "Stage decision",
         slashName: "commit",
         category: "Decision",
         run: () => {
@@ -795,7 +795,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       },
       {
         name: "decision.push",
-        title: "Push decision",
+        title: "Apply to ATS",
         slashName: "push",
         category: "Decision",
         run: () => {

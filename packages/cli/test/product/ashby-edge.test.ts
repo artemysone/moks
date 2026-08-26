@@ -15,6 +15,8 @@ import {
   ashbyToolPermissionKey,
   ashbyWriteDeniedMessage,
   isAshbyWriteTool,
+  isMcpReadTool,
+  isMcpWriteTool,
 } from "../../src/product/ashby-edge"
 import {
   AshbyMockTools,
@@ -46,6 +48,26 @@ describe("ashby tool permission keys", () => {
     expect(isAshbyWriteTool("ashby_create_note")).toBe(true)
     expect(isAshbyWriteTool("ashby_list_jobs")).toBe(false)
     expect(ashbyWriteDeniedMessage()).toContain("moks push")
+  })
+
+  test("isMcpReadTool allows list/get; isMcpWriteTool denies greenhouse-shaped writes", () => {
+    expect(isMcpReadTool("ashby_list_jobs")).toBe(true)
+    expect(isMcpReadTool("ashby_get_job")).toBe(true)
+    expect(isMcpReadTool("ashby_list_candidates")).toBe(true)
+    expect(isMcpReadTool("ashby_get_candidate")).toBe(true)
+    expect(isMcpReadTool("greenhouse_list_jobs")).toBe(true)
+    expect(isMcpReadTool("greenhouse_get_candidate")).toBe(true)
+    expect(isMcpReadTool("greenhouse_search_candidates")).toBe(true)
+    expect(isMcpReadTool("ashby_read_application")).toBe(true)
+    expect(isMcpReadTool("ashby_fetch_candidate")).toBe(true)
+    expect(isMcpWriteTool("ashby_change_stage")).toBe(true)
+    expect(isMcpWriteTool("ashby_create_note")).toBe(true)
+    expect(isMcpWriteTool("greenhouse_update_application")).toBe(true)
+    expect(isMcpWriteTool("greenhouse_change_stage")).toBe(true)
+    expect(isMcpWriteTool("greenhouse_create_note")).toBe(true)
+    expect(isMcpWriteTool("unknown_do_thing")).toBe(true)
+    expect(isMcpReadTool("ashby_change_stage")).toBe(false)
+    expect(isMcpReadTool("greenhouse_update_application")).toBe(false)
   })
 
   test("ashbyPermissionDefaults allows reads and denies writes", () => {

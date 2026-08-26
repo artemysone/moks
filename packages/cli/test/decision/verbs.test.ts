@@ -952,9 +952,9 @@ test("push dry-run with staged and zero approved names review first", async () =
     const prev = process.env.MOKS_ATS
     process.env.MOKS_ATS = "ashby"
     try {
-      await expect(DecisionVerbs.pull({ cwd: tmp.path })).rejects.toThrow(/ashby is not a live ATS/i)
-      await expect(DecisionVerbs.status({ cwd: tmp.path })).rejects.toThrow(/ashby is not a live ATS/i)
-      await expect(DecisionVerbs.push({ cwd: tmp.path, dry_run: true })).rejects.toThrow(/ashby is not a live ATS/i)
+      await expect(DecisionVerbs.pull({ cwd: tmp.path })).rejects.toThrow(/ats_unavailable|ashby/)
+      await expect(DecisionVerbs.status({ cwd: tmp.path })).rejects.toThrow(/ats_unavailable|ashby/)
+      await expect(DecisionVerbs.push({ cwd: tmp.path, dry_run: true })).rejects.toThrow(/ats_unavailable|ashby/)
     } finally {
       if (prev === undefined) delete process.env.MOKS_ATS
       else process.env.MOKS_ATS = prev

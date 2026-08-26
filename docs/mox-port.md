@@ -250,9 +250,9 @@ share-a-review-link story emerges.
 - **Verify:** `rg -in "ats\.json|refs/moks|git trailer" AGENTS.md docs README.md` → only
   historical references clearly marked as replaced by the ledger.
 
-### P6 — Live Ashby through the adapter seam (post-port milestone)
+### P6 — Live Ashby through the adapter seam (cut-over Wave 3)
 
-- **Status:** on hold — no live Ashby connection; do not treat this as in progress
+- **Status:** this cut-over (Wave 3 in `docs/cutover.md`). Not on hold. Execute from that wave, not the Change list below.
 - **Outcome:** `MOKS_ATS=ashby` syncs a real Ashby workspace through `adapters/`: `pull`
   mirrors real reqs/candidates, `push --execute` writes a staged, human-approved
   disposition back to Ashby.

@@ -170,6 +170,34 @@ const WORKSPACE_MIGRATIONS: Migration[] = [
       db.exec("CREATE INDEX IF NOT EXISTS sessions_parent_id ON sessions(parent_id)");
     },
   },
+  {
+    version: 9,
+    apply(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS assessments (
+          id TEXT PRIMARY KEY,
+          req_ref TEXT NOT NULL,
+          candidate_id TEXT NOT NULL,
+          scorecard_hash TEXT NOT NULL,
+          overall REAL,
+          recommendation TEXT NOT NULL,
+          dimensions TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          changeset_id TEXT
+        );
+
+        CREATE INDEX IF NOT EXISTS assessments_req_ref_candidate_id_created_at
+          ON assessments(req_ref, candidate_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS req_jobs (
+          req_slug TEXT PRIMARY KEY,
+          job_id TEXT,
+          title TEXT,
+          created_at INTEGER NOT NULL
+        );
+      `);
+    },
+  },
 ];
 
 type SqliteColumnInfo = { name: string };

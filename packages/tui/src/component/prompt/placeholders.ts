@@ -2,7 +2,7 @@ const OPEN_REQ = "open a req"
 
 export const DEFAULT_PLACEHOLDERS = {
   normal: ["add names or files", "talk this candidate", "taste what's staged"],
-  shell: ["ls candidates", "pwd"],
+  shell: [],
 }
 
 export function placeholdersFor(input: { cards?: number; focused?: string | null; next?: string }) {

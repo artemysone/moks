@@ -27,7 +27,6 @@ import { useSync } from "../../context/sync"
 import { useEvent } from "../../context/event"
 import { editorSelectionKey, useEditorContext, type EditorSelection } from "../../context/editor"
 import { normalizePromptContent, openEditor } from "../../editor"
-import { useExit } from "../../context/exit"
 import { promptOffsetWidth } from "../../prompt/display"
 import { createStore, produce, unwrap } from "solid-js/store"
 import { usePromptHistory, type PromptInfo } from "../../prompt/history"
@@ -171,7 +170,6 @@ export function Prompt(props: PromptProps) {
   const agentShortcut = useCommandShortcut("agent.cycle")
   const paletteShortcut = useCommandShortcut("command.palette.show")
   const renderer = useRenderer()
-  const exit = useExit()
   const dimensions = useTerminalDimensions()
   const { theme, syntax } = useTheme()
   const kv = useKV()
@@ -871,33 +869,6 @@ export function Prompt(props: PromptProps) {
   useBindings(() => {
     return {
       target: inputTarget,
-      enabled: (() => {
-        cursorVersion()
-        return (
-          inputTarget() !== undefined &&
-          !props.disabled &&
-          store.mode === "normal" &&
-          !auto()?.visible &&
-          input?.visualCursor.offset === 0
-        )
-      })(),
-      bindings: [
-        {
-          key: "!",
-          desc: "Shell mode",
-          group: "Prompt",
-          cmd: () => {
-            setStore("placeholder", randomIndex(shell().length))
-            setStore("mode", "shell")
-          },
-        },
-      ],
-    }
-  })
-
-  useBindings(() => {
-    return {
-      target: inputTarget,
       enabled: inputTarget() !== undefined && store.mode === "shell",
       bindings: [{ key: "escape", desc: "Exit shell mode", group: "Prompt", cmd: () => setStore("mode", "normal") }],
     }
@@ -1016,10 +987,6 @@ export function Prompt(props: PromptProps) {
     const agent = local.agent.current()
     if (!agent) return false
     const trimmed = store.prompt.input.trim()
-    if (trimmed === "exit" || trimmed === "quit" || trimmed === ":q") {
-      void exit()
-      return true
-    }
     const localSlash = matchSlashCommand(trimmed, slashes())
     if (localSlash) {
       localSlash.onSelect()

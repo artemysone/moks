@@ -34,4 +34,4 @@ Preconditions:
 - Dry-run still talks to the adapter in preview form. Proof is the second `status`, not the word "dry-run" in help text.
 - `--execute` without `--confirm` on reject / offer / hire is a successful demonstration of the guard, not a failed run.
 - Do not push a recruiter's real company. Isolation is part of the proof.
-- Live Ashby is on hold. This map proves the mock adapter path.
+- This map proves the mock adapter path. Live Ashby is Wave 3 of the cut-over, not on hold.

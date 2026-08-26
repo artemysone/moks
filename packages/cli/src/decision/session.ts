@@ -9,7 +9,7 @@ export type LedgerHandle = {
   db: ReturnType<LedgerModule["openSqlite"]>
   mockDb: ReturnType<LedgerModule["openSqlite"]>
   vault: ReturnType<LedgerModule["openVault"]>
-  adapter: ReturnType<LedgerModule["createMockAdapter"]>
+  adapter: ReturnType<LedgerModule["openAtsAdapter"]>
   paths: ReturnType<LedgerModule["workspacePaths"]>
   policy: ReturnType<LedgerModule["readWorkspacePolicy"]>
   close: () => void
@@ -23,17 +23,6 @@ export async function companyCwd(cwd?: string) {
 export async function importLedger(): Promise<LedgerModule> {
   return import("@moks/ledger")
 }
-
-export function unwiredAtsMessage(ats: string) {
-  return `${ats} is not a live ATS in this build — only the mock ATS is wired. Unset MOKS_ATS or set MOKS_ATS=mock, then moks pull`
-}
-
-export function requireWiredAts(api: LedgerModule) {
-  const ats = api.resolveAtsId()
-  if (ats === "mock") return ats
-  throw new Error(unwiredAtsMessage(ats))
-}
-
 
 export async function ledgerDbExists(cwd?: string) {
   let api: LedgerModule
@@ -92,7 +81,7 @@ export async function withLedger<T>(cwd: string | undefined, fn: (handle: Ledger
 
 export async function openLedger(cwd?: string): Promise<LedgerHandle> {
   const api = await importLedger()
-  requireWiredAts(api)
+  const ats = api.resolveAtsId()
   const opened = cwd ?? process.cwd()
   const company = (await ReqWorkspace.companyRoot(opened)) ?? opened
   const req = await ReqWorkspace.focusedReq(opened)
@@ -108,8 +97,11 @@ export async function openLedger(cwd?: string): Promise<LedgerHandle> {
     api.migrateMockAts(mockDb)
     closers.push(() => mockDb.close())
     const policy = readPolicy(api, company, req)
-    const adapter = api.createMockAdapter(mockDb, { fixturePath: paths.fixtureFile, stages: policy.stages })
-    if (adapter.close) closers.push(() => adapter.close?.())
+    const adapter =
+      ats === "mock"
+        ? api.createMockAdapter(mockDb, { fixturePath: paths.fixtureFile, stages: policy.stages })
+        : api.openAtsAdapter(ats, paths, closers, policy.stages)
+    if (ats === "mock" && adapter.close) closers.push(() => adapter.close?.())
     const vault = api.openVault(db, paths.vaultKey)
     return {
       api,

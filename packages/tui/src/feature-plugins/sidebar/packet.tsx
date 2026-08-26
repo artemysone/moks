@@ -13,7 +13,7 @@ const tui: TuiPlugin = async (api) => {
       },
       home_bottom() {
         return (
-          <box width="100%" maxWidth={75} paddingTop={2} flexShrink={1}>
+          <box width="100%" maxWidth={75} paddingBottom={1} flexShrink={1}>
             <PacketView api={api} />
           </box>
         )

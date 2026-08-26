@@ -1,12 +1,11 @@
 import { TextAttributes } from "@opentui/core"
 import { useTheme } from "../context/theme"
 import { useDialog } from "./dialog"
-import { useBindings, useCommandShortcut } from "../keymap"
+import { useBindings } from "../keymap"
 
 export function DialogHelp() {
   const dialog = useDialog()
   const { theme } = useTheme()
-  const commandShortcut = useCommandShortcut("command.palette.show")
 
   useBindings(() => ({
     bindings: [
@@ -27,9 +26,9 @@ export function DialogHelp() {
       </box>
       <box paddingBottom={1}>
         <text fg={theme.textMuted}>
-          Talk to recruit on the landing. /review tastes. /push is the human close. Recruit never emails.
+          Pick a req. Pick a person. Score, taste, apply.
         </text>
-        <text fg={theme.textMuted}>Press {commandShortcut()} for every command.</text>
+        <text fg={theme.textMuted}>Recruit never emails.</text>
       </box>
       <box flexDirection="row" justifyContent="flex-end" paddingBottom={1}>
         <box paddingLeft={3} paddingRight={3} backgroundColor={theme.primary} onMouseUp={() => dialog.clear()}>

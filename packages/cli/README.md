@@ -1,6 +1,6 @@
 # moks
 
-Product CLI / TUI / server for the moks hiring harness.
+Product CLI and TUI. Default agent is `recruit`.
 
 From this package:
 
@@ -10,4 +10,4 @@ bun dev
 bun run --conditions=browser src/index.ts
 ```
 
-Default agent is `recruit`. Headless fixture and loop docs live in the [repo README](../../README.md) and [`src/product/headless.md`](src/product/headless.md).
+Headless fixture and loop docs live in the [repo README](../../README.md) and [`src/product/headless.md`](src/product/headless.md).

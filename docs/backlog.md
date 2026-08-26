@@ -1,10 +1,10 @@
 # Recruiting harness backlog
 
-Work this list one item at a time. The fork is done. The coding product is gone. What remains is making the *working set* first-class the way a repo is first-class in a coding harness — not rebuilding the harness.
+**Frozen.** Waves 1–5 are done. Do not pick up open, deferred, or parking-lot items from this file. New work is `docs/cutover.md`.
 
-Strategy: `docs/gtm.html`. Ontology: `AGENTS.md`. Ledger-first port: `docs/mox-port.md`. Slash inventory: `docs/slash-commands.md`.
+The list below is a record. Do not reopen deferred items. Do not execute Wave 6 from here.
 
-**Execute waves 1–5:** do every **open** item in wave order. Skip `done`, `deferred`, Cancelled, Parking lot, Wave 6, and H27. Do not pick up Deferred. If an item’s Keep would be deleted, stop and split.
+Strategy: `docs/cutover.md`, then `docs/gtm.html`. Ontology: `AGENTS.md`. Ledger-first port: `docs/mox-port.md`. Slash inventory: `docs/slash-commands.md`.
 
 ## How to pick up an item
 
@@ -37,7 +37,7 @@ Strategy: `docs/gtm.html`. Ontology: `AGENTS.md`. Ledger-first port: `docs/mox-p
 | file tree | company → reqs → slate |
 | diff | local hiring file deltas |
 | plan → implement | plan → recruit |
-| GitHub | ATS (adapter seam now; live Ashby is P6, on hold) |
+| GitHub | ATS (Ashby MCP behind our adapter; Wave 3 of `docs/cutover.md`) |
 
 `git commit` → `moks commit` and `git push` → `moks push` are the metaphor. Mechanics are the moks ledger (hash-chained changesets), not git.
 
@@ -397,7 +397,7 @@ Still wanted. Not in the current wave order. Bring back only after a conversatio
 
 ## Parking lot — not now
 
-- Live Ashby (P6, on hold). The adapter seam is the write path. No live ATS connection yet.
+- Live Ashby is Wave 3 of `docs/cutover.md`, not on hold. Do not start it from this file.
 - Calendar, send-email, or any outbound that isn’t “never send”
 - Typed score/outreach tools (skills + card files are the analog of edit)
 - Review pane (H27) before packet sidebar (H26)

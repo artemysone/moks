@@ -1,35 +1,35 @@
 # moks
 
-This repo is the product. moks is to talent acquisition what OpenCode is to software engineering.
+This repo is the product. Harvey is the company. TUI is the first surface. The buyer is a TA lead, not an engineer who already likes coding agents.
 
-**Code is everything** means the *shape* of agentic work is domain-portable: workspace, plan, tools, permissions, local working copy, remote system of record, review, and push. We do **not** rebuild the harness. We rewrite the job from “ship software” to “fill reqs / move candidates with evidence.”
+Req is the matter. Cards are projections. The ledger owns decisions and assessments. ATS is a connected system, not the truth. The agent stages. A human applies.
 
-People are not files. The working set is materials, records, and drafts.
+Closed product, prestige-first, high ACV. MIT on the fork is lineage, not GTM. OpenCode is lineage, not the pitch.
 
-Strategy: `docs/gtm.html`.
+Strategy: `docs/cutover.md`. Partner page: `docs/gtm.html`.
 
 ## Ontology (locked)
 
-The company folder is the workspace (the repo). A req is a subdirectory you focus (a package). Cards stay markdown working copies. People are not files.
+The company folder is the local workspace. A req is a subdirectory you focus. Cards stay markdown projections. People are not files. The filesystem is not the product.
 
 ```
 <company>/                    ← workspace root
   COMPANY.md                  ← company constitution
   <req>/                      ← a requisition
     HIRING.md                 ← req constitution
-    candidates/<id>.md        ← working copies
+    candidates/<id>.md        ← projections
   .moks/                      ← ledger + cache (ledger.sqlite, vault.key, focus)
 ```
 
-Cards are the human-readable projection. The ledger is the system of record for decisions and ATS mutations.
+Cards are the human-readable projection. The ledger is the system of record for decisions, assessments, and ATS mutations.
 
 | Piece | Role |
 |-------|------|
 | workspace root | the company |
 | `COMPANY.md` | company constitution (always injected; company bar is a section here) |
-| `<req>/` | a requisition |
+| `<req>/` | a requisition. This is the matter. |
 | `<req>/HIRING.md` | req constitution (scorecard, must-haves, process) |
-| `<req>/candidates/<id>.md` | working copies (score, outreach, notes) |
+| `<req>/candidates/<id>.md` | projections (score, outreach, notes) |
 | focus (`@<req>` or last-focused req) | working set this turn |
 | `moks commit` | stage a changeset on the moks ledger |
 | `moks push` | apply approved changesets via the ATS adapter (human only) |
@@ -38,21 +38,23 @@ Cards are the human-readable projection. The ledger is the system of record for 
 
 `/init` at the company root writes the company dossier (`COMPANY.md` + `.moks/`) and never spawns a req. `/open-req` scaffolds `<req>/HIRING.md` + `<req>/candidates/`. The role scorecard is a section of the req `HIRING.md`; there is no `SCORECARD.md` and no company-root `HIRING.md`. A root that itself has `HIRING.md` + `candidates/` is a single-req workspace (fixture / one-req company).
 
-The filesystem is the book. Do not invent `.moks/reqs/`. Do not build a cloud req picker. Do not treat a parent software repo as the company.
+Do not invent `.moks/reqs/`. Do not build a cloud req picker. Do not treat a parent software repo as the company. Do not treat the ATS as the system of record. Do not leave scores only on cards.
 
 ## Porting rule
 
-Mold the harness. Do not rebuild it.
+Mold the runtime. Do not rebuild it.
 
 Keep: session runner, permissions, MCP host, skill loader, multi-provider, plan-mode machinery, diff plumbing.
 
 Change: prominence, defaults, copy, agent wiring, workspace paths.
 
+The table below is an implementation note for people touching OpenCode guts. It is not the product.
+
 | OpenCode | moks | Wrong port |
 |----------|------|------------|
-| Repo / project | Company folder is the workspace | One git remote per req; cwd-only req |
+| Repo / project | Company folder is the local workspace | One git remote per req; cwd-only req |
 | `AGENTS.md` | `COMPANY.md` at company + `HIRING.md` per req | `/init` still writes coding AGENTS.md |
-| GitHub | ATS (adapter seam; live Ashby on hold) | GitHub recruiting as the product |
+| GitHub | ATS (Ashby MCP behind our adapter; Greenhouse next) | GitHub recruiting as the product |
 | Working tree | company + focused req packet | Cloud ATS with no local drafts |
 | Diff | Local hiring file deltas | Delete diff, or only show remote ATS |
 | `git commit` | `moks commit` (ledger changeset, not a git commit) | Raw `git commit`; commit with no push path |
@@ -63,25 +65,25 @@ Change: prominence, defaults, copy, agent wiring, workspace paths.
 | Explore codebase | Explore HIRING.md / cards / notes | Explore → OSINT-only agent |
 | LSP / formatters | Not a TA surface (defaults off) | TA-LSP metaphor, or delete the subsystem |
 
-The analog map stays. Mechanics are the moks ledger (hash-chained changesets), not git. Git may still exist for `/init` repo detection. That is not the product audit trail.
+Mechanics are the moks ledger (hash-chained changesets), not git. Git may still exist for `/init` repo detection. That is not the product audit trail.
 
-Default loop: open company → `/init` a req → focus it → load that `HIRING.md` → score onto the card → draft outreach → `/review` → `moks commit` → `moks push`.
+Default loop: pick a req, pick a person, score, taste, apply. CLI verbs today are still `moks commit` and `moks push`. Recruiter-facing copy should say stage and apply.
 
-Cast: `recruit` is the doer. Plan stays and exits to `recruit`. There is no coding agent. Skills: `req-context`, `score-candidate`, `draft-outreach`, `commit-disposition`.
+Cast: `recruit` is the orchestrator. First real agent is Screen / scorecard. Plan stays and exits to `recruit`. There is no coding agent. Skills: `req-context`, `score-candidate`, `draft-outreach`, `commit-disposition`.
 
 We do **not** use product moks to code this repo. Day-to-day engineering is the installed coding agent. Monorepo `.opencode/` configures that agent. It is not product code.
 
 ## Product path
 
-Work lives in `packages/cli`, `packages/client`, `packages/engine`, and `packages/tui`. Harness internals sit under `packages/engine/` (`core`, `ledger`, `llm`, `server`, `protocol`, `schema`, `plugin`, `sdk/js`). `packages/sdk-next` and `packages/codemode` stay at the parent for review.
+Work lives in `packages/cli`, `packages/client`, `packages/engine`, and `packages/tui`. Runtime internals sit under `packages/engine/` (`core`, `ledger`, `llm`, `server`, `protocol`, `schema`, `plugin`, `sdk/js`). `packages/sdk-next` and `packages/codemode` stay at the parent for review.
 
-Folder `packages/cli` (npm name `moks`) and npm names `@moks/*` are the product. Monorepo `.opencode/` is the installed coding agent that edits this repo — not product code.
+Folder `packages/cli` (npm name `moks`) and npm names `@moks/*` are the product. Monorepo `.opencode/` is the installed coding agent that edits this repo. It is not product code.
 
-Do not bring back pruned company surfaces (desktop, console, web, app, SST). Do not ship under OpenCode install names. MIT stays; keep existing copyright notices; add moks copyright only on new work.
+TUI first. Do not bring back pruned company surfaces (desktop, console, web, app, SST). No rooms in this cut-over. Do not ship under OpenCode install names. MIT stays; keep existing copyright notices; add moks copyright only on new work.
 
 Product identity is isolated: `moks.json` / `.moks/` / `MOKS_*` / `~/.config/moks`. Ignore `opencode.json`, `.opencode/`, and `OPENCODE_*`.
 
-Do not plan or document work as v1 vs v2. There is one product: the CLI/TUI.
+Do not plan or document work as v1 vs v2. There is one product: the CLI/TUI. Live Ashby is Wave 3 of `docs/cutover.md`. Not on hold.
 
 TUI and `moks run` prompt through `SessionPrompt.loop` in `packages/cli/src/session`. That is the shipped loop.
 

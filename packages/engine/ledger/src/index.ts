@@ -126,6 +126,15 @@ export {
   type PermissionResponse,
 } from "./events.ts";
 export { migrateMockAts, migrateWorkspace } from "./schema.ts";
+export type { Assessment, AssessmentDimension, ReqJob, SaveAssessmentInput } from "./assessment.ts";
+export {
+  bindReqJob,
+  getAssessment,
+  getReqJob,
+  latestAssessment,
+  listAssessments,
+  saveAssessment,
+} from "./assessment.ts";
 export {
   defaultFixturePath,
   defaultGreenhouseFixturePath,
