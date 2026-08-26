@@ -1,8 +1,10 @@
 # moks
 
-Pick a req, score people with evidence, bless the write, apply to the ATS.
+The operating system for high-stakes talent acquisition. Works with your current ATS or becomes it.
 
-Req is the matter. Cards are projections. The ledger owns decisions and assessments. The agent stages. A human applies. Mock ATS is the default. Live Ashby is the path.
+You type `moks`. That is the TUI. Harvey is the company. The buyer is a TA lead.
+
+Pick a req, score people with evidence, bless the write, apply to the ATS. Req is the matter. Cards are projections. The ledger owns decisions and assessments. The agent stages. A human applies. Mock ATS is the default. Live Ashby is the path. Not Claude plus an ATS plugin.
 
 ## Hiring loop
 
@@ -129,14 +131,9 @@ Hard fork of [OpenCode](https://github.com/anomalyco/opencode). MIT licensed. **
 | PR review | `/review` packet review |
 | Build agent | `recruit` (`build` stays hidden) |
 
-## Docs
+## Strategy
 
-| Doc | What |
-|-----|------|
-| [docs/cutover.md](docs/cutover.md) | Execution plan |
-| [docs/gtm.html](docs/gtm.html) | Partner GTM |
-| [AGENTS.md](AGENTS.md) | Constitution for work in this repo |
-| [docs/mox-port.md](docs/mox-port.md) | Ledger-first port (verbs, adapter seam) |
+[docs/strategy.md](docs/strategy.md)
 
 ## License
 

@@ -2,11 +2,13 @@
 
 This repo is the product. Harvey is the company. TUI is the first surface. The buyer is a TA lead, not an engineer who already likes coding agents.
 
+Harvey is the operating system for high-stakes talent acquisition. It works with the current ATS or becomes it. Not a chatbot, not a sourcing tool, not Claude plus an ATS plugin.
+
 Req is the matter. Cards are projections. The ledger owns decisions and assessments. ATS is a connected system, not the truth. The agent stages. A human applies.
 
 Closed product, prestige-first, high ACV. MIT on the fork is lineage, not GTM. OpenCode is lineage, not the pitch.
 
-Strategy lives in `docs/cutover.md`. Partner page is `docs/gtm.html`.
+Strategy: `docs/strategy.md`. Plans, notes, and other docs land in `docs/`. Do not add them at the repo root.
 
 ## Ontology (locked)
 
@@ -83,7 +85,7 @@ TUI first. Do not bring back pruned company surfaces (desktop, console, web, app
 
 Product identity is isolated: `moks.json` / `.moks/` / `MOKS_*` / `~/.config/moks`. Ignore `opencode.json`, `.opencode/`, and `OPENCODE_*`.
 
-Do not plan or document work as v1 vs v2. There is one product: the CLI/TUI. Live Ashby is Wave 3 of `docs/cutover.md`. Not on hold.
+Do not plan or document work as v1 vs v2. There is one product: the CLI/TUI. Live Ashby is the 2-week ATS path. Not on hold.
 
 TUI and `moks run` prompt through `SessionPrompt.loop` in `packages/cli/src/session`. That is the shipped loop.
 
