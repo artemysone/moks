@@ -25,12 +25,8 @@ export async function importLedger(): Promise<LedgerModule> {
 }
 
 export async function ledgerDbExists(cwd?: string) {
-  let api: LedgerModule
-  try {
-    api = await importLedger()
-  } catch {
-    return false
-  }
+  const api = await importLedger().catch(() => undefined)
+  if (!api) return false
   const company = await companyCwd(cwd)
   const paths = api.workspacePaths(company)
   return Bun.file(paths.workspaceDb).exists()
@@ -96,12 +92,13 @@ export async function openLedger(cwd?: string): Promise<LedgerHandle> {
     const mockDb = api.openSqlite(paths.mockAtsDb)
     api.migrateMockAts(mockDb)
     closers.push(() => mockDb.close())
-    const policy = readPolicy(api, company, req)
+    const policy = api.readWorkspacePolicy({ cwd: company, reqDir: req })
     const adapter =
       ats === "mock"
         ? api.createMockAdapter(mockDb, { fixturePath: paths.fixtureFile, stages: policy.stages })
         : api.openAtsAdapter(ats, paths, closers, policy.stages)
-    if (ats === "mock" && adapter.close) closers.push(() => adapter.close?.())
+    const close = adapter.close
+    if (ats === "mock" && close) closers.push(() => close())
     const vault = api.openVault(db, paths.vaultKey)
     return {
       api,
@@ -113,28 +110,18 @@ export async function openLedger(cwd?: string): Promise<LedgerHandle> {
       adapter,
       paths,
       policy,
-      close: () => {
-        for (const closer of closers.slice().reverse()) {
-          try {
-            closer()
-          } catch {
-            // Best effort; the original error is what the caller needs.
-          }
-        }
-      },
+      close: () => closeQuietly(closers),
     }
   } catch (error) {
-    for (const closer of closers.slice().reverse()) {
-      try {
-        closer()
-      } catch {
-        // Best effort; the original error is what the caller needs.
-      }
-    }
+    closeQuietly(closers)
     throw error
   }
 }
 
-function readPolicy(api: LedgerModule, company: string, req: string | undefined) {
-  return api.readWorkspacePolicy({ cwd: company, reqDir: req })
+function closeQuietly(closers: Array<() => void>) {
+  for (const closer of closers.slice().reverse()) {
+    try {
+      closer()
+    } catch {}
+  }
 }

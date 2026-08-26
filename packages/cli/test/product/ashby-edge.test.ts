@@ -60,6 +60,8 @@ describe("ashby tool permission keys", () => {
     expect(isMcpReadTool("greenhouse_search_candidates")).toBe(true)
     expect(isMcpReadTool("ashby_read_application")).toBe(true)
     expect(isMcpReadTool("ashby_fetch_candidate")).toBe(true)
+    expect(isMcpReadTool("my_ats_list_jobs")).toBe(true)
+    expect(isMcpReadTool("ashby_forget_candidate")).toBe(false)
     expect(isMcpWriteTool("ashby_change_stage")).toBe(true)
     expect(isMcpWriteTool("ashby_create_note")).toBe(true)
     expect(isMcpWriteTool("greenhouse_update_application")).toBe(true)

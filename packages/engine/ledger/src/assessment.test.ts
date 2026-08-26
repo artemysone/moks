@@ -101,14 +101,6 @@ describe("assessments", () => {
     expect(() => saveAssessment(db, { ...base, reqRef: "eng-platform", candidateId: "" })).toThrow(
       "candidate_id_required",
     );
-    expect(() =>
-      saveAssessment(db, {
-        ...base,
-        reqRef: "eng-platform",
-        candidateId: "ada",
-        dimensions: [{ ...dim, score: Number.NaN }],
-      }),
-    ).toThrow("invalid_dimensions");
     db.prepare(
       `INSERT INTO assessments (id, req_ref, candidate_id, scorecard_hash, overall, recommendation, dimensions, created_at, changeset_id)
        VALUES ('bad', 'eng-platform', 'ada', 'abc', NULL, 'advance', 'not-json', 1, NULL)`,

@@ -1,6 +1,6 @@
-# Recruiting harness backlog
+# Recruiting backlog
 
-**Frozen.** Waves 1–5 are done. Do not pick up open, deferred, or parking-lot items from this file. New work is `docs/cutover.md`.
+**Frozen.** Waves 1 to 5 are done. Do not pick up open, deferred, or parking-lot items from this file. New work is `docs/cutover.md`.
 
 The list below is a record. Do not reopen deferred items. Do not execute Wave 6 from here.
 

@@ -1,8 +1,8 @@
-# Headless / scriptable surface
+# Headless and scriptable
 
-Headless is a **mode of moks**, not a separate CLI product. Same verbs as interactive; add `--json` (or `run --format json`) for machine-readable stdout and stable exit codes.
+Headless is a mode of moks, not a separate CLI. Same verbs as interactive. Add `--json` or `run --format json` for machine-readable stdout and stable exit codes.
 
-The company folder is the workspace; focus selects the working req. `HIRING.md` is the req constitution. `candidates/*.md` are working copies. Cards are the human-readable projection. The ledger is the system of record for decisions and ATS mutations. `.moks/` is ledger + cache (`ledger.sqlite`, `vault.key`, focus).
+The company folder is the workspace. Focus selects the working req. `HIRING.md` is the req constitution. `candidates/*.md` are projections. The ledger is the system of record for decisions, assessments, and ATS mutations. `.moks/` is ledger + cache (`ledger.sqlite`, `vault.key`, focus).
 
 ## Fixture loop
 

@@ -20,15 +20,8 @@ export function isAshbyWriteTool(name: string) {
 
 const MCP_READ_PREFIXES = ["list_", "get_", "search_", "read_", "fetch_"] as const
 
-function mcpToolPart(name: string) {
-  const i = name.indexOf("_")
-  if (i === -1) return name
-  return name.slice(i + 1)
-}
-
 export function isMcpReadTool(name: string) {
-  const tool = mcpToolPart(name)
-  return MCP_READ_PREFIXES.some((prefix) => tool === prefix || tool.startsWith(prefix))
+  return MCP_READ_PREFIXES.some((prefix) => name.startsWith(prefix) || name.includes(`_${prefix}`))
 }
 
 export function isMcpWriteTool(name: string) {

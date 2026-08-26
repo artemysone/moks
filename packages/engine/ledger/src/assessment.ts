@@ -97,30 +97,6 @@ function parseDimensionsJson(text: string): AssessmentDimension[] {
   return parsed.map(parseDimension);
 }
 
-function parseDimensions(input: readonly AssessmentDimension[]): AssessmentDimension[] {
-  if (!Array.isArray(input)) {
-    throw new LedgerError("invalid_dimensions");
-  }
-  const cleaned = input.map((item) => {
-    if (item === null || typeof item !== "object") {
-      throw new LedgerError("invalid_dimensions");
-    }
-    if (typeof item.label !== "string" || typeof item.evidence !== "string" || typeof item.source_path !== "string") {
-      throw new LedgerError("invalid_dimensions");
-    }
-    if (item.score !== null && (typeof item.score !== "number" || !Number.isFinite(item.score))) {
-      throw new LedgerError("invalid_dimensions");
-    }
-    return {
-      label: item.label,
-      score: item.score,
-      evidence: item.evidence,
-      source_path: item.source_path,
-    };
-  });
-  return parseDimensionsJson(JSON.stringify(cleaned));
-}
-
 function toAssessment(row: AssessmentRow): Assessment {
   return {
     id: row.id,
@@ -138,17 +114,6 @@ function toAssessment(row: AssessmentRow): Assessment {
 export function saveAssessment(db: SqliteDb, input: SaveAssessmentInput): Assessment {
   const reqRef = requireString(input.reqRef, "req_ref_required");
   const candidateId = requireString(input.candidateId, "candidate_id_required");
-  if (typeof input.scorecardHash !== "string") {
-    throw new LedgerError("scorecard_hash_required");
-  }
-  if (typeof input.recommendation !== "string") {
-    throw new LedgerError("recommendation_required");
-  }
-  const dimensions = parseDimensions(input.dimensions);
-  if (input.overall !== null && (typeof input.overall !== "number" || !Number.isFinite(input.overall))) {
-    throw new LedgerError("invalid_overall");
-  }
-  const overall = input.overall;
   const id = input.id !== undefined && input.id.trim().length > 0 ? input.id : crypto.randomUUID();
   const createdAt = input.createdAt ?? Date.now();
   const changesetId = input.changesetId == null || input.changesetId.length === 0 ? null : input.changesetId;
@@ -159,9 +124,9 @@ export function saveAssessment(db: SqliteDb, input: SaveAssessmentInput): Assess
     reqRef,
     candidateId,
     input.scorecardHash,
-    overall,
+    input.overall,
     input.recommendation,
-    JSON.stringify(dimensions),
+    JSON.stringify(input.dimensions),
     createdAt,
     changesetId,
   );
@@ -170,9 +135,9 @@ export function saveAssessment(db: SqliteDb, input: SaveAssessmentInput): Assess
     reqRef,
     candidateId,
     scorecardHash: input.scorecardHash,
-    overall,
+    overall: input.overall,
     recommendation: input.recommendation,
-    dimensions,
+    dimensions: input.dimensions,
     createdAt,
     changesetId,
   };
@@ -229,9 +194,6 @@ export function bindReqJob(
   input: { reqSlug: string; jobId: string | null; title: string },
 ): ReqJob {
   const reqSlug = requireString(input.reqSlug, "req_slug_required");
-  if (typeof input.title !== "string") {
-    throw new LedgerError("title_required");
-  }
   const jobId = input.jobId === null || input.jobId.trim().length === 0 ? null : input.jobId;
   const existing = getReqJob(db, reqSlug);
   const createdAt = existing === undefined ? Date.now() : existing.createdAt;

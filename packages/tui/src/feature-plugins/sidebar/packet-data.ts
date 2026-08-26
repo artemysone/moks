@@ -25,9 +25,7 @@ export type PacketData = {
   }
 }
 
-export type PacketRow =
-  | { kind: "req"; slug: string; title: string; focused: boolean }
-  | { kind: "candidate"; id: string; name: string; stage?: string; score?: number }
+export type PacketRow = ({ kind: "req" } & PacketReq) | ({ kind: "candidate" } & PacketCandidate)
 
 export async function loadPacket(dir: string) {
   const start = await nearestRoot(dir)
@@ -46,7 +44,7 @@ export function titleFromSlug(slug: string) {
   return slug
     .split("-")
     .filter(Boolean)
-    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .map((part) => part[0].toUpperCase() + part.slice(1))
     .join(" ")
 }
 
@@ -59,8 +57,8 @@ export function candidateLabel(card: PacketCandidate) {
 
 export function packetRows(packet: PacketData): PacketRow[] {
   return [
-    ...packet.reqs.map((req) => ({ kind: "req" as const, ...req })),
-    ...(packet.packet?.candidates.map((card) => ({ kind: "candidate" as const, ...card })) ?? []),
+    ...packet.reqs.map((req): PacketRow => ({ kind: "req", ...req })),
+    ...(packet.packet?.candidates.map((card): PacketRow => ({ kind: "candidate", ...card })) ?? []),
   ]
 }
 
@@ -150,22 +148,18 @@ function parseCard(text: string) {
 }
 
 async function readCompanyTitle(dir: string) {
-  if (await hasCompanyFile(dir)) {
-    const text = await Bun.file(path.join(dir, "COMPANY.md"))
-      .text()
-      .catch(() => "")
-    return firstHeading(text) || path.basename(dir)
-  }
-  return readTitle(dir)
+  if (!(await hasCompanyFile(dir))) return readTitle(dir)
+  const text = await Bun.file(path.join(dir, "COMPANY.md"))
+    .text()
+    .catch(() => "")
+  return firstHeading(text) || path.basename(dir)
 }
 
 async function readTitle(dir: string) {
   const text = await Bun.file(path.join(dir, "HIRING.md"))
     .text()
-    .catch(() => undefined)
-  const title = text ? firstHeading(text) : undefined
-  if (title) return title
-  return path.basename(dir)
+    .catch(() => "")
+  return firstHeading(text) || path.basename(dir)
 }
 
 async function nearestRoot(dir: string, depth = 0) {

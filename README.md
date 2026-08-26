@@ -1,12 +1,12 @@
 # moks
 
-The TUI for high-stakes recruiting. Pick a req, score people with evidence, bless the write, apply to the ATS.
+Pick a req, score people with evidence, bless the write, apply to the ATS.
 
 Req is the matter. Cards are projections. The ledger owns decisions and assessments. The agent stages. A human applies. Mock ATS is the default. Live Ashby is the path.
 
 ## Hiring loop
 
-Default agent is **`recruit`**. TUI first.
+Default agent is `recruit`. TUI first.
 
 ```bash
 moks
@@ -119,7 +119,7 @@ Only curl installs (`~/.moks/bin/moks`) upgrade in place. npm / brew channels ar
 
 Hard fork of [OpenCode](https://github.com/anomalyco/opencode). MIT licensed. **Not** officially affiliated with OpenCode or Anomaly. That is not the pitch.
 
-| Coding agent | This runtime, pointed at hiring |
+| Coding agent | moks |
 |--------|------|
 | Repo | Company folder is the local workspace |
 | `AGENTS.md` | `COMPANY.md` + req `HIRING.md` |

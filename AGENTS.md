@@ -6,7 +6,7 @@ Req is the matter. Cards are projections. The ledger owns decisions and assessme
 
 Closed product, prestige-first, high ACV. MIT on the fork is lineage, not GTM. OpenCode is lineage, not the pitch.
 
-Strategy: `docs/cutover.md`. Partner page: `docs/gtm.html`.
+Strategy lives in `docs/cutover.md`. Partner page is `docs/gtm.html`.
 
 ## Ontology (locked)
 
@@ -34,7 +34,7 @@ Cards are the human-readable projection. The ledger is the system of record for 
 | `moks commit` | stage a changeset on the moks ledger |
 | `moks push` | apply approved changesets via the ATS adapter (human only) |
 | `.moks/` | ledger + cache at company root. Not a hiring book |
-| `~/.config/moks/HIRING.md` | this recruiter’s global constitution |
+| `~/.config/moks/HIRING.md` | this recruiter's global constitution |
 
 `/init` at the company root writes the company dossier (`COMPANY.md` + `.moks/`) and never spawns a req. `/open-req` scaffolds `<req>/HIRING.md` + `<req>/candidates/`. The role scorecard is a section of the req `HIRING.md`; there is no `SCORECARD.md` and no company-root `HIRING.md`. A root that itself has `HIRING.md` + `candidates/` is a single-req workspace (fixture / one-req company).
 
@@ -69,7 +69,7 @@ Mechanics are the moks ledger (hash-chained changesets), not git. Git may still 
 
 Default loop: pick a req, pick a person, score, taste, apply. CLI verbs today are still `moks commit` and `moks push`. Recruiter-facing copy should say stage and apply.
 
-Cast: `recruit` is the orchestrator. First real agent is Screen / scorecard. Plan stays and exits to `recruit`. There is no coding agent. Skills: `req-context`, `score-candidate`, `draft-outreach`, `commit-disposition`.
+`recruit` is the orchestrator. First real agent is Screen / scorecard. Plan stays and exits to `recruit`. There is no coding agent. Skills: `req-context`, `score-candidate`, `draft-outreach`, `commit-disposition`.
 
 We do **not** use product moks to code this repo. Day-to-day engineering is the installed coding agent. Monorepo `.opencode/` configures that agent. It is not product code.
 

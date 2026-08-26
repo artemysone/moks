@@ -15,14 +15,15 @@ import {
 
 export function PacketView(props: { api: TuiPluginApi }) {
   const theme = () => props.api.theme.current
-  const directory = props.api.state.path.directory
   const promptRef = usePromptRef()
-  const [data, { refetch }] = createResource(() => directory, (dir) => (dir ? loadPacket(dir) : undefined))
+  const [data, { refetch }] = createResource(
+    () => props.api.state.path.directory,
+    (dir) => (dir ? loadPacket(dir) : undefined),
+  )
   const [cursor, setCursor] = createSignal(0)
   const rows = createMemo(() => {
     const packet = data()
-    if (!packet) return []
-    return packetRows(packet)
+    return packet ? packetRows(packet) : []
   })
   const selected = createMemo(() => movePacketIndex(cursor(), 0, rows().length))
 
@@ -41,13 +42,11 @@ export function PacketView(props: { api: TuiPluginApi }) {
     promptRef.current?.set({ input: scorePrompt(row.id), parts: [] })
   }
 
-  // Empty composer: up/down/enter pick the slate. Typing disables this so Enter submits.
   useBindings(() => ({
     enabled: () => {
       if (rows().length === 0) return false
       const prompt = promptRef.current
-      if (!prompt?.focused) return true
-      return prompt.current.input === ""
+      return !prompt?.focused || prompt.current.input === ""
     },
     bindings: [
       {
@@ -86,7 +85,7 @@ export function PacketView(props: { api: TuiPluginApi }) {
                   gap={1}
                   onMouseDown={() => {
                     setCursor(index())
-                    activate({ kind: "req", ...req })
+                    activate(rows()[index()])
                   }}
                 >
                   <text
@@ -116,7 +115,7 @@ export function PacketView(props: { api: TuiPluginApi }) {
                         flexDirection="row"
                         onMouseDown={() => {
                           setCursor(at())
-                          activate({ kind: "candidate", ...card })
+                          activate(rows()[at()])
                         }}
                       >
                         <text fg={selected() === at() ? theme().primary : theme().textMuted} wrapMode="none">

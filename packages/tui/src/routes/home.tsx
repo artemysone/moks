@@ -50,7 +50,6 @@ export function Home() {
     once = true
   }
 
-  // Wait for sync and model store to be ready before auto-submitting --prompt
   createEffect(() => {
     const r = ref()
     if (sent) return
